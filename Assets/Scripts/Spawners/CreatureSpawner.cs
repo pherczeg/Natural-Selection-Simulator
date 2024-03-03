@@ -45,10 +45,10 @@ public class CreatureSpawner : MonoBehaviour
         }
     }
 
-    public CreatureBehavior SpawnCreature(Vector3 spawnPosition)
+    public CreatureBehaviour SpawnCreature(Vector3 spawnPosition)
     {
         GameObject newCreature = Instantiate(creaturePrefab, spawnPosition, Quaternion.identity);
-        var newCreatureBehaviour = newCreature.GetComponent<CreatureBehavior>();
+        var newCreatureBehaviour = newCreature.GetComponent<CreatureBehaviour>();
         newCreatureBehaviour.energyLevel = 100f;
         return newCreatureBehaviour;
     }

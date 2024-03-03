@@ -26,7 +26,7 @@ public class Statistics : MonoBehaviour
 
     void UpdateStatistics()
     {
-        CreatureBehavior[] creatures = FindObjectsOfType<CreatureBehavior>();
+        CreatureBehaviour[] creatures = FindObjectsOfType<CreatureBehaviour>();
         int creatureCount = creatures.Length;
 
         if (creatureCount > 0)

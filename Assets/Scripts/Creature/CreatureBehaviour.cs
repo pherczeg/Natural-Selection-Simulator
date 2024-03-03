@@ -4,13 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Unity.Collections;
 using Unity.Jobs;
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.SocialPlatforms;
-using UnityEngine.UIElements;
-using static UnityEditorInternal.VersionControl.ListControl;
-using static UnityEngine.EventSystems.EventTrigger;
 
 public enum CreatureState
 {
@@ -30,8 +24,7 @@ public enum ObservationType
     Creature
 }
 
-
-public class CreatureBehavior : MonoBehaviour
+public class CreatureBehaviour : MonoBehaviour
 {
     public struct ObservationData
     {
@@ -39,25 +32,22 @@ public class CreatureBehavior : MonoBehaviour
         public float distance;
         public GameObject observedObject;
     }
-    public static event System.Action<CreatureBehavior> OnCreatureSpawned;
-    public static event System.Action<CreatureBehavior> OnCreatureDestroyed;
+    #region Actions
+    public static event Action<CreatureBehaviour> OnCreatureSpawned;
+    public static event Action<CreatureBehaviour> OnCreatureDestroyed;
+    #endregion
 
-    private bool isRaycastResultsDisposed = false; // Állapotjelzõ az erõforrások felszabadításának nyomon követésére
-
-    // Struct to store observation data
-    private CreatureSpawner creatureSpawner;
     private const float BLACKLIST_DURATION = 3f;
-    private const float UPDATE_INTERVAL = .4f;
-    private const float REPRODUCTION_COOLDOWN= 7f;// Time (in seconds) to remember a food to avoid
-    private const float matingAge = 5f;
-    private const float MAX_AGE = 30f;
-    private const float eatingDuration = 2f; // Time in seconds that creature takes to eat
+    private const float UPDATE_INTERVAL = .2f;
+    private const float REPRODUCTION_COOLDOWN= 7f;
+    private const float MATING_AGE = 20f;
+    private const float MAX_AGE = 60f;
+    private const float EATING_DURATION = 1f;
+    private const float MUTATION_RATE = 0.5f;
 
-    private NativeArray<RaycastCommand> raycastCommands;
-    private NativeArray<RaycastHit> raycastResults;
-    private JobHandle raycastJobHandle;
-    // Limits, durations and thresholds for the entity
-    public float energyThreshold = 0.8f; // Adjust this value as required
+    private CreatureSpawner creatureSpawner;
+
+    public float energyThreshold = 0.8f;
     public float maxEnergy = 100f;
     float initialEnergyPercentage = 0.5f;
     private float matingEnergyThreshold = 0.95f;
@@ -69,9 +59,8 @@ public class CreatureBehavior : MonoBehaviour
     public float moveSpeed = 5f;
     public float senseRadius = 15f;
     public float energyLevel;
-    //public Material energyBarMaterial;
-    public GameObject energyBarObject;  // Drag the EnergyBar Quad GameObject here in the inspector
-    private EnergyBar energyBar;        // Reference to the EnergyBar component
+    public GameObject energyBarObject;
+    private EnergyBar energyBar;
 
     private Vector3 wanderTarget = Vector3.zero;
     private bool isEating = false;
@@ -87,10 +76,9 @@ public class CreatureBehavior : MonoBehaviour
     GameObject ground;
     void Start()
     {
-        raycastJobHandle = new JobHandle();
         creatureSpawner = FindObjectOfType<CreatureSpawner>();
         ground = GameObject.FindGameObjectWithTag("Ground");
-        //energyLevel = initialEnergyPercentage * maxEnergy;
+        energyLevel = initialEnergyPercentage * maxEnergy;
         if (energyBarObject)
         {
             energyBar = energyBarObject.GetComponent<EnergyBar>();
@@ -98,20 +86,6 @@ public class CreatureBehavior : MonoBehaviour
         
         StartCoroutine(RemoveExpiredBlacklistedFoods());
         StartCoroutine(UpdateRoutine());
-        lastObservation = 0;
-    }
-    void OnDestroy()
-    {
-        SafeDisposeNativeArray(ref raycastResults);
-        SafeDisposeNativeArray(ref raycastCommands);
-    }
-    private void SafeDisposeNativeArray<T>(ref NativeArray<T> array) where T : struct
-    {
-        if (array.IsCreated && !isRaycastResultsDisposed)
-        {
-            array.Dispose();
-            isRaycastResultsDisposed = true; // Jelezzük, hogy az erõforrást már felszabadítottuk
-        }
     }
     void FixedUpdate()
     {
@@ -122,7 +96,6 @@ public class CreatureBehavior : MonoBehaviour
             Destroy(gameObject);
             return;
         }
-        lastObservation += Time.deltaTime;
 
         // Ha eltelt .4 másodperc, frissítjük az észleléseket
         //if (lastObservation >= 0.4f)
@@ -134,7 +107,7 @@ public class CreatureBehavior : MonoBehaviour
         {
             currentState = CreatureState.SearchingForFood;
         }
-        else if (age >= matingAge && energyLevel > maxEnergy * 0.5f && reproductionCooldown <= 0f)
+        else if (age >= MATING_AGE && reproductionCooldown <= 0f)
         {
             currentState = CreatureState.SearchingForMate;
         }
@@ -171,93 +144,14 @@ public class CreatureBehavior : MonoBehaviour
             MakeMovementDecision();
         }
     }
-    public void ScheduleObservationUpdate(Vector3 creaturePosition, Vector3 forward,  int layerMask)
-    {
-        raycastCommands = new NativeArray<RaycastCommand>(numberOfRaycasts, Allocator.Temp);
-        raycastResults = new NativeArray<RaycastHit>(numberOfRaycasts, Allocator.Temp);
-
-        Vector3 position = creaturePosition + Vector3.up * 0.1f; // Kis eltolás
-
-        for (int i = 0; i < numberOfRaycasts; i++)
-        {
-            float angle = ((2 * i + 1 - numberOfRaycasts) * angleBetweenRaycasts / 2);
-            Quaternion rotation = Quaternion.AngleAxis(angle, Vector3.up);
-            Vector3 direction = rotation * forward;
-
-            // RaycastCommand inicializálása a saját QueryParameters használatával
-            var queryParameters = new QueryParameters
-            {
-                layerMask = layerMask
-            };
-
-            raycastCommands[i] = new RaycastCommand(position, direction, queryParameters, senseRadius);
-        }
-
-        // Schedule the batch of raycasts
-    }
-
-
-
-    // Ezt a metódust hívja meg, amikor a Creature létrejön vagy aktiválódik a játékban
     private void OnEnable()
     {
-        // Esemény kiváltása
         OnCreatureSpawned?.Invoke(this);
     }
-
-    // Ezt a metódust hívja meg, amikor a Creature megszûnik vagy deaktiválódik a játékban
     private void OnDisable()
     {
-        // Esemény kiváltása
         OnCreatureDestroyed?.Invoke(this);
     }
-
-    //void LateUpdate()
-    //{
-    //    // Ellenõrizzük, hogy a raycast job befejezõdött-e
-    //    if (raycastJobHandle.IsCompleted)
-    //    {
-    //        raycastJobHandle.Complete();
-
-    //        List<ObservationData> observations = new List<ObservationData>(); // Lista az észlelések tárolására
-
-    //        // Feldolgozzuk az eredményeket
-    //        for (int i = 0; i < raycastResults.Length; i++)
-    //        {
-    //            RaycastHit hit = raycastResults[i];
-    //            RaycastCommand command = raycastCommands[i]; // A raycast parancs, amely az eredeti ray adatokat tartalmazza
-
-
-
-    //            if (hit.collider != null)
-    //            {
-    //                //Debug.DrawRay(command.from, command.direction * hit.distance, Color.green, .1f);
-    //                // Hozzuk létre az ObservationData példányt a találati adatokkal
-    //                ObservationData observation = new ObservationData
-    //                {
-    //                    distance = hit.distance,
-    //                    observedObject = hit.collider.gameObject,
-    //                    type = DetermineObservationType(hit.collider.gameObject)
-    //                };
-
-    //                observations.Add(observation); // Hozzáadjuk az észlelést a listához
-
-    //                // Opcionális: Debug log a találatról
-    //                Debug.Log($"Hit: {hit.collider.gameObject.name}, Distance: {hit.distance}, Type: {observation.type}");
-    //            }
-    //            else
-    //            {
-    //                // Nincs találat: piros szín, a teljes hatótávolságig
-    //                //Debug.DrawRay(command.from, command.direction * command.distance, Color.red, .1f);
-    //            }
-    //        }
-
-    //        // Tisztítás
-    //        raycastCommands.Dispose();
-    //        raycastResults.Dispose();
-    //        raycastJobHandle = new JobHandle();
-    //    }
-    //}
     private ObservationType DetermineObservationType(GameObject obj)
     {
         if (obj.CompareTag("Food")) return ObservationType.Food;
@@ -265,14 +159,13 @@ public class CreatureBehavior : MonoBehaviour
         if (obj.CompareTag("Creature")) return ObservationType.Creature;
         return ObservationType.None;
     }
-
     private IEnumerator UpdateRoutine()
     {
         while (true)
         {
             IncreaseAge();
             EnergyManagement();
-
+            UpdateObservations();
             yield return new WaitForSeconds(UPDATE_INTERVAL); // Másodpercenként frissít
         }
     }
@@ -286,7 +179,7 @@ public class CreatureBehavior : MonoBehaviour
                                       //Time.fixedDeltaTime) *
                                       UPDATE_INTERVAL*
                                       //numberOfRaycasts * senseRadius * 
-                                      0.00001f;
+                                      0.001f;
             energyLevel -= energyConsumption;
         }
         UpdateEnergyBar();
@@ -298,19 +191,19 @@ public class CreatureBehavior : MonoBehaviour
             energyBar.SetEnergy(energyLevel, maxEnergy);
         }
     }
-    private float lastObservation;
     void UpdateObservations()
     {
-        // Reset observations
         observations.Clear();
-        //Debugoláshoz
-        //RaycastHit rayHit;
-        //if (Physics.Raycast(transform.position, transform.forward, out rayHit, 100))
-        //{
-        //    Vector3 incomingDirection = transform.forward;
-        //    Vector3 reflectDirection = Vector3.Reflect(incomingDirection, rayHit.normal).normalized;
-        //    Debug.DrawRay(transform.position + Vector3.up * 0.1f, reflectDirection * rayHit.distance, Color.blue);
-        //}
+#if DEBUG
+
+        RaycastHit rayHit;
+        if (Physics.Raycast(transform.position, transform.forward, out rayHit, 100))
+        {
+            Vector3 incomingDirection = transform.forward;
+            Vector3 reflectDirection = Vector3.Reflect(incomingDirection, rayHit.normal).normalized;
+            Debug.DrawRay(transform.position + Vector3.up * 0.1f, reflectDirection * rayHit.distance, Color.blue);
+        }
+#endif
         for (int i = 0; i < numberOfRaycasts; i++)
         {
             float angle = ((2 * i + 1 - numberOfRaycasts) * angleBetweenRaycasts / 2);
@@ -405,7 +298,7 @@ public class CreatureBehavior : MonoBehaviour
             {
                 continue;
             }
-            CreatureBehavior otherCreature = observation.Value.observedObject.transform.parent.GetComponent<CreatureBehavior>();
+            CreatureBehaviour otherCreature = observation.Value.observedObject.transform.parent.GetComponent<CreatureBehaviour>();
             if (otherCreature != null && otherCreature.IsReadyToMate() && otherCreature != this)
             {
                 float distance = Vector3.Distance(transform.position, otherCreature.transform.position);
@@ -419,11 +312,11 @@ public class CreatureBehavior : MonoBehaviour
 
         if (potentialMate != null)
         {
-            CreatureBehavior otherCreature = potentialMate.GetComponent<CreatureBehavior>();
+            CreatureBehaviour otherCreature = potentialMate.GetComponent<CreatureBehaviour>();
             MoveAndFaceDirection(potentialMate.transform.position);
             if (closestMateDistance <= 1f && otherCreature.IsReadyToMate()) // Feltételezve, hogy 1 egység a párosodási távolság
             {
-                Mate(potentialMate.GetComponent<CreatureBehavior>());
+                Mate(potentialMate.GetComponent<CreatureBehaviour>());
             }
         }
         else
@@ -431,10 +324,10 @@ public class CreatureBehavior : MonoBehaviour
             Wander(); // Ha nincs potenciális társ a közelben, akkor folytassa a vándorlást
         }
     }
-    void Mate(CreatureBehavior mate)
+    void Mate(CreatureBehaviour mate)
     {
   
-        CreatureBehavior offspringBehavior = creatureSpawner.SpawnCreature(gameObject.transform.position);
+        CreatureBehaviour offspringBehavior = creatureSpawner.SpawnCreature(gameObject.transform.position);
 
         // Öröklõdés és mutáció
         offspringBehavior.weight = InheritWithMutation(this.weight, mate.weight, 2);
@@ -449,7 +342,6 @@ public class CreatureBehavior : MonoBehaviour
         this.currentState = CreatureState.Wandering;
         mate.currentState = CreatureState.Wandering;
     }
-
     float InheritWithMutation(float trait1, float trait2, float minvalue)
     {
         float inheritedTrait = UnityEngine.Random.value < 0.5f ? trait1 : trait2;
@@ -458,7 +350,7 @@ public class CreatureBehavior : MonoBehaviour
         float mutationChance = 0.25f; // 25% esély a mutációra
         if (UnityEngine.Random.value < mutationChance)
         {
-            float mutationAmount = UnityEngine.Random.Range(-0.2f, 0.2f); // A mutáció mértéke
+            float mutationAmount = UnityEngine.Random.Range((-1)* MUTATION_RATE, MUTATION_RATE); // A mutáció mértéke
             inheritedTrait += mutationAmount;
         }
 
@@ -470,7 +362,6 @@ public class CreatureBehavior : MonoBehaviour
 
         return inheritedTrait;
     }
-
     void MoveAndFaceDirection(Vector3 targetPosition)
     {
         // Csak a vízszintes irányban mozogjunk
@@ -541,7 +432,7 @@ public class CreatureBehavior : MonoBehaviour
             }
             if (foodComponent.isBeingEaten)
             {
-                CreatureBehavior otherCreature = foodComponent.GetEatingCreature();
+                CreatureBehaviour otherCreature = foodComponent.GetEatingCreature();
                 if (otherCreature != null)
                 {
                     if (this.weight > otherCreature.weight * 1.5f)
@@ -582,10 +473,10 @@ public class CreatureBehavior : MonoBehaviour
         {
             isEating = true;
             SetState(CreatureState.Eating);
-            float energyPerSecond = nutritionValue / eatingDuration;
+            float energyPerSecond = nutritionValue / EATING_DURATION;
             float elapsedTime = 0f;
 
-            while (elapsedTime < eatingDuration && isEating)
+            while (elapsedTime < EATING_DURATION && isEating)
             {
                 float energyThisFrame = energyPerSecond * Time.fixedDeltaTime;
                 if (energyThisFrame +  energyLevel > maxEnergy)
@@ -771,7 +662,7 @@ public class CreatureBehavior : MonoBehaviour
     {
         // Itt határozd meg a szaporodási képesség feltételeit
         var requiredEnergy = matingEnergyThreshold  *  maxEnergy;
-        return energyLevel > requiredEnergy && age > matingAge;
+        return energyLevel > requiredEnergy && age > MATING_AGE && reproductionCooldown <= 0;
     }
     void IncreaseAge()
     {

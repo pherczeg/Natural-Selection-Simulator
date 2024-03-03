@@ -12,7 +12,7 @@ public class Food : MonoBehaviour
     public float nutritionValue = 10f;
     public bool isBeingEaten = false;
     public float age = 0f;
-    private CreatureBehavior eatingCreature = null;
+    private CreatureBehaviour eatingCreature = null;
     private Renderer _renderer;
     // Start is called before the first frame update
     void Start()
@@ -42,7 +42,7 @@ public class Food : MonoBehaviour
     /// 
     /// </summary>
     /// <returns></returns>
-    public bool TryStartEating(CreatureBehavior creature)
+    public bool TryStartEating(CreatureBehaviour creature)
     {
         if (!isBeingEaten)
         {
@@ -59,7 +59,7 @@ public class Food : MonoBehaviour
         eatingCreature = null;
     }
 
-    public CreatureBehavior GetEatingCreature()
+    public CreatureBehaviour GetEatingCreature()
     {
         return eatingCreature;
     }

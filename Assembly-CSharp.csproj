@@ -60,16 +60,12 @@
   <ItemGroup>
     <Compile Include="Assets\Scripts\Spawners\CreatureSpawner.cs" />
     <Compile Include="Assets\Scripts\Food.cs" />
-    <Compile Include="Assets\Scripts\Creature\ObservationsManager.cs" />
     <Compile Include="Assets\Scripts\Spawners\FoodSpawner.cs" />
-    <Compile Include="Assets\Scripts\Creature\HerbivoreCreature.cs" />
     <Compile Include="Assets\Scripts\Creature\InfoBars\EnergyBar.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour.cs" />
-    <Compile Include="Assets\Scripts\Creature\Creature.cs" />
     <Compile Include="Assets\Scripts\Statistics.cs" />
     <Compile Include="Assets\Scripts\CameraController.cs" />
     <Compile Include="Assets\Scripts\Creature\InfoBars\Billboard.cs" />
-    <Compile Include="Assets\Scripts\Creature\CreatureManager.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Shaders\EnergyBarShader.shader" />
