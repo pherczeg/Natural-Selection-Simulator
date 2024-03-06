@@ -18,6 +18,5 @@ public class IdleState : ICreatureState
 
     public void UpdateState()
     {
-        creature.stateMachine.TransitionToWandering();
     }
 }

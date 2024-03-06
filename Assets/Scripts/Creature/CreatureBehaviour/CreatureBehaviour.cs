@@ -138,5 +138,9 @@ public class CreatureBehaviour : MonoBehaviour
         {
             stateMachine.TransitionToSearchingForFood();
         }
+        else if(stateMachine.CurrentState.StateType == CreatureStateType.Idle)
+        {
+            stateMachine.TransitionToWandering();
+        }
     }
 }

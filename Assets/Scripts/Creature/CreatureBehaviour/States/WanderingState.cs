@@ -25,7 +25,6 @@ internal class WanderingState : ICreatureState
             if (creature.MovementManager.IsTargetReached(target))
             {
                 target = creature.MovementManager.Wander();
-                target = Vector3.zero;
             }
             creature.MovementManager.MoveTowards(target);
         }

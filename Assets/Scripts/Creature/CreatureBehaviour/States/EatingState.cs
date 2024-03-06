@@ -21,6 +21,7 @@ internal class EatingState : ICreatureState
     public void ExitState()
     {
         isEating = false;
+        creature.coroutineRunner.StopCoroutine(creature.EatingManager.eatingCoroutine);
         creature.EatingManager.eatingCoroutine = null;
         creature.EatingManager.foodTarget = null;
     }

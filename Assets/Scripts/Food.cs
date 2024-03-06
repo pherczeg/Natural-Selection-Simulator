@@ -48,6 +48,17 @@ public class Food : MonoBehaviour
             eatingCreature = creature;
             return true;
         }
+        else if (eatingCreature != null) 
+        {
+#warning TODO : kiszervezni global settingsbe
+            //If the new creature's weight is 20% higher he will interrupt
+            if (creature.Weight >= eatingCreature.Weight * 1.2f) 
+            { 
+                eatingCreature.EatingManager.InterruptEating();
+                eatingCreature = creature;
+                return true;
+            }
+        }
         return false;
     }
 

@@ -45,7 +45,7 @@ public class EatingManager
             creature.EatingManager.BlacklistFood(foodTarget);
             foodTarget.StopEating();
             //isEating = false;
-            creature.stateMachine.TransitionToIdle();
+            creature.stateMachine.TransitionToWandering();
         }
     }
 }
