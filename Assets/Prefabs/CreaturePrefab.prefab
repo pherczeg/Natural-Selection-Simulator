@@ -250,7 +250,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7046975481958046981}
   - component: {fileID: 853866011874143052}
-  - component: {fileID: 4445096542322329122}
+  - component: {fileID: 8594252843405142366}
   m_Layer: 0
   m_Name: CreaturePrefab
   m_TagString: Creature
@@ -301,7 +301,7 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 84
   m_CollisionDetection: 0
---- !u!114 &4445096542322329122
+--- !u!114 &8594252843405142366
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -313,16 +313,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 16f8d0b4c6fd4c24db812728886edde4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  eatingDuration: 2
-  energyThreshold: 0.8
-  maxEnergy: 100
-  initialEnergyPercentage: 1
-  matingEnergyThreshold: 0.5
-  age: 0
-  reproductionCooldown: 0
-  currentState: 0
-  weight: 1
   moveSpeed: 5
   senseRadius: 15
   energyLevel: 0
+  age: 0
+  weight: 1
   energyBarObject: {fileID: 822491502839785203}
+  maxEnergy: 100

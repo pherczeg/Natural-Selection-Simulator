@@ -31,11 +31,11 @@ public class Statistics : MonoBehaviour
 
         if (creatureCount > 0)
         {
-            float averageWeight = creatures.Average(creature => creature.weight);
-            float averageSpeed = creatures.Average(creature => creature.moveSpeed);
-            float averageEnergy = creatures.Average(creature => creature.energyLevel);
-            float averageAge = creatures.Average(creature => creature.age);
-            float averageSenseRadius = creatures.Average(creature => creature.senseRadius);
+            float averageWeight = creatures.Average(creature => creature.Weight);
+            float averageSpeed = creatures.Average(creature => creature.MovementManager.MoveSpeed);
+            float averageEnergy = creatures.Average(creature => creature.EnergyManagement.EnergyLevel);
+            float averageAge = creatures.Average(creature => creature.Age);
+            float averageSenseRadius = creatures.Average(creature => creature.ObservationManager.SenseRadius);
 
             numberOfCreaturesHistory.Add(creatureCount);
             averageWeightHistory.Add(averageWeight);
@@ -45,7 +45,7 @@ public class Statistics : MonoBehaviour
             averageSenseRadiusHistory.Add(averageSenseRadius);
 
             // Itt kezeld a statisztikákat, például kiírhatod a konzolra
-            Debug.Log($"Egyedek száma: {creatureCount}, Átlag súly: {averageWeight}, Átlag sebesség: {averageSpeed}, Átlag energia: {averageEnergy}, Átlag érzékelés: {averageSenseRadius}, Átlag életkor: {averageAge}");
+            //Debug.Log($"Egyedek száma: {creatureCount}, Átlag súly: {averageWeight}, Átlag sebesség: {averageSpeed}, Átlag energia: {averageEnergy}, Átlag érzékelés: {averageSenseRadius}, Átlag életkor: {averageAge}");
         }
     }
 

@@ -1,3 +1,5 @@
+using Unity.VisualScripting.FullSerializer;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class CreatureSpawner : MonoBehaviour
@@ -34,12 +36,14 @@ public class CreatureSpawner : MonoBehaviour
                         );
                     }
 
-                    
-                    var newCreatureBehaviour = SpawnCreature(spawnPosition);
-                    newCreatureBehaviour.weight = Random.Range(2f, 10.0f);
-                    newCreatureBehaviour.moveSpeed = Random.Range(7f, 30f);
-                    newCreatureBehaviour.senseRadius = Random.Range(10f, 30f);
-                    newCreatureBehaviour.energyLevel = 100f;
+
+                    CreatureBehaviour newCreatureBehaviour = SpawnCreature(spawnPosition);
+                    var weight = Random.Range(2f, 10.0f);
+                    var moveSpeed = Random.Range(1f, 3f);
+                    var senseRange = Random.Range(10f, 30f);
+                    newCreatureBehaviour.Initialize(moveSpeed, weight, senseRange );
+
+
                 }
             }
         }
@@ -49,7 +53,6 @@ public class CreatureSpawner : MonoBehaviour
     {
         GameObject newCreature = Instantiate(creaturePrefab, spawnPosition, Quaternion.identity);
         var newCreatureBehaviour = newCreature.GetComponent<CreatureBehaviour>();
-        newCreatureBehaviour.energyLevel = 100f;
         return newCreatureBehaviour;
     }
 

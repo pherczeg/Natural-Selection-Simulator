@@ -33,10 +33,8 @@ public class Food : MonoBehaviour
         age += Time.fixedDeltaTime;
         if (eatingCreature == null && age > maxAge)
         {
-            Destroy(this.gameObject);
+            //Destroy(this.gameObject);
         }
-        else if (eatingCreature != null && isBeingEaten == true)
-            isBeingEaten=false;
     }
     /// <summary>
     /// 
@@ -64,7 +62,35 @@ public class Food : MonoBehaviour
         return eatingCreature;
     }
 
-    public void UpdateNutrition()
+    public void ConsumeNutrition(float value)
     {
+        if (isBeingEaten)
+        {
+            nutritionValue -= value;
+        }
+    }
+    public float GetMaxNutrition(float desiredValue)
+    {
+        if (isBeingEaten)
+        {
+            if (desiredValue  <= nutritionValue)
+            {
+                return desiredValue;
+            }
+            else 
+            {
+                var overFlow = desiredValue -nutritionValue;
+                return nutritionValue+overFlow; 
+            }
+        }
+        else 
+        { 
+            return 0; 
+        }   
+    }
+
+    public void DestroyOnDepletion()
+    {
+        Destroy(this.gameObject);
     }
 }
