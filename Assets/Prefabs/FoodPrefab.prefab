@@ -43,11 +43,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 1909847660352713250}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c692ada0e476a414293f10ea787da067, type: 3}
+  m_Script: {fileID: 11500000, guid: bc5d3b79106f5074295edaa9b1df3e3f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   nutritionValue: 10
   isBeingEaten: 0
+  age: 0
 --- !u!65 &6194201507956613025
 BoxCollider:
   m_ObjectHideFlags: 0

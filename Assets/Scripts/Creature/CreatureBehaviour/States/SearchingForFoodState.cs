@@ -25,7 +25,6 @@ public class SearchingForFoodState : ICreatureState
             if (creature.MovementManager.IsTargetReached(wanderTarget))
             {
                 SearchForFood();
-                wanderTarget = Vector3.zero;
             }
             creature.MovementManager.MoveTowards(wanderTarget);
         }
@@ -40,37 +39,49 @@ public class SearchingForFoodState : ICreatureState
 
     private void SearchForFood()
     {
+        Food closestFood = FindClosestNonBlacklistedFood();
+
+        if (closestFood != null)
+        {
+            creature.stateMachine.TransitionToMovingToFood(closestFood.gameObject);
+        }
+        else
+        {
+            EnsureWanderTarget();
+        }
+    }
+
+    private Food FindClosestNonBlacklistedFood()
+    {
         float closestFoodDistance = float.MaxValue;
-        Vector3 closestFoodPosition = Vector3.zero;
-        GameObject closestFood = null;
+        Food closestFood = null;
 
         foreach (var observation in creature.ObservationManager.Observations)
         {
-            if (observation.Value.type == ObservationType.Food && observation.Value.distance < closestFoodDistance)
+            if (observation.Value.observedObject == null)
             {
-                if (observation.Value.observedObject == null)
+                continue;
+            }
+            Food observedFood = observation.Value.observedObject?.GetComponent<Food>();
+            if (observation.Value.type == ObservationType.Food && observedFood && !creature.EatingManager.IsFoodBlacklisted(observedFood))
+            {
+                float distance = observation.Value.distance;
+                if (distance < closestFoodDistance)
                 {
-                    continue;
+                    closestFoodDistance = distance;
+                    closestFood = observedFood;
                 }
-                if (creature.EatingManager.IsFoodBlacklisted(observation.Value.observedObject.GetComponent<Food>())) // If the food is blacklisted we ignore it
-                {
-                    continue;
-                }
-                closestFoodDistance = observation.Value.distance;
-                closestFoodPosition = observation.Value.observedObject.transform.position;
-                closestFood = observation.Value.observedObject;
             }
         }
 
-        if (closestFoodDistance < float.MaxValue)
-        {
-            creature.stateMachine.TransitionToMovingToFood(closestFood);
-            return; // exit after making a decision
-        }
-        else if (wanderTarget.Equals(Vector3.zero))
+        return closestFood;
+    }
+
+    private void EnsureWanderTarget()
+    {
+        if (wanderTarget.Equals(Vector3.zero))
         {
             wanderTarget = creature.MovementManager.Wander();
         }
     }
-    
 }

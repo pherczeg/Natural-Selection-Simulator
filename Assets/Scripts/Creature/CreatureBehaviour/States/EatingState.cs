@@ -46,7 +46,7 @@ internal class EatingState : ICreatureState
             {
                 ProcessConsumptionInThisInterval(foodTarget);
                 elapsedTime += Time.fixedDeltaTime;
-                if (creature.EnergyManagement.EnergyLevel >= creature.maxEnergy)
+                if (creature.EnergyManager.EnergyLevel >= creature.maxEnergy)
                 {
                     isEating = false;
                     break;
@@ -80,12 +80,12 @@ internal class EatingState : ICreatureState
     private void ProcessConsumptionInThisInterval(Food foodTarget)
     {
         float energyDesiredThisFrame = creature.config.nutritionConsumptionRatePerSecond * Time.fixedDeltaTime;
-        if (energyDesiredThisFrame + creature.EnergyManagement.EnergyLevel > creature.maxEnergy)
+        if (energyDesiredThisFrame + creature.EnergyManager.EnergyLevel > creature.maxEnergy)
         {
-            energyDesiredThisFrame = creature.maxEnergy - creature.EnergyManagement.EnergyLevel;
+            energyDesiredThisFrame = creature.maxEnergy - creature.EnergyManager.EnergyLevel;
         }
         var actualNutritionValue = foodTarget.GetMaxNutrition(energyDesiredThisFrame);
-        creature.EnergyManagement.GainEnergy(actualNutritionValue);
+        creature.EnergyManager.GainEnergy(actualNutritionValue);
         foodTarget.ConsumeNutrition(actualNutritionValue);
     }
 }

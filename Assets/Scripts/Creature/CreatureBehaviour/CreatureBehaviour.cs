@@ -15,23 +15,24 @@ public class CreatureBehaviour : MonoBehaviour
     public GameObject energyBarObject;
     //private EnergyBar energyBar;
     public float maxEnergy = 100f;
-    public float Age => age;
+    //public float Age => age;
     public float Weight => weight;
     public float Energy
     {
         get
         {
-            if (EnergyManagement == null) 
+            if (EnergyManager == null) 
             {
                 return default(float);
             }
-            return EnergyManagement.EnergyLevel;
+            return EnergyManager.EnergyLevel;
         }
     }
     public MovementManager MovementManager { get; set; }
-    public EnergyManager EnergyManagement { get; set; }
+    public AgeManager AgeManager { get; set; }
+    public EnergyManager EnergyManager { get; set; }
     public ObservationManager ObservationManager { get; set; }
-    public ReproductionManager Reproduction { get; set; }
+    public ReproductionManager ReproductionManager { get; set; }
     public EatingManager EatingManager { get; set; }
 
     public CreatureStateType CurrentStateType
@@ -56,11 +57,13 @@ public class CreatureBehaviour : MonoBehaviour
         this.weight = weight;
         coroutineRunner = gameObject.GetComponent<CoroutineRunner>() ?? gameObject.AddComponent<CoroutineRunner>();
         config = ScriptableObject.CreateInstance<GameConfig>();
+        AgeManager = new AgeManager(this);
+        ReproductionManager = new ReproductionManager(this);
         MovementManager = new MovementManager(this, moveSpeed);
         ObservationManager = new ObservationManager(this, senseRadius, numberOfRaycasts, angleBetweenRaycasts);
         stateMachine = new StateMachine(this);
-        EnergyManagement = new EnergyManager(this, maxEnergy, maxEnergy);
-        EnergyManagement.UpdateEnergyBar();
+        EnergyManager = new EnergyManager(this, maxEnergy, maxEnergy);
+        EnergyManager.UpdateEnergyBar();
         EatingManager = new EatingManager(this);
     }
 
@@ -70,11 +73,16 @@ public class CreatureBehaviour : MonoBehaviour
         if (lastObservation >= config.updateInterval)
         {
             ObservationManager.UpdateObservations();
-            var energyConsumption = EnergyManagement.CalculateEnergyConsumption();
-            EnergyManagement.ConsumeEnergy(energyConsumption);
+            var energyConsumption = EnergyManager.CalculateEnergyConsumption();
+            EnergyManager.ConsumeEnergy(energyConsumption);
+            AgeManager.UpdateAge(lastObservation);
+            if (ReproductionManager.IsOnCooldown())
+            {
+                ReproductionManager.UpdateReproductionCooldown(lastObservation);
+            }
             lastObservation = 0f;
         }
-        if (EnergyManagement.IsEnergyDepleted())
+        if (EnergyManager.IsEnergyDepleted())
         {
             Destroy(gameObject);
             return;
@@ -84,9 +92,9 @@ public class CreatureBehaviour : MonoBehaviour
     }
     void OnTriggerEnter(Collider col)
     {
-        //if (col.gameObject.CompareTag("Food") && ( CurrentStateType== CreatureStateType.MovingToFood|| CurrentStateType == CreatureStateType.SearchingForFood))
+        //if (col.gameObject.CompareTag("CreatureBehaviour") && ( CurrentStateType== CreatureStateType.MovingToFood|| CurrentStateType == CreatureStateType.SearchingForFood))
         //{
-        //    Food foodComponent = col.gameObject.GetComponentInChildren<Food>();
+        //    CreatureBehaviour foodComponent = col.gameObject.GetComponentInChildren<CreatureBehaviour>();
 
         //    if (this.EatingManager.IsFoodBlacklisted(foodComponent))
         //    {
@@ -134,10 +142,14 @@ public class CreatureBehaviour : MonoBehaviour
 
     void CheckTransitions()
     {
-        if (EnergyManagement.EnergyLevel < config.energyThreshold * maxEnergy && 
+        if (EnergyManager.EnergyLevel < config.eatingEnergyThreshold * maxEnergy && 
             (!(stateMachine.CurrentState.StateType == CreatureStateType.MovingToFood) && !(stateMachine.CurrentState.StateType == CreatureStateType.Eating)  && !(stateMachine.CurrentState.StateType == CreatureStateType.SearchingForFood)))
         {
             stateMachine.TransitionToSearchingForFood();
+        }
+        else if (stateMachine.CurrentState.StateType == CreatureStateType.SearchingForMate && !ReproductionManager.IsOnCooldown() && ReproductionManager.IsReadyToReproduction())
+        {
+            stateMachine.TransitionToSearchingForMate();
         }
         else if(stateMachine.CurrentState.StateType == CreatureStateType.Idle)
         {

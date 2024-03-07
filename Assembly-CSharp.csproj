@@ -71,6 +71,7 @@
     <Compile Include="Assets\Scripts\Spawners\FoodSpawner.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\EatingState.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\CreatureStateType.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\AgeManagement\AgeManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\SearchingForMateState.cs" />
     <Compile Include="Assets\Scripts\Creature\InfoBars\EnergyBar.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\MovingToMateState.cs" />

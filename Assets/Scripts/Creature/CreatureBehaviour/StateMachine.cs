@@ -10,6 +10,7 @@ public class StateMachine
 
     private readonly IdleState idleState;
     private readonly SearchingForFoodState searchingForFoodState;
+    private readonly SearchingForMateState searchingForMateState;
     private readonly MovingToFoodState movingToFoodState;
     private readonly WanderingState wanderingState;
     private readonly EatingState eatingState;
@@ -20,6 +21,7 @@ public class StateMachine
         searchingForFoodState = new SearchingForFoodState(creatureBehaviour);
         movingToFoodState = new MovingToFoodState(creatureBehaviour);
         wanderingState = new WanderingState(creatureBehaviour);
+        searchingForMateState  = new SearchingForMateState(creatureBehaviour);
         eatingState = new EatingState(creatureBehaviour);
         // Kezdõ állapot beállítása
         SetState(idleState);
@@ -55,6 +57,10 @@ public class StateMachine
     public void TransitionToSearchingForFood()
     {
         SetState(searchingForFoodState);
+    }
+    public void TransitionToSearchingForMate()
+    {
+        SetState(searchingForMateState);
     }
 
     public void TransitionToWandering()
