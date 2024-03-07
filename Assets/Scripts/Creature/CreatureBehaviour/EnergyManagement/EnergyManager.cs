@@ -25,7 +25,7 @@ public class EnergyManager
                                       //Time.fixedDeltaTime) *
                                       creature.config.updateInterval *
                                       creature.ObservationManager.SenseRadius * 
-                                      0.0006f;
+                                      0.001f;
         return energyConsumption;
     }
     public void ConsumeEnergy(float amount)

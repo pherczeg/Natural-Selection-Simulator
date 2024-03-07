@@ -134,7 +134,8 @@ public class CreatureBehaviour : MonoBehaviour
 
     void CheckTransitions()
     {
-        if (EnergyManagement.EnergyLevel < config.energyThreshold * maxEnergy && (!(stateMachine.CurrentState.StateType == CreatureStateType.MovingToFood) && !(stateMachine.CurrentState.StateType == CreatureStateType.Eating)))
+        if (EnergyManagement.EnergyLevel < config.energyThreshold * maxEnergy && 
+            (!(stateMachine.CurrentState.StateType == CreatureStateType.MovingToFood) && !(stateMachine.CurrentState.StateType == CreatureStateType.Eating)  && !(stateMachine.CurrentState.StateType == CreatureStateType.SearchingForFood)))
         {
             stateMachine.TransitionToSearchingForFood();
         }

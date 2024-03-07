@@ -9,6 +9,7 @@ public class GameConfig : ScriptableObject
     public float matingAge = 20f;
     public float maxAge = 60f;
     public float eatingDuration = 1f;
+    public float nutritionConsumptionRatePerSecond = 50.0f;
     public float mutationRate = 0.5f;
     public float mutationChance = 0.5f;
     public float energyThreshold = 0.8f;

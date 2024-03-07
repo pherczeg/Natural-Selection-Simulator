@@ -56,8 +56,12 @@ internal class EatingState : ICreatureState
 
             if (!isEating)
             {
-                creature.stateMachine.TransitionToWandering();
                 foodTarget.StopEating();
+                if (foodTarget != null && foodTarget.nutritionValue < 1f)
+                {
+                    foodTarget.DestroyOnDepletion();
+                }
+                creature.stateMachine.TransitionToWandering();
                 Debug.Log($"Eating Interrupted");
             }
             else
@@ -68,16 +72,14 @@ internal class EatingState : ICreatureState
                     foodTarget.DestroyOnDepletion();
                 }
                 creature.EatingManager.foodTarget = null;
-                creature.stateMachine.TransitionToIdle();
+                creature.stateMachine.TransitionToWandering();
             }
         }
     }
 
     private void ProcessConsumptionInThisInterval(Food foodTarget)
     {
-        float nutritionValue = foodTarget.nutritionValue;
-        float energyPerSecond = nutritionValue / creature.config.eatingDuration;
-        float energyDesiredThisFrame = energyPerSecond * Time.fixedDeltaTime;
+        float energyDesiredThisFrame = creature.config.nutritionConsumptionRatePerSecond * Time.fixedDeltaTime;
         if (energyDesiredThisFrame + creature.EnergyManagement.EnergyLevel > creature.maxEnergy)
         {
             energyDesiredThisFrame = creature.maxEnergy - creature.EnergyManagement.EnergyLevel;

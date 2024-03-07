@@ -34,22 +34,6 @@ public class CameraController : MonoBehaviour
         }
         else
         {
-            //if (Input.GetKey("w") || Input.mousePosition.y >= Screen.height - panBorderThickness)
-            //{
-            //    moveDirection += transform.forward;
-            //}
-            //if (Input.GetKey("s") || Input.mousePosition.y <= panBorderThickness)
-            //{
-            //    moveDirection -= transform.forward;
-            //}
-            //if (Input.GetKey("d") || Input.mousePosition.x >= Screen.width - panBorderThickness)
-            //{
-            //    moveDirection += transform.right;
-            //}
-            //if (Input.GetKey("a") || Input.mousePosition.x <= panBorderThickness)
-            //{
-            //    moveDirection -= transform.right;
-            //}
             if (Input.GetKey("w"))
             {
                 moveDirection += transform.forward;

@@ -5,7 +5,7 @@ using UnityEngine;
 public class MovingToFoodState : ICreatureState
 {
     private readonly CreatureBehaviour creature;
-    private GameObject targetFood; // A célzott étel objektum
+    private GameObject targetFood;
 
     public MovingToFoodState(CreatureBehaviour creature)
     {
@@ -15,7 +15,6 @@ public class MovingToFoodState : ICreatureState
     public void EnterState()
     {
         Debug.Log($"Creature is moving to food.");
-        // Itt lehet beállítani a mozgás kezdõ paramétereit, például a cél irányát
     }
 
     public void UpdateState()
@@ -24,7 +23,6 @@ public class MovingToFoodState : ICreatureState
         {
             if (ReachedFood())
             {
-                // Amennyiben elérte az ételt, váltson az evés állapotra
                 var foodComponent = targetFood.GetComponent<Food>();
                 creature.stateMachine.TransitionToEating(foodComponent);
             }
@@ -42,7 +40,6 @@ public class MovingToFoodState : ICreatureState
     public void ExitState()
     {
         Debug.Log($"Creature stops moving to food.");
-        // Itt lehetõség van a mozgással kapcsolatos beállítások visszaállítására
     }
     public void SetTarget(GameObject targetFood)
     {
@@ -55,8 +52,6 @@ public class MovingToFoodState : ICreatureState
 
     private bool ReachedFood()
     {
-        // Ellenõrzi, hogy a lény elérte-e az ételt
-        // Ez a logika függ a játék konkrét megvalósításától
-        return Vector3.Distance(creature.transform.position, targetFood.transform.position) < 1.0f; // Példa érték
+        return Vector3.Distance(creature.transform.position, targetFood.transform.position) < 1.0f;
     }
 }
