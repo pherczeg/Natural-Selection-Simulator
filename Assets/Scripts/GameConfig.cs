@@ -5,9 +5,9 @@ public class GameConfig : ScriptableObject
 {
     public float maxAge = 60f;
     public float updateInterval = .2f;
-    public float nutritionConsumptionRatePerSecond = 20.0f;
+    public float nutritionConsumptionRatePerSecond = 100.0f;
     public float eatingDuration = 1f;
-    public float blackListDuration = 1f;
+    public float blackListDuration = .5f;
     public float eatingEnergyThreshold = 0.75f;
     public float initialEnergyPercentage = 0.5f;
     public float reproductionCooldown = 7f;

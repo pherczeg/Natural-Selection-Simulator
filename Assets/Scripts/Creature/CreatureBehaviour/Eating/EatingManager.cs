@@ -17,11 +17,10 @@ public class EatingManager
         {
             if (Time.time <= blacklistTime)
             {
-                return true;  // Food is still within the blacklist duration
+                return true;  
             }
             else
             {
-                // Remove the food from the blacklist as its duration has expired
                 blacklistedFoods.Remove(food);
             }
         }

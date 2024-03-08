@@ -4,46 +4,40 @@ public class CreatureSpawner : MonoBehaviour
 {
     public GameObject creaturePrefab;
     public int numberOfCreatures = 5;
-    public Vector2 spawnRange = new Vector2(10f, 10f);
     GameObject ground;
     void Awake()
     {
-        ground = GameObject.FindGameObjectWithTag("Ground");
-        if (ground != null)
+        if (GroundManager.Instance != null)
         {
-            Renderer groundRenderer = ground.GetComponent<Renderer>();
-            if (groundRenderer != null)
-            {
-                Bounds bounds = groundRenderer.bounds;
+            Bounds bounds = GroundManager.Instance.GroundBounds;
 
-                for (int i = 0; i < numberOfCreatures; i++)
+            for (int i = 0; i < numberOfCreatures; i++)
+            {
+                Vector3 spawnPosition = new Vector3(
+                    Random.Range(bounds.min.x, bounds.max.x),
+                    1f,
+                    Random.Range(bounds.min.z, bounds.max.z)
+                );
+
+                // Ensure the place is not occupied.
+                while (IsPlaceOccupied(spawnPosition))
                 {
-                    Vector3 spawnPosition = new Vector3(
+                    spawnPosition = new Vector3(
                         Random.Range(bounds.min.x, bounds.max.x),
                         1f,
                         Random.Range(bounds.min.z, bounds.max.z)
                     );
-
-                    // Ensure the place is not occupied.
-                    while (IsPlaceOccupied(spawnPosition))
-                    {
-                        spawnPosition = new Vector3(
-                            Random.Range(bounds.min.x, bounds.max.x),
-                            1f,
-                            Random.Range(bounds.min.z, bounds.max.z)
-                        );
-                    }
-
-
-                    CreatureBehaviour newCreatureBehaviour = SpawnCreature(spawnPosition);
-                    var weight = Random.Range(10f, 10f);
-                    var moveSpeed = Random.Range(1f, 1f);
-                    var senseRange = Random.Range(20f, 20f);
-                    newCreatureBehaviour.Initialize(moveSpeed, weight, senseRange );
-
-
                 }
+                CreatureBehaviour newCreatureBehaviour = SpawnCreature(spawnPosition);
+                var weight = Random.Range(10f, 10f);
+                var moveSpeed = Random.Range(1f, 1f);
+                var senseRange = Random.Range(20f, 20f);
+                newCreatureBehaviour.Initialize(moveSpeed, weight, senseRange);
             }
+        }
+        else
+        {
+            Debug.LogError("GroundManager instance not found.");
         }
     }
 
