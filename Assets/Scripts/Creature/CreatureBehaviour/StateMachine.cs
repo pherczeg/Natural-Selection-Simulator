@@ -12,6 +12,7 @@ public class StateMachine
     private readonly SearchingForFoodState searchingForFoodState;
     private readonly SearchingForMateState searchingForMateState;
     private readonly MovingToFoodState movingToFoodState;
+    private readonly MovingToMateState movingToMateState;
     private readonly WanderingState wanderingState;
     private readonly EatingState eatingState;
 
@@ -23,6 +24,7 @@ public class StateMachine
         wanderingState = new WanderingState(creatureBehaviour);
         searchingForMateState  = new SearchingForMateState(creatureBehaviour);
         eatingState = new EatingState(creatureBehaviour);
+        movingToMateState = new MovingToMateState(creatureBehaviour);
         // Kezdõ állapot beállítása
         SetState(idleState);
     }
@@ -63,6 +65,11 @@ public class StateMachine
         SetState(searchingForMateState);
     }
 
+    public void TransitionToMovingToMate(GameObject target)
+    {
+        SetState(movingToMateState);
+        movingToMateState.SetTarget(target);
+    }
     public void TransitionToWandering()
     {
         SetState(wanderingState);

@@ -14,7 +14,7 @@ public class SearchingForMateState : ICreatureState
     public CreatureStateType StateType => CreatureStateType.SearchingForMate;
     public void EnterState()
     {
-        Debug.Log("Creature starts searching for mate.");
+        Debug.Log($"{creature.GetInstanceID()}Creature starts searching for mate.");
         SearchForMate();
     }
 
@@ -35,16 +35,16 @@ public class SearchingForMateState : ICreatureState
     public void ExitState()
     {
         wanderTarget = Vector3.zero;
-        Debug.Log("Creature stops searching for mate.");
+        Debug.Log($"{creature.GetInstanceID()}Creature stops searching for mate.");
     }
 
     private void SearchForMate()
     {
-        Food closestFood = FindClosestNonBlacklistedFood();
+        CreatureBehaviour closestCreature = FindClosestReproductiveCreature();
 
-        if (closestFood != null)
+        if (closestCreature != null)
         {
-            creature.stateMachine.TransitionToMovingToFood(closestFood.gameObject);
+            creature.stateMachine.TransitionToMovingToMate(closestCreature.gameObject);
         }
         else
         {
@@ -52,26 +52,26 @@ public class SearchingForMateState : ICreatureState
         }
     }
 
-    private Food FindClosestNonBlacklistedFood()
+    private CreatureBehaviour FindClosestReproductiveCreature()
     {
         float closestFoodDistance = float.MaxValue;
-        Food closestFood = null;
+        CreatureBehaviour closestMate = null;
 
         foreach (var observation in creature.ObservationManager.Observations)
         {
-            Food observedFood = observation.Value.observedObject?.GetComponent<Food>();
-            if (observation.Value.type == ObservationType.Food && observedFood && !creature.EatingManager.IsFoodBlacklisted(observedFood))
+            CreatureBehaviour observedCreature = observation.Value.observedObject?.GetComponent<CreatureBehaviour>();
+            if (observation.Value.type == ObservationType.Food && observedCreature && observedCreature.ReproductionManager.IsReadyToReproduction())
             {
                 float distance = observation.Value.distance;
                 if (distance < closestFoodDistance)
                 {
                     closestFoodDistance = distance;
-                    closestFood = observedFood;
+                    closestMate = observedCreature;
                 }
             }
         }
 
-        return closestFood;
+        return closestMate;
     }
 
     private void EnsureWanderTarget()

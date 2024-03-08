@@ -1,26 +1,38 @@
-﻿using System;
+﻿using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using UnityEditor.Overlays;
+using UnityEngine;
 
-namespace Assets.Scripts.Creature.CreatureBehaviour.States
+public class MovingToMateState : MoveToTargetBase, ICreatureState
 {
-    internal class MovingToMateState : ICreatureState
+    public MovingToMateState(CreatureBehaviour creature) : base(creature) { }
+    public CreatureStateType StateType => CreatureStateType.MovingToMate;
+    public void EnterState()
     {
-        public CreatureStateType StateType => CreatureStateType.MovingToMate;
+        Debug.Log($"{creature.GetInstanceID()}Creature is moving to mate.");
+    }
 
-        public void EnterState()
+    public void UpdateState()
+    {
+        if (target != null)
         {
+            if (ReachedTarget())
+            {
+                var creature = target.GetComponent<CreatureBehaviour>();
+                creature.stateMachine.TransitionToMovingToMate(creature.gameObject);
+            }
+            else
+            {
+                MoveTowardsTarget();
+            }
         }
+        else
+        {
+            creature.stateMachine.TransitionToIdle();
+        }
+    }
 
-        public void ExitState()
-        {
-        }
-
-        public void UpdateState()
-        {
-        }
+    public void ExitState()
+    {
+        Debug.Log($"{creature.GetInstanceID()}Creature stops moving to mate.");
     }
 }

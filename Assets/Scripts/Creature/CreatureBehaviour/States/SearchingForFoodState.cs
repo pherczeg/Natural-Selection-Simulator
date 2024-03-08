@@ -14,27 +14,30 @@ public class SearchingForFoodState : ICreatureState
     public CreatureStateType StateType => CreatureStateType.SearchingForFood;
     public void EnterState()
     {
-        Debug.Log("Creature starts searching for food.");
+        Debug.Log($"{creature.GetInstanceID()}Creature starts searching for food.");
         SearchForFood();
     }
 
     public void UpdateState()
     {
-        if (wanderTarget != Vector3.zero)
+        //if (wanderTarget != Vector3.zero)
+        //{
+        if (creature.MovementManager.IsTargetReached(wanderTarget))
         {
-            if (creature.MovementManager.IsTargetReached(wanderTarget))
-            {
-                SearchForFood();
-            }
+            SearchForFood();
+        }
+        else
+        {
             creature.MovementManager.MoveTowards(wanderTarget);
         }
-        SearchForFood();
+        //}
+        //SearchForFood();
     }
 
     public void ExitState()
     {
         wanderTarget = Vector3.zero;
-        Debug.Log("Creature stops searching for food.");
+        Debug.Log($"{creature.GetInstanceID()}Creature stops searching for food.");
     }
 
     private void SearchForFood()
@@ -79,9 +82,6 @@ public class SearchingForFoodState : ICreatureState
 
     private void EnsureWanderTarget()
     {
-        if (wanderTarget.Equals(Vector3.zero))
-        {
-            wanderTarget = creature.MovementManager.Wander();
-        }
+        wanderTarget = creature.MovementManager.Wander();
     }
 }

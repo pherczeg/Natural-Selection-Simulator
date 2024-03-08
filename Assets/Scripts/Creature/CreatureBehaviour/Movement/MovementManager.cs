@@ -142,6 +142,6 @@ public class MovementManager
     }
     public bool IsTargetReached(Vector3 target)
     {
-        return Vector3.Distance(creature.transform.position, target) < 1.0f;
+        return Vector3.Distance(creature.transform.position, target) < .01f;
     }
 }

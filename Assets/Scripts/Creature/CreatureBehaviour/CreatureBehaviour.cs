@@ -149,7 +149,7 @@ public class CreatureBehaviour : MonoBehaviour
         }
         else if (stateMachine.CurrentState.StateType == CreatureStateType.SearchingForMate && !ReproductionManager.IsOnCooldown() && ReproductionManager.IsReadyToReproduction())
         {
-            stateMachine.TransitionToSearchingForMate();
+            //stateMachine.TransitionToSearchingForMate();
         }
         else if(stateMachine.CurrentState.StateType == CreatureStateType.Idle)
         {

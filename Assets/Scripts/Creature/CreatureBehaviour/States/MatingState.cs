@@ -1,12 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Assets.Scripts.Creature.CreatureBehaviour.States
+﻿
+public class MatingState : ICreatureState
 {
-    internal class MatingState
+    public CreatureStateType StateType => throw new System.NotImplementedException();
+
+    public void EnterState()
     {
+        throw new System.NotImplementedException();
+    }
+
+    public void ExitState()
+    {
+        throw new System.NotImplementedException();
+    }
+
+    public void UpdateState()
+    {
+        throw new System.NotImplementedException();
     }
 }

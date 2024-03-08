@@ -58,6 +58,10 @@ public class Food : MonoBehaviour
                 eatingCreature = creature;
                 return true;
             }
+            else 
+            {
+                creature.EatingManager.BlacklistFood(this);
+            }
         }
         return false;
     }

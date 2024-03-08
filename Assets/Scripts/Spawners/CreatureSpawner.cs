@@ -1,5 +1,3 @@
-using Unity.VisualScripting.FullSerializer;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public class CreatureSpawner : MonoBehaviour
@@ -22,7 +20,7 @@ public class CreatureSpawner : MonoBehaviour
                 {
                     Vector3 spawnPosition = new Vector3(
                         Random.Range(bounds.min.x, bounds.max.x),
-                        1f, // Ez az érték függ a lény és a talaj magasságától
+                        1f,
                         Random.Range(bounds.min.z, bounds.max.z)
                     );
 
@@ -31,16 +29,16 @@ public class CreatureSpawner : MonoBehaviour
                     {
                         spawnPosition = new Vector3(
                             Random.Range(bounds.min.x, bounds.max.x),
-                            1f, // Ez az érték függ a lény és a talaj magasságától
+                            1f,
                             Random.Range(bounds.min.z, bounds.max.z)
                         );
                     }
 
 
                     CreatureBehaviour newCreatureBehaviour = SpawnCreature(spawnPosition);
-                    var weight = Random.Range(2f, 10.0f);
-                    var moveSpeed = Random.Range(1f, 3f);
-                    var senseRange = Random.Range(10f, 30f);
+                    var weight = Random.Range(10f, 10f);
+                    var moveSpeed = Random.Range(1f, 1f);
+                    var senseRange = Random.Range(20f, 20f);
                     newCreatureBehaviour.Initialize(moveSpeed, weight, senseRange );
 
 

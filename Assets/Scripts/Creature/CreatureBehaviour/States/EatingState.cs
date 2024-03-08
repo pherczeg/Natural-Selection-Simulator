@@ -21,13 +21,18 @@ internal class EatingState : ICreatureState
     public void ExitState()
     {
         isEating = false;
-        creature.coroutineRunner.StopCoroutine(creature.EatingManager.eatingCoroutine);
+        if (creature.EatingManager.eatingCoroutine != null) 
+        { 
+            creature.coroutineRunner.StopCoroutine(creature.EatingManager.eatingCoroutine);
+        }
         creature.EatingManager.eatingCoroutine = null;
         creature.EatingManager.foodTarget = null;
     }
 
     public void UpdateState()
     {
+        if (!isEating)
+            creature.stateMachine.TransitionToWandering();
     }
 
     public void StartEatingCoroutine(Food food)
@@ -53,7 +58,7 @@ internal class EatingState : ICreatureState
                 }
                 yield return null;
             }
-
+            foodTarget.isBeingEaten = false;
             if (!isEating)
             {
                 foodTarget.StopEating();
@@ -62,7 +67,7 @@ internal class EatingState : ICreatureState
                     foodTarget.DestroyOnDepletion();
                 }
                 creature.stateMachine.TransitionToWandering();
-                Debug.Log($"Eating Interrupted");
+                Debug.Log($"{creature.GetInstanceID()}Eating Interrupted");
             }
             else
             {
@@ -75,6 +80,7 @@ internal class EatingState : ICreatureState
                 creature.stateMachine.TransitionToWandering();
             }
         }
+        isEating = false;
     }
 
     private void ProcessConsumptionInThisInterval(Food foodTarget)
