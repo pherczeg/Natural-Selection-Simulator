@@ -16,4 +16,5 @@ public class GameConfig : ScriptableObject
     public float reproductionEnergyThreshold = 0.5f;
     public float mutationRate = 0.5f;
     public float mutationChance = 0.5f;
+    public float energyConsumptionCoefficient = 0.0005f;
 }

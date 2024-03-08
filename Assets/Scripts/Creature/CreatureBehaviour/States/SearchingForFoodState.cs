@@ -14,11 +14,14 @@ public class SearchingForFoodState : CreatureStateBase
         base.EnterState();
         SearchForFood();
     }
+    public override void ExitState()
+    {
+        base.ExitState();
+        wanderTarget = Vector3.zero;
+    }
 
     public override void UpdateState()
     {
-        //if (wanderTarget != Vector3.zero)
-        //{
         if (creature.MovementManager.IsTargetReached(wanderTarget))
         {
             SearchForFood();
@@ -27,15 +30,8 @@ public class SearchingForFoodState : CreatureStateBase
         {
             creature.MovementManager.MoveTowards(wanderTarget);
         }
-        //}
-        //SearchForFood();
     }
 
-    public override void ExitState()
-    {
-        base.ExitState();
-        wanderTarget = Vector3.zero;
-    }
 
     private void SearchForFood()
     {
