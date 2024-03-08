@@ -2,9 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class SearchingForMateState : CreatureStateBase
+public class SearchingForMateState : CreatureSearchingStateBase
 {
-    private Vector3 wanderTarget;
     public SearchingForMateState(CreatureBehaviour creature) : base(creature, CreatureStateType.SearchingForMate) { }
     public override void EnterState()
     {
@@ -12,6 +11,13 @@ public class SearchingForMateState : CreatureStateBase
         SearchForMate();
     }
 
+    private void SearchForMate() 
+    {
+        SearchForTarget(ObservationType.Creature, (target) =>
+        {
+            creature.stateMachine.TransitionToMovingToMate(target);
+        });
+    }
     public override void UpdateState()
     {
         if (creature.MovementManager.IsTargetReached(wanderTarget))
@@ -29,52 +35,8 @@ public class SearchingForMateState : CreatureStateBase
         base.ExitState();
         wanderTarget = Vector3.zero;
     }
-
-    private void SearchForMate()
+    protected override void OnTargetReached()
     {
-        CreatureBehaviour closestCreature = FindClosestReproductiveCreature();
-
-        if (closestCreature != null)
-        {
-            creature.stateMachine.TransitionToMovingToMate(closestCreature.gameObject);
-        }
-        else
-        {
-            EnsureWanderTarget();
-        }
+        SearchForMate();
     }
-
-    private CreatureBehaviour FindClosestReproductiveCreature()
-    {
-        float closestFoodDistance = float.MaxValue;
-        CreatureBehaviour closestMate = null;
-
-        foreach (var observation in creature.ObservationManager.Observations)
-        {
-            if (observation.Value.observedObject == null)
-            {
-                continue;
-            }
-            CreatureBehaviour observedCreature = observation.Value.observedObject?.GetComponent<CreatureBehaviour>();
-            if (observation.Value.type == ObservationType.Food && observedCreature && observedCreature.ReproductionManager.IsReadyToReproduction())
-            {
-                float distance = observation.Value.distance;
-                if (distance < closestFoodDistance)
-                {
-                    closestFoodDistance = distance;
-                    closestMate = observedCreature;
-                }
-            }
-        }
-
-        return closestMate;
-    }
-
-    private void EnsureWanderTarget()
-    {
-        wanderTarget = creature.MovementManager.Wander();
-    }
-
-
-
 }

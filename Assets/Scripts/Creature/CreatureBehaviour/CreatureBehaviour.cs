@@ -13,9 +13,7 @@ public class CreatureBehaviour : MonoBehaviour
     float lastObservation = 0f;
 
     public GameObject energyBarObject;
-    //private EnergyBar energyBar;
     public float maxEnergy = 100f;
-    //public float Age => age;
     public float Weight => weight;
     public float Energy
     {
@@ -44,7 +42,6 @@ public class CreatureBehaviour : MonoBehaviour
             return this.stateMachine.CurrentState.StateType; 
         }
     }
-    // Felelõs az állapotok és komponensek kezeléséért
     public StateMachine stateMachine;
     public GameConfig config;
     public CoroutineRunner coroutineRunner;
@@ -90,73 +87,26 @@ public class CreatureBehaviour : MonoBehaviour
         stateMachine.Update();
         CheckTransitions();
     }
-    void OnTriggerEnter(Collider col)
-    {
-        //if (col.gameObject.CompareTag("CreatureBehaviour") && ( CurrentStateType== CreatureStateType.MovingToFood|| CurrentStateType == CreatureStateType.SearchingForFood))
-        //{
-        //    CreatureBehaviour foodComponent = col.gameObject.GetComponentInChildren<CreatureBehaviour>();
-
-        //    if (this.EatingManager.IsFoodBlacklisted(foodComponent))
-        //    {
-        //        stateMachine.TransitionToSearchingForFood();
-        //        return;
-        //    }
-        //    if (foodComponent.IsBeingEaten)
-        //    {
-        //        CreatureBehaviour otherCreature = foodComponent.GetEatingCreature();
-        //        if (otherCreature != null)
-        //        {
-        //            if (this.weight > otherCreature.weight * 1.5f)
-        //            {
-        //                otherCreature.EatingManager.InterruptEating();
-        //            }
-        //            else
-        //            {
-        //                BlacklistFood(foodComponent);
-        //                SetState(CreatureState.SearchingForFood);
-        //                return;
-        //            }
-        //        }
-        //    }
-
-        //    SetState(CreatureState.Eating);
-        //    if (foodComponent == null)
-        //    {
-        //        Console.WriteLine();
-        //    }
-        //    eatingCoroutine = StartCoroutine(EatingRoutine(foodComponent, foodComponent.nutritionValue));
-        //}
-        //else if (col.gameObject.CompareTag("Obstacle"))
-        //{
-        //    RaycastHit hit;
-        //    if (Physics.Raycast(transform.position, transform.forward, out hit, senseRadius))
-        //    {
-        //        //    Vector3 incomingDirection = transform.forward;
-        //        //    Vector3 reflectDirection = Vector3.Reflect(incomingDirection, hit.normal).normalized;
-        //        Vector3 reflectDirection = Vector3.Reflect(transform.forward, hit.normal).normalized;
-        //        MoveAndFaceDirection(transform.position + reflectDirection);
-        //    }
-        //}
-    }
-
 
     void CheckTransitions()
     {
-        if (EnergyManager.EnergyLevel < config.eatingEnergyThreshold * maxEnergy &&
-            (!(stateMachine.CurrentState.StateType == CreatureStateType.MovingToFood) && !(stateMachine.CurrentState.StateType == CreatureStateType.Eating) && !(stateMachine.CurrentState.StateType == CreatureStateType.SearchingForFood)))
-        {
-            stateMachine.TransitionToSearchingForFood();
-        }
-        else if(stateMachine.CurrentState.StateType == CreatureStateType.MovingToFood || stateMachine.CurrentState.StateType == CreatureStateType.Eating || stateMachine.CurrentState.StateType == CreatureStateType.SearchingForFood)
+        if (stateMachine.CurrentState.StateType == CreatureStateType.MovingToFood || stateMachine.CurrentState.StateType == CreatureStateType.Eating || stateMachine.CurrentState.StateType == CreatureStateType.SearchingForFood || stateMachine.CurrentState.StateType == CreatureStateType.Reproducting)
         {
             return;
         }
-        else if (!ReproductionManager.IsOnCooldown() && ReproductionManager.IsReadyToReproduction() &&
-            (!(stateMachine.CurrentState.StateType == CreatureStateType.MovingToMate) && !(stateMachine.CurrentState.StateType == CreatureStateType.Reproducting) && !(stateMachine.CurrentState.StateType == CreatureStateType.SearchingForMate)))
+        else if (EnergyManager.EnergyLevel < config.eatingEnergyThreshold * maxEnergy)
+        {
+            stateMachine.TransitionToSearchingForFood();
+        }
+        else  if ( stateMachine.CurrentState.StateType == CreatureStateType.MovingToMate || stateMachine.CurrentState.StateType == CreatureStateType.MovingToMate)
+        {
+            return;
+        }
+        else if (!ReproductionManager.IsOnCooldown() && ReproductionManager.IsReadyToReproduction())
         {
             stateMachine.TransitionToSearchingForMate();
         }
-        else if(stateMachine.CurrentState.StateType == CreatureStateType.Idle)
+        else if (stateMachine.CurrentState.StateType == CreatureStateType.Idle)
         {
             stateMachine.TransitionToWandering();
         }

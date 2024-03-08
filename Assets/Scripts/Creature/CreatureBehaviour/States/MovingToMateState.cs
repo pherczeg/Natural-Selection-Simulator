@@ -16,8 +16,10 @@ public class MovingToMateState : MoveToTargetBase, ICreatureState
         {
             if (ReachedTarget())
             {
-                var creature = target.GetComponent<CreatureBehaviour>();
-                creature.stateMachine.TransitionToReproductionState(creature.gameObject);
+                //creature.stateMachine.TransitionToWandering();
+                var targetCreature = target.transform.parent.GetComponent<CreatureBehaviour>();
+                creature.stateMachine.TransitionToReproductionState(targetCreature);
+                targetCreature.stateMachine.TransitionToReproductionState(creature);
             }
             else
             {

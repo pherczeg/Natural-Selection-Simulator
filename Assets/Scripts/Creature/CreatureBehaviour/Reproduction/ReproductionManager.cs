@@ -27,7 +27,20 @@ public class ReproductionManager
     {
         ReproductionCooldown = creature.config.reproductionCooldown;
     }
+    public void Reproduct(CreatureBehaviour mate)
+    {
 
+        //CreatureBehaviour offspringBehavior = creatureSpawner.SpawnCreature(gameObject.transform.position);
+
+        //offspringBehavior.Weight = InheritWithMutation(creature.Weight, mate.Weight, 2);
+        //offspringBehavior.moveSpeed = InheritWithMutation(this.moveSpeed, mate.moveSpeed, 2);
+        //offspringBehavior.senseRadius = InheritWithMutation(this.senseRadius, mate.senseRadius, 5);
+        //this.reproductionCooldown = REPRODUCTION_COOLDOWN;
+        //mate.reproductionCooldown = REPRODUCTION_COOLDOWN;
+
+        //this.currentState = CreatureState.Wandering;
+        //mate.currentState = CreatureState.Wandering;
+    }
 
     private float InheritWithMutation(float trait1, float trait2, float minvalue)
     {

@@ -2,13 +2,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class SearchingForFoodState : CreatureStateBase
+public class SearchingForFoodState : CreatureSearchingStateBase
 {
-    private Vector3 wanderTarget;
-    public SearchingForFoodState(CreatureBehaviour creature) : base(creature, CreatureStateType.SearchingForFood)
-    {
-        this.creature = creature;
-    }
+    public SearchingForFoodState(CreatureBehaviour creature) : base(creature, CreatureStateType.SearchingForFood) { }
     public override void EnterState()
     {
         base.EnterState();
@@ -31,50 +27,16 @@ public class SearchingForFoodState : CreatureStateBase
             creature.MovementManager.MoveTowards(wanderTarget);
         }
     }
-
-
     private void SearchForFood()
     {
-        Food closestFood = FindClosestNonBlacklistedFood();
-
-        if (closestFood != null)
+        SearchForTarget(ObservationType.Food, (target) =>
         {
-            creature.stateMachine.TransitionToMovingToFood(closestFood.gameObject);
-        }
-        else
-        {
-            EnsureWanderTarget();
-        }
+            creature.stateMachine.TransitionToMovingToFood(target);
+        });
     }
 
-    private Food FindClosestNonBlacklistedFood()
+    protected override void OnTargetReached()
     {
-        float closestFoodDistance = float.MaxValue;
-        Food closestFood = null;
-
-        foreach (var observation in creature.ObservationManager.Observations)
-        {
-            if (observation.Value.observedObject == null)
-            {
-                continue;
-            }
-            Food observedFood = observation.Value.observedObject?.GetComponent<Food>();
-            if (observation.Value.type == ObservationType.Food && observedFood && !creature.EatingManager.IsFoodBlacklisted(observedFood))
-            {
-                float distance = observation.Value.distance;
-                if (distance < closestFoodDistance)
-                {
-                    closestFoodDistance = distance;
-                    closestFood = observedFood;
-                }
-            }
-        }
-
-        return closestFood;
-    }
-
-    private void EnsureWanderTarget()
-    {
-        wanderTarget = creature.MovementManager.Wander();
+        SearchForFood();
     }
 }

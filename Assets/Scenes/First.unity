@@ -616,6 +616,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 821641119}
+  - component: {fileID: 821641120}
   m_Layer: 0
   m_Name: GroundManager
   m_TagString: Untagged
@@ -638,6 +639,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1512924423}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &821641120
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 821641118}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 42f7206e111c7b64dbe400c231030b48, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &884464868
 GameObject:
   m_ObjectHideFlags: 0
@@ -1087,7 +1100,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   creaturePrefab: {fileID: 8674103884923863129, guid: 0d4cb093021d5034499a9b1187271de5, type: 3}
   numberOfCreatures: 3
-  spawnRange: {x: 10, y: 10}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

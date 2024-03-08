@@ -26,6 +26,7 @@ public class StateMachine
         searchingForMateState  = new SearchingForMateState(creatureBehaviour);
         eatingState = new EatingState(creatureBehaviour);
         movingToMateState = new MovingToMateState(creatureBehaviour);
+        reproductionState = new ReproductionState(creatureBehaviour);
         // Kezdõ állapot beállítása
         SetState(idleState);
     }
@@ -75,7 +76,7 @@ public class StateMachine
     {
         SetState(wanderingState);
     }
-    public  void TransitionToReproductionState(GameObject otherCreature)
+    public  void TransitionToReproductionState(CreatureBehaviour otherCreature)
     {
         SetState(reproductionState);
     }

@@ -58,22 +58,21 @@
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\2022.3.8f1\Editor\Data\Tools\Unity.SourceGenerators\Unity.Properties.SourceGenerator.dll" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\CreatureStateBase.cs" />
     <Compile Include="Assets\Scripts\Spawners\CreatureSpawner.cs" />
     <Compile Include="Assets\Scripts\Food.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\StateMachine.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\CreatureBehaviour.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\Eating\EatingManager.cs" />
     <Compile Include="Assets\Scripts\CoroutineRunner.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\BaseClasses\CreatureStateType.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\Observation\ObservationData.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\ReproductionState.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\Movement\MovementManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\Reproduction\ReproductionManager.cs" />
-    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\ICreatureState.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\BaseClasses\ICreatureState.cs" />
     <Compile Include="Assets\Scripts\Spawners\FoodSpawner.cs" />
     <Compile Include="Assets\Scripts\GroundManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\EatingState.cs" />
-    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\CreatureStateType.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\AgeManagement\AgeManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\SearchingForMateState.cs" />
     <Compile Include="Assets\Scripts\Creature\InfoBars\EnergyBar.cs" />
@@ -84,11 +83,13 @@
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\Observation\ObservationManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\MovingToFoodState.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\SearchingForFoodState.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\BaseClasses\MoveToTargetBase.cs" />
     <Compile Include="Assets\Scripts\GameConfig.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\BaseClasses\CreatureStateBase.cs" />
     <Compile Include="Assets\Scripts\Statistics.cs" />
     <Compile Include="Assets\Scripts\CameraController.cs" />
     <Compile Include="Assets\Scripts\Creature\InfoBars\Billboard.cs" />
-    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\MoveToTargetBase.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\BaseClasses\CreatureSearchingStateBase.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Shaders\EnergyBarShader.shader" />
