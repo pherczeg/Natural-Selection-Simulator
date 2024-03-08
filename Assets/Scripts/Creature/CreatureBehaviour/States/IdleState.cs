@@ -1,22 +1,19 @@
 ﻿using UnityEngine;
 
-public class IdleState : ICreatureState
+public class IdleState : CreatureStateBase
 {
-    private readonly CreatureBehaviour creature;
-    public IdleState(CreatureBehaviour creatureBehaviour)
+    public IdleState(CreatureBehaviour creature) : base(creature, CreatureStateType.Idle) { }
+
+    public override void EnterState()
     {
-        this.creature = creatureBehaviour;
-    }
-    public CreatureStateType StateType => CreatureStateType.Idle;
-    public void EnterState()
-    {
+        base.EnterState();
     }
 
-    public void ExitState()
+    public override void ExitState()
     {
+        base.ExitState();
     }
-
-    public void UpdateState()
+    public override void UpdateState()
     {
     }
 }

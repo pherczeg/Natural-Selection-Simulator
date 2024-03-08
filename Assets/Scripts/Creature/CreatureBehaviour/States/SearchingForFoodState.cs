@@ -2,23 +2,20 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class SearchingForFoodState : ICreatureState
+public class SearchingForFoodState : CreatureStateBase
 {
-    private readonly CreatureBehaviour creature;
-
     private Vector3 wanderTarget;
-    public SearchingForFoodState(CreatureBehaviour creature)
+    public SearchingForFoodState(CreatureBehaviour creature) : base(creature, CreatureStateType.SearchingForFood)
     {
         this.creature = creature;
     }
-    public CreatureStateType StateType => CreatureStateType.SearchingForFood;
-    public void EnterState()
+    public override void EnterState()
     {
-        Debug.Log($"{creature.GetInstanceID()}Creature starts searching for food.");
+        base.EnterState();
         SearchForFood();
     }
 
-    public void UpdateState()
+    public override void UpdateState()
     {
         //if (wanderTarget != Vector3.zero)
         //{
@@ -34,10 +31,10 @@ public class SearchingForFoodState : ICreatureState
         //SearchForFood();
     }
 
-    public void ExitState()
+    public override void ExitState()
     {
+        base.ExitState();
         wanderTarget = Vector3.zero;
-        Debug.Log($"{creature.GetInstanceID()}Creature stops searching for food.");
     }
 
     private void SearchForFood()

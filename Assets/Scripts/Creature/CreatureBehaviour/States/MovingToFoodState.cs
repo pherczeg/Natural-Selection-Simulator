@@ -2,16 +2,15 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class MovingToFoodState : MoveToTargetBase, ICreatureState
+public class MovingToFoodState : MoveToTargetBase
 {
-    public MovingToFoodState(CreatureBehaviour creature) : base(creature) { }
-    public CreatureStateType StateType => CreatureStateType.MovingToFood;
-    public void EnterState()
+    public MovingToFoodState(CreatureBehaviour creature) : base(creature, CreatureStateType.MovingToFood) { }
+    public override void EnterState()
     {
-        Debug.Log($"{creature.GetInstanceID()}Creature is moving to food.");
+        base.EnterState();
     }
 
-    public void UpdateState()
+    public override void UpdateState()
     {
         if (target != null)
         {
@@ -31,8 +30,8 @@ public class MovingToFoodState : MoveToTargetBase, ICreatureState
         }
     }
 
-    public void ExitState()
+    public override void ExitState()
     {
-        Debug.Log($"{creature.GetInstanceID()}Creature stops moving to food.");
+        base.ExitState();
     }
 }

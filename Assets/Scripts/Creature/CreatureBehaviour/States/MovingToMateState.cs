@@ -4,21 +4,20 @@ using UnityEngine;
 
 public class MovingToMateState : MoveToTargetBase, ICreatureState
 {
-    public MovingToMateState(CreatureBehaviour creature) : base(creature) { }
-    public CreatureStateType StateType => CreatureStateType.MovingToMate;
-    public void EnterState()
+    public MovingToMateState(CreatureBehaviour creature) : base(creature, CreatureStateType.MovingToMate) { }
+    public override void EnterState()
     {
-        Debug.Log($"{creature.GetInstanceID()}Creature is moving to mate.");
+        base.EnterState();
     }
 
-    public void UpdateState()
+    public override void UpdateState()
     {
         if (target != null)
         {
             if (ReachedTarget())
             {
                 var creature = target.GetComponent<CreatureBehaviour>();
-                creature.stateMachine.TransitionToMovingToMate(creature.gameObject);
+                creature.stateMachine.TransitionToReproductionState(creature.gameObject);
             }
             else
             {
@@ -31,8 +30,8 @@ public class MovingToMateState : MoveToTargetBase, ICreatureState
         }
     }
 
-    public void ExitState()
+    public override void ExitState()
     {
-        Debug.Log($"{creature.GetInstanceID()}Creature stops moving to mate.");
+        base.ExitState();
     }
 }

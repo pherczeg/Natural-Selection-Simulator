@@ -101,7 +101,7 @@ public class CreatureBehaviour : MonoBehaviour
         //        stateMachine.TransitionToSearchingForFood();
         //        return;
         //    }
-        //    if (foodComponent.isBeingEaten)
+        //    if (foodComponent.IsBeingEaten)
         //    {
         //        CreatureBehaviour otherCreature = foodComponent.GetEatingCreature();
         //        if (otherCreature != null)
@@ -142,14 +142,19 @@ public class CreatureBehaviour : MonoBehaviour
 
     void CheckTransitions()
     {
-        if (EnergyManager.EnergyLevel < config.eatingEnergyThreshold * maxEnergy && 
-            (!(stateMachine.CurrentState.StateType == CreatureStateType.MovingToFood) && !(stateMachine.CurrentState.StateType == CreatureStateType.Eating)  && !(stateMachine.CurrentState.StateType == CreatureStateType.SearchingForFood)))
+        if (EnergyManager.EnergyLevel < config.eatingEnergyThreshold * maxEnergy &&
+            (!(stateMachine.CurrentState.StateType == CreatureStateType.MovingToFood) && !(stateMachine.CurrentState.StateType == CreatureStateType.Eating) && !(stateMachine.CurrentState.StateType == CreatureStateType.SearchingForFood)))
         {
             stateMachine.TransitionToSearchingForFood();
         }
-        else if (stateMachine.CurrentState.StateType == CreatureStateType.SearchingForMate && !ReproductionManager.IsOnCooldown() && ReproductionManager.IsReadyToReproduction())
+        else if(stateMachine.CurrentState.StateType == CreatureStateType.MovingToFood || stateMachine.CurrentState.StateType == CreatureStateType.Eating || stateMachine.CurrentState.StateType == CreatureStateType.SearchingForFood)
         {
-            //stateMachine.TransitionToSearchingForMate();
+            return;
+        }
+        else if (!ReproductionManager.IsOnCooldown() && ReproductionManager.IsReadyToReproduction() &&
+            (!(stateMachine.CurrentState.StateType == CreatureStateType.MovingToMate) && !(stateMachine.CurrentState.StateType == CreatureStateType.Reproducting) && !(stateMachine.CurrentState.StateType == CreatureStateType.SearchingForMate)))
+        {
+            stateMachine.TransitionToSearchingForMate();
         }
         else if(stateMachine.CurrentState.StateType == CreatureStateType.Idle)
         {

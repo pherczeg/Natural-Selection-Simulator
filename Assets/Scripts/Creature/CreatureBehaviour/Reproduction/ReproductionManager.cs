@@ -20,7 +20,7 @@ public class ReproductionManager
     }
     public bool IsOnCooldown()
     {
-        return ReproductionCooldown >= 0;
+        return ReproductionCooldown > 0;
     }
 
     public void StartReproductionCooldown()

@@ -1,5 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
+using UnityEditor.Build;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -10,10 +12,42 @@ public class Food : MonoBehaviour
     public static float maxAge = 20f;
 
     public float nutritionValue = 10f;
-    public bool isBeingEaten = false;
+    private bool isBeingEaten = false;
+    public bool IsBeingEaten
+    {
+        get { return isBeingEaten; }
+        set 
+        { 
+            isBeingEaten = value;
+            if (isBeingEaten ) 
+            {
+                FoodColor = Color.red;
+            }
+            else
+            {
+                FoodColor = Color.Lerp(Color.green, Color.red, (nutritionValue - minNutrionValue) / maxNutrionValue);
+            }
+        }
+    }
     public float age = 0f;
     private CreatureBehaviour eatingCreature = null;
     private Renderer _renderer;
+    private Color foodColor;
+    Color FoodColor 
+    {
+        get 
+        {
+            return foodColor;
+        }
+        set 
+        { 
+            foodColor = value;
+            if (_renderer != null ) 
+            {
+                _renderer.material.color = foodColor; 
+            }
+        }
+    }
     // Start is called before the first frame update
     void Start()
     {
@@ -35,6 +69,7 @@ public class Food : MonoBehaviour
         {
             //Destroy(this.gameObject);
         }
+
     }
     /// <summary>
     /// 
@@ -42,9 +77,9 @@ public class Food : MonoBehaviour
     /// <returns></returns>
     public bool TryStartEating(CreatureBehaviour creature)
     {
-        if (!isBeingEaten)
+        if (!IsBeingEaten)
         {
-            isBeingEaten = true;
+            IsBeingEaten = true;
             eatingCreature = creature;
             return true;
         }
@@ -68,7 +103,7 @@ public class Food : MonoBehaviour
 
     public void StopEating()
     {
-        isBeingEaten = false;
+        IsBeingEaten = false;
         eatingCreature = null;
     }
 
@@ -79,14 +114,14 @@ public class Food : MonoBehaviour
 
     public void ConsumeNutrition(float value)
     {
-        if (isBeingEaten)
+        if (IsBeingEaten)
         {
             nutritionValue -= value;
         }
     }
     public float GetMaxNutrition(float desiredValue)
     {
-        if (isBeingEaten)
+        if (IsBeingEaten)
         {
             if (desiredValue  <= nutritionValue)
             {

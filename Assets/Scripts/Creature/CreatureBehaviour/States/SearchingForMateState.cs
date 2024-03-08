@@ -2,40 +2,32 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class SearchingForMateState : ICreatureState
+public class SearchingForMateState : CreatureStateBase
 {
-    private readonly CreatureBehaviour creature;
-
     private Vector3 wanderTarget;
-    public SearchingForMateState(CreatureBehaviour creature)
+    public SearchingForMateState(CreatureBehaviour creature) : base(creature, CreatureStateType.SearchingForMate) { }
+    public override void EnterState()
     {
-        this.creature = creature;
-    }
-    public CreatureStateType StateType => CreatureStateType.SearchingForMate;
-    public void EnterState()
-    {
-        Debug.Log($"{creature.GetInstanceID()}Creature starts searching for mate.");
+        base.EnterState();
         SearchForMate();
     }
 
-    public void UpdateState()
+    public override void UpdateState()
     {
-        if (wanderTarget != Vector3.zero)
+        if (creature.MovementManager.IsTargetReached(wanderTarget))
         {
-            if (creature.MovementManager.IsTargetReached(wanderTarget))
-            {
-                SearchForMate();
-                wanderTarget = Vector3.zero;
-            }
+            SearchForMate();
+        }
+        else
+        {
             creature.MovementManager.MoveTowards(wanderTarget);
         }
-        SearchForMate();
     }
 
-    public void ExitState()
+    public override void ExitState()
     {
+        base.ExitState();
         wanderTarget = Vector3.zero;
-        Debug.Log($"{creature.GetInstanceID()}Creature stops searching for mate.");
     }
 
     private void SearchForMate()
@@ -59,6 +51,10 @@ public class SearchingForMateState : ICreatureState
 
         foreach (var observation in creature.ObservationManager.Observations)
         {
+            if (observation.Value.observedObject == null)
+            {
+                continue;
+            }
             CreatureBehaviour observedCreature = observation.Value.observedObject?.GetComponent<CreatureBehaviour>();
             if (observation.Value.type == ObservationType.Food && observedCreature && observedCreature.ReproductionManager.IsReadyToReproduction())
             {
@@ -76,10 +72,7 @@ public class SearchingForMateState : ICreatureState
 
     private void EnsureWanderTarget()
     {
-        if (wanderTarget.Equals(Vector3.zero))
-        {
-            wanderTarget = creature.MovementManager.Wander();
-        }
+        wanderTarget = creature.MovementManager.Wander();
     }
 
 

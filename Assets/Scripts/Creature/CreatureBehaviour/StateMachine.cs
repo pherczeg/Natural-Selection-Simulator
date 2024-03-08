@@ -15,6 +15,7 @@ public class StateMachine
     private readonly MovingToMateState movingToMateState;
     private readonly WanderingState wanderingState;
     private readonly EatingState eatingState;
+    private readonly ReproductionState reproductionState;
 
     public StateMachine(CreatureBehaviour creatureBehaviour)
     {
@@ -73,6 +74,10 @@ public class StateMachine
     public void TransitionToWandering()
     {
         SetState(wanderingState);
+    }
+    public  void TransitionToReproductionState(GameObject otherCreature)
+    {
+        SetState(reproductionState);
     }
 }
 

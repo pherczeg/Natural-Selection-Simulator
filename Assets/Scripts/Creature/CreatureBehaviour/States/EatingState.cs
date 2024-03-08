@@ -2,24 +2,20 @@
 using System.Collections;
 using UnityEngine;
 
-internal class EatingState : ICreatureState
+internal class EatingState : CreatureStateBase
 {
-    private readonly CreatureBehaviour creature;
     public bool isEating = false;
 
-    public EatingState(CreatureBehaviour creatureBehaviour)
+    public EatingState(CreatureBehaviour creatureBehaviour) : base(creatureBehaviour, CreatureStateType.Eating) { }
+
+    public override void EnterState()
     {
-        this.creature = creatureBehaviour;
+        base.EnterState();
     }
 
-    public CreatureStateType StateType => CreatureStateType.Eating;
-
-    public void EnterState()
+    public override void ExitState()
     {
-    }
-
-    public void ExitState()
-    {
+        base.ExitState();
         isEating = false;
         if (creature.EatingManager.eatingCoroutine != null) 
         { 
@@ -29,7 +25,7 @@ internal class EatingState : ICreatureState
         creature.EatingManager.foodTarget = null;
     }
 
-    public void UpdateState()
+    public override void UpdateState()
     {
         if (!isEating)
             creature.stateMachine.TransitionToWandering();
@@ -47,7 +43,7 @@ internal class EatingState : ICreatureState
             creature.EatingManager.foodTarget = foodTarget;
             isEating = true;
             float elapsedTime = 0f;
-            while (elapsedTime < creature.config.eatingDuration && isEating)
+            while (isEating && foodTarget.nutritionValue >0)
             {
                 ProcessConsumptionInThisInterval(foodTarget);
                 elapsedTime += Time.fixedDeltaTime;
@@ -58,7 +54,6 @@ internal class EatingState : ICreatureState
                 }
                 yield return null;
             }
-            foodTarget.isBeingEaten = false;
             if (!isEating)
             {
                 foodTarget.StopEating();
@@ -71,6 +66,7 @@ internal class EatingState : ICreatureState
             }
             else
             {
+                foodTarget.IsBeingEaten = false;
                 // If finished eating
                 if (foodTarget != null && foodTarget.nutritionValue < 1f)
                 {

@@ -1,12 +1,10 @@
 ﻿using UnityEngine;
 
-public abstract class MoveToTargetBase
+public abstract class MoveToTargetBase : CreatureStateBase
 {
-    protected readonly CreatureBehaviour creature;
     protected GameObject target;
-    protected MoveToTargetBase(CreatureBehaviour creature)
+    protected MoveToTargetBase(CreatureBehaviour creature, CreatureStateType stateType) : base(creature, stateType)
     {
-        this.creature = creature;
     }
     public void SetTarget(GameObject targetFood)
     {

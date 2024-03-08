@@ -1,6 +1,6 @@
 public enum CreatureStateType
 {
-    None = 0,
+    None = default,
     Idle,
     SearchingForFood,
     MovingToFood,
@@ -8,5 +8,5 @@ public enum CreatureStateType
     Eating,
     Wandering,
     SearchingForMate,
-    Mating
+    Reproducting
 }

@@ -2,23 +2,18 @@
 using Unity.VisualScripting;
 using UnityEngine;
 
-internal class WanderingState : ICreatureState
+internal class WanderingState : CreatureStateBase
 {
-    private readonly CreatureBehaviour creature;
     
     private Vector3 target;
-    public WanderingState(CreatureBehaviour creatureBehaviour)
-    {
-        this.creature = creatureBehaviour;
-    }
+    public WanderingState(CreatureBehaviour creature):base(creature,CreatureStateType.Wandering){}
 
-    public CreatureStateType StateType => CreatureStateType.Wandering;
-
-    public void EnterState()
+    public override void EnterState()
     {
+        base.EnterState();
         target = creature.MovementManager.Wander();
     }
-    public void UpdateState()
+    public override void UpdateState()
     {
         if (target != Vector3.zero)
         {
@@ -29,8 +24,9 @@ internal class WanderingState : ICreatureState
             creature.MovementManager.MoveTowards(target);
         }
     }
-    public void ExitState()
+    public override void ExitState()
     {
+        base.ExitState();
         target = Vector3.zero;
     }
 }
