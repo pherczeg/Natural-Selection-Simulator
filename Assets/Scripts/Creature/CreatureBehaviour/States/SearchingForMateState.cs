@@ -18,7 +18,11 @@ public class SearchingForMateState : CreatureSearchingStateBase
         {
             creature.stateMachine.TransitionToMovingToMate(target);
         },
-        target => target.transform.parent.GetComponent<CreatureBehaviour>().ReproductionManager.IsReadyToReproduction());
+        target => {
+            var creatureBehaviour = target.transform.parent.GetComponent<CreatureBehaviour>();
+            return creatureBehaviour != null && creatureBehaviour.ReproductionManager.IsReadyToReproduction();
+        });
+
     }
     public override void UpdateState()
     {

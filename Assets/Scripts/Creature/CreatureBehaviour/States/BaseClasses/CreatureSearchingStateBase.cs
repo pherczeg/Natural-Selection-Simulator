@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using UnityEngine;
 
 public abstract class CreatureSearchingStateBase : CreatureStateBase
@@ -36,7 +37,7 @@ public abstract class CreatureSearchingStateBase : CreatureStateBase
         GameObject closestTarget = null;
         float closestTargetDistance = float.MaxValue;
 
-        foreach (var observation in creature.ObservationManager.Observations)
+        foreach (var observation in creature.ObservationManager.Observations.Where(x=>x.Value.observedObject != null))
         {
             GameObject observedObject = observation.Value.observedObject;
             if (observation.Value.type != targetType || observedObject == null)

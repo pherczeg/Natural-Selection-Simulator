@@ -73,6 +73,10 @@ public class CreatureBehaviour : MonoBehaviour
             var energyConsumption = EnergyManager.CalculateEnergyConsumption();
             EnergyManager.ConsumeEnergy(energyConsumption);
             AgeManager.UpdateAge(lastObservation);
+            if (AgeManager.IsMaxAgeReached())
+            {
+                Destroy(this.gameObject);
+            }
             if (ReproductionManager.IsOnCooldown())
             {
                 ReproductionManager.UpdateReproductionCooldown(lastObservation);

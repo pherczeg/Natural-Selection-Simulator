@@ -11,11 +11,11 @@ public class GameConfig : ScriptableObject
     public float eatingEnergyThreshold = 0.75f;
     public float initialEnergyPercentage = 0.5f;
     public float reproductionCooldown = 20f;
-    public float reproductionAge = 2f;
+    public float reproductionAge = 1f;
     public float reproductionTime = 1f;
     public float reproductionEnergyThreshold = 0.8f;
     public float mutationRate = 0.5f;
     public float mutationChance = 0.5f;
-    public float energyConsumptionCoefficient = 0.0001f;
+    public float energyConsumptionCoefficient = 0.00001f;
     public float sizeDifferentFactor = 1.2f;
 }

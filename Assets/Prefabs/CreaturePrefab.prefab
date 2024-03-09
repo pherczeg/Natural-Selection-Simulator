@@ -313,10 +313,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 16f8d0b4c6fd4c24db812728886edde4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moveSpeed: 5
-  senseRadius: 15
-  energyLevel: 0
-  age: 0
-  weight: 1
   energyBarObject: {fileID: 822491502839785203}
   maxEnergy: 100
+  config: {fileID: 0}
+  coroutineRunner: {fileID: 0}

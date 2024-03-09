@@ -40,7 +40,7 @@ public class CreatureSpawner : MonoBehaviour
             Vector3 spawnPosition = GetSpawnPosition(bounds);
             CreatureBehaviour newCreatureBehaviour = SpawnCreature(spawnPosition);
             var weight = Random.Range(2f, 10f);
-            var moveSpeed = Random.Range(2f, 7f);
+            var moveSpeed = Random.Range(7f, 20f);
             var senseRange = Random.Range(10f, 30f);
             newCreatureBehaviour.Initialize(moveSpeed, weight, senseRange);
         }
