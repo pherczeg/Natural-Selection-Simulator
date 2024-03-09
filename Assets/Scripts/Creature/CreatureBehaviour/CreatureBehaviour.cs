@@ -64,9 +64,9 @@ public class CreatureBehaviour : MonoBehaviour
         EatingManager = new EatingManager(this);
     }
 
-    void Update()
+    void FixedUpdate()
     {
-        lastObservation += Time.deltaTime;
+        lastObservation += Time.fixedDeltaTime;
         if (lastObservation >= config.updateInterval)
         {
             ObservationManager.UpdateObservations();
@@ -98,7 +98,7 @@ public class CreatureBehaviour : MonoBehaviour
         {
             stateMachine.TransitionToSearchingForFood();
         }
-        else  if ( stateMachine.CurrentState.StateType == CreatureStateType.MovingToMate || stateMachine.CurrentState.StateType == CreatureStateType.MovingToMate)
+        else  if ( stateMachine.CurrentState.StateType == CreatureStateType.SearchingForMate || stateMachine.CurrentState.StateType == CreatureStateType.MovingToMate)
         {
             return;
         }

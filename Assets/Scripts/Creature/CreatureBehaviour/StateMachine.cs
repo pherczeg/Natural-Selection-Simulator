@@ -76,9 +76,13 @@ public class StateMachine
     {
         SetState(wanderingState);
     }
-    public  void TransitionToReproductionState(CreatureBehaviour otherCreature)
+    public  void TransitionToReproductionState(CreatureBehaviour otherCreature, bool isGivingBirth)
     {
         SetState(reproductionState);
+        if (isGivingBirth)
+        {
+            reproductionState.StartReproductionCoroutine(otherCreature);
+        }
     }
 }
 

@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public abstract class CreatureSearchingStateBase : CreatureStateBase
@@ -30,14 +31,19 @@ public abstract class CreatureSearchingStateBase : CreatureStateBase
         base.ExitState();
         wanderTarget = Vector3.zero;
     }
-    protected void SearchForTarget(ObservationType targetType, TargetAction onTargetFound)
+    protected void SearchForTarget(ObservationType targetType, TargetAction onTargetFound, Func<GameObject, bool> additionalCriteria = null)
     {
         GameObject closestTarget = null;
         float closestTargetDistance = float.MaxValue;
 
         foreach (var observation in creature.ObservationManager.Observations)
         {
-            if (observation.Value.type != targetType || observation.Value.observedObject == null)
+            GameObject observedObject = observation.Value.observedObject;
+            if (observation.Value.type != targetType || observedObject == null)
+            {
+                continue;
+            }
+            if (additionalCriteria != null && !additionalCriteria(observedObject))
             {
                 continue;
             }
@@ -46,7 +52,7 @@ public abstract class CreatureSearchingStateBase : CreatureStateBase
             if (distance < closestTargetDistance)
             {
                 closestTargetDistance = distance;
-                closestTarget = observation.Value.observedObject;
+                closestTarget = observedObject;
             }
         }
 

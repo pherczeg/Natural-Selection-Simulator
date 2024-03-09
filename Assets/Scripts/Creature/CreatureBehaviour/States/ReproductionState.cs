@@ -1,4 +1,5 @@
 ﻿
+using System.Collections;
 using UnityEngine;
 
 public class ReproductionState : CreatureStateBase
@@ -12,11 +13,23 @@ public class ReproductionState : CreatureStateBase
     }
     public override void UpdateState()
     {
-        timer += Time.deltaTime;
+        timer += Time.fixedDeltaTime;
         if (timer >= creature.config.reproductionTime)
         {
-
+            creature.stateMachine.TransitionToIdle();
         }    
+    }
+    public void StartReproductionCoroutine(CreatureBehaviour otherCreature)
+    {
+        creature.EatingManager.eatingCoroutine = creature.coroutineRunner.StartCoroutine(ReproductionRoutine(otherCreature));
+    }
+
+    IEnumerator ReproductionRoutine(CreatureBehaviour otherCreature)
+    {
+        yield return new WaitForSeconds(1f);
+        creature.ReproductionManager.Reproduct(otherCreature);
+        creature.ReproductionManager.StartReproductionCooldown();
+        otherCreature.ReproductionManager.StartReproductionCooldown();
     }
     public  override void ExitState()
     {

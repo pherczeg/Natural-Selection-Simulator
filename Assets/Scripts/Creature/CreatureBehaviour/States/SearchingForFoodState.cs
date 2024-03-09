@@ -32,7 +32,9 @@ public class SearchingForFoodState : CreatureSearchingStateBase
         SearchForTarget(ObservationType.Food, (target) =>
         {
             creature.stateMachine.TransitionToMovingToFood(target);
-        });
+        }, 
+        (target) => !creature.EatingManager.IsFoodBlacklisted(target.GetComponent<Food>()
+        ));
     }
 
     protected override void OnTargetReached()

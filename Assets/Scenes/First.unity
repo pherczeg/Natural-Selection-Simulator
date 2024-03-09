@@ -330,7 +330,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 2, y: 1, z: 2}
+  m_LocalScale: {x: 10, y: 5, z: 10}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 1059404836}
@@ -510,9 +510,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   foodPrefab: {fileID: 1909847660352713250, guid: f8098a75fb07c18479522367c42d5944, type: 3}
-  initialFoodCount: 3
+  initialFoodCount: 100
   spawnRate: 5
-  spawnNumber: 2
+  spawnNumber: 100
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
@@ -1099,7 +1099,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   creaturePrefab: {fileID: 8674103884923863129, guid: 0d4cb093021d5034499a9b1187271de5, type: 3}
-  numberOfCreatures: 3
+  numberOfCreatures: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

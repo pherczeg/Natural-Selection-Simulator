@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using static UnityEngine.GraphicsBuffer;
 
 public class SearchingForMateState : CreatureSearchingStateBase
 {
@@ -16,7 +17,8 @@ public class SearchingForMateState : CreatureSearchingStateBase
         SearchForTarget(ObservationType.Creature, (target) =>
         {
             creature.stateMachine.TransitionToMovingToMate(target);
-        });
+        },
+        target => target.transform.parent.GetComponent<CreatureBehaviour>().ReproductionManager.IsReadyToReproduction());
     }
     public override void UpdateState()
     {

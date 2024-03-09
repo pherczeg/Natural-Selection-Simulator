@@ -1,9 +1,4 @@
-using System.Collections;
-using System.Collections.Generic;
-using Unity.VisualScripting;
-using UnityEditor.Build;
 using UnityEngine;
-using UnityEngine.UIElements;
 
 public class Food : MonoBehaviour
 {
@@ -48,33 +43,25 @@ public class Food : MonoBehaviour
             }
         }
     }
-    // Start is called before the first frame update
     void Start()
     {
         _renderer = GetComponentInChildren<Renderer>();
 
-        // Assign a random nutrition value
         nutritionValue = Random.Range(minNutrionValue, maxNutrionValue);
 
-        // Lerp between green and red based on the nutrition value
         Color foodColor = Color.Lerp(Color.green, Color.red, (nutritionValue - minNutrionValue) / maxNutrionValue);
         _renderer.material.color = foodColor;
     }
 
-    // Update is called once per frame
     void FixedUpdate()
     {
         age += Time.fixedDeltaTime;
-        if (eatingCreature == null && age > maxAge)
+        if (eatingCreature == null && age > maxAge && !IsBeingEaten)
         {
-            //Destroy(this.gameObject);
+            Destroy(this.gameObject);
         }
 
     }
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <returns></returns>
     public bool TryStartEating(CreatureBehaviour creature)
     {
         if (!IsBeingEaten)
@@ -85,9 +72,7 @@ public class Food : MonoBehaviour
         }
         else if (eatingCreature != null) 
         {
-#warning TODO : kiszervezni global settingsbe
-            //If the new creature's weight is 20% higher he will interrupt
-            if (creature.Weight >= eatingCreature.Weight * 1.2f) 
+            if (creature.Weight >= eatingCreature.Weight * creature.config.sizeDifferentFactor) 
             { 
                 eatingCreature.EatingManager.InterruptEating();
                 eatingCreature = creature;

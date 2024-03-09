@@ -29,17 +29,12 @@ public class ReproductionManager
     }
     public void Reproduct(CreatureBehaviour mate)
     {
-
-        //CreatureBehaviour offspringBehavior = creatureSpawner.SpawnCreature(gameObject.transform.position);
-
-        //offspringBehavior.Weight = InheritWithMutation(creature.Weight, mate.Weight, 2);
-        //offspringBehavior.moveSpeed = InheritWithMutation(this.moveSpeed, mate.moveSpeed, 2);
-        //offspringBehavior.senseRadius = InheritWithMutation(this.senseRadius, mate.senseRadius, 5);
-        //this.reproductionCooldown = REPRODUCTION_COOLDOWN;
-        //mate.reproductionCooldown = REPRODUCTION_COOLDOWN;
-
-        //this.currentState = CreatureState.Wandering;
-        //mate.currentState = CreatureState.Wandering;
+        if (mate == null) { return; }
+        CreatureBehaviour offspringBehavior = CreatureSpawner.Instance.SpawnCreature(mate.transform.position);
+        var newWeight = InheritWithMutation(creature.Weight, mate.Weight, 2);
+        var newMoveSpeed = InheritWithMutation(creature.MovementManager.MoveSpeed, mate.MovementManager.MoveSpeed, 2);
+        var newsenseRadius = InheritWithMutation(creature.ObservationManager.SenseRadius, mate.ObservationManager.SenseRadius, 5);
+        offspringBehavior.Initialize(newMoveSpeed,newWeight,newsenseRadius);
     }
 
     private float InheritWithMutation(float trait1, float trait2, float minvalue)
@@ -64,6 +59,6 @@ public class ReproductionManager
   
     public bool IsReadyToReproduction()
     {
-        return !IsOnCooldown() && creature.AgeManager.Age >= creature.config.reproductionAge;
+        return !IsOnCooldown() && creature.AgeManager.Age >= creature.config.reproductionAge && creature.stateMachine.CurrentState.StateType != CreatureStateType.Reproducting;
     }
 }

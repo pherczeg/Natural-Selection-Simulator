@@ -6,7 +6,7 @@ public abstract class MoveToTargetBase : CreatureStateBase
     protected MoveToTargetBase(CreatureBehaviour creature, CreatureStateType stateType) : base(creature, stateType)
     {
     }
-    public void SetTarget(GameObject targetFood)
+    public virtual void SetTarget(GameObject targetFood)
     {
         this.target = targetFood;
     }

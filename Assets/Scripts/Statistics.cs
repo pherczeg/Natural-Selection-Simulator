@@ -14,7 +14,7 @@ public class Statistics : MonoBehaviour
     private List<float> averageAgeHistory = new List<float>();
     private List<float> averageSenseRadiusHistory = new List<float>();
 
-    void Update()
+    void FixedUpdate()
     {
         timer += Time.fixedDeltaTime;
         if (timer >= updateInterval)
