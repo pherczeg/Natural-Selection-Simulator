@@ -59,6 +59,9 @@ public class ReproductionManager
   
     public bool IsReadyToReproduction()
     {
-        return !IsOnCooldown() && creature.AgeManager.Age >= creature.config.reproductionAge && creature.stateMachine.CurrentState.StateType != CreatureStateType.Reproducting;
+        return !IsOnCooldown() && 
+                creature.AgeManager.Age >= creature.config.reproductionAge && 
+                creature.stateMachine.CurrentState.StateType != CreatureStateType.Reproducting && 
+                creature.EnergyManager.EnergyLevel  >= creature.config.reproductionEnergyThreshold* creature.config.maxEnergy;
     }
 }

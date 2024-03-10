@@ -26,10 +26,10 @@ public class ReproductionState : CreatureStateBase
 
     IEnumerator ReproductionRoutine(CreatureBehaviour otherCreature)
     {
-        yield return new WaitForSeconds(1f);
-        creature.ReproductionManager.Reproduct(otherCreature);
         creature.ReproductionManager.StartReproductionCooldown();
         otherCreature.ReproductionManager.StartReproductionCooldown();
+        yield return new WaitForSeconds(1f);
+        creature.ReproductionManager.Reproduct(otherCreature);
     }
     public  override void ExitState()
     {

@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 public class EatingManager
 {
-    private Dictionary<Food, float> blacklistedFoods = new Dictionary<Food, float>();
+    private Dictionary<Food, float> blacklistedFoods;
     private CreatureBehaviour creature;
     public Coroutine eatingCoroutine { get; set; }
     public Food foodTarget { get; set; }
     public EatingManager(CreatureBehaviour creatureBehaviour)
     {
         this.creature = creatureBehaviour;
+        blacklistedFoods = new Dictionary<Food, float>();
     }
     public bool IsFoodBlacklisted(Food food)
     {
