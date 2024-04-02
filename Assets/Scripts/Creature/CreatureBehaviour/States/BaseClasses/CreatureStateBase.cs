@@ -18,13 +18,23 @@ public abstract class CreatureStateBase : ICreatureState
 
     public virtual void EnterState()
     {
-        Debug.Log($"{creature.GetInstanceID()}: Entering {stateType}");
+        //var debugString = $"{creature.GetInstanceID()}: Entering {stateType}";
+        var debugString = $"Entering {stateType}";
+        //Debug.Log(debugString);
+        creature.DEBUG_string += debugString + Time.realtimeSinceStartup + "\n";
+        if (creature?.EatingManager?.eatingCoroutine != null)
+        {
+            Debug.Log("adsf");
+        }
     }
 
     public abstract void UpdateState();
 
     public virtual void ExitState()
     {
-        Debug.Log($"{creature.GetInstanceID()}: Ending {stateType}");
+        //var debugString = $"{creature.GetInstanceID()}: Ending {stateType}";
+        var debugString = $"Ending {stateType}";
+        //Debug.Log(debugString);
+        creature.DEBUG_string += debugString + Time.realtimeSinceStartup + "\n";
     }
 }

@@ -20,12 +20,12 @@ public class EnergyManager
         if (creature.CurrentStateType == CreatureStateType.Eating) 
             return 0;
         float energyConsumption = (0.5f *
-                                      (float)Math.Pow(creature.Weight, 3) *
+                                      (float)Math.Pow(creature.Weight, 1) *
                                       (float)Math.Pow(creature.MovementManager.MoveSpeed, 2)) *
                                       //Time.fixedDeltaTime) *
-                                      creature.config.updateInterval *
+                                      GameConfig.Instance.updateInterval *
                                       creature.ObservationManager.SenseRadius * 
-                                      creature.config.energyConsumptionCoefficient;
+                                      GameConfig.Instance.energyConsumptionCoefficient;
         return energyConsumption;
     }
     public void ConsumeEnergy(float amount)

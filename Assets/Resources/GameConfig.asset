@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ca8526779facd24eb084ccf956cc160, type: 3}
+  m_Name: GameConfig
+  m_EditorClassIdentifier: 
+  maxAge: 120
+  maxEnergy: 200
+  updateInterval: 0.2
+  nutritionConsumptionRatePerSecond: 35
+  blackListDuration: 0.5
+  eatingEnergyThreshold: 0.7
+  initialEnergyPercentage: 0.5
+  reproductionCooldown: 30
+  reproductionAge: 30
+  reproductionTime: 1
+  reproductionEnergyThreshold: 0.6
+  mutationRate: 0.5
+  mutationChance: 0.5
+  energyConsumptionCoefficient: 0.0002
+  sizeDifferentFactor: 1.5

@@ -26,6 +26,7 @@ public class Food : MonoBehaviour
     }
     public float age = 0f;
     private CreatureBehaviour eatingCreature = null;
+    private FoodSpawner foodSpawner;
     private Renderer _renderer;
     private Color foodColor;
     Color FoodColor 
@@ -46,9 +47,8 @@ public class Food : MonoBehaviour
     void Start()
     {
         _renderer = GetComponentInChildren<Renderer>();
-
+        foodSpawner = FindObjectOfType<FoodSpawner>();
         nutritionValue = Random.Range(minNutrionValue, maxNutrionValue);
-
         Color foodColor = Color.Lerp(Color.green, Color.red, (nutritionValue - minNutrionValue) / maxNutrionValue);
         _renderer.material.color = foodColor;
     }
@@ -72,10 +72,11 @@ public class Food : MonoBehaviour
         }
         else if (eatingCreature != null) 
         {
-            if (creature.Weight >= eatingCreature.Weight * creature.config.sizeDifferentFactor) 
+            if (creature.Weight >= eatingCreature.Weight * GameConfig.Instance.sizeDifferentFactor) 
             { 
                 eatingCreature.EatingManager.InterruptEating();
                 eatingCreature = creature;
+                IsBeingEaten = true;
                 return true;
             }
             else 
@@ -123,7 +124,10 @@ public class Food : MonoBehaviour
             return 0; 
         }   
     }
-
+    private void OnDestroy()
+    {
+        foodSpawner.RemoveFromList(this);
+    }
     public void DestroyOnDepletion()
     {
         Destroy(this.gameObject);

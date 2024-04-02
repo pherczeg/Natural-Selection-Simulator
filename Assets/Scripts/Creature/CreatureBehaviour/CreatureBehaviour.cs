@@ -4,16 +4,28 @@ using UnityEngine;
 
 public class CreatureBehaviour : MonoBehaviour
 {
+    [SerializeField]
+    public float asdf 
+    { 
+        get 
+        {
+            if (MovementManager != null)
+                return MovementManager.MoveSpeed;
+            return 0;
+        } 
+    }
+    [SerializeField,TextArea]
+    public string DEBUG_string;
     private float age;
     private float weight;
     private int numberOfRaycasts = 30;
     private float angleBetweenRaycasts = 5f;
     private float matingCooldown;
-
+    private CreatureSpawner creatureSpawner;
     float lastObservation = 0f;
 
     public GameObject energyBarObject;
-    public float maxEnergy = 100f;
+    public float maxEnergy;
     public float Weight => weight;
     public float Energy
     {
@@ -43,31 +55,34 @@ public class CreatureBehaviour : MonoBehaviour
         }
     }
     public StateMachine stateMachine;
-    public GameConfig config;
     public CoroutineRunner coroutineRunner;
-    void Start()
+    void Awake()
     {
-
+        creatureSpawner = FindObjectOfType<CreatureSpawner>();
     }
     public void Initialize(float moveSpeed, float weight, float senseRadius)
     {
+        maxEnergy = GameConfig.Instance.maxEnergy;
         this.weight = weight;
         coroutineRunner = gameObject.GetComponent<CoroutineRunner>() ?? gameObject.AddComponent<CoroutineRunner>();
-        config = ScriptableObject.CreateInstance<GameConfig>();
         AgeManager = new AgeManager(this);
         ReproductionManager = new ReproductionManager(this);
         MovementManager = new MovementManager(this, moveSpeed);
         ObservationManager = new ObservationManager(this, senseRadius, numberOfRaycasts, angleBetweenRaycasts);
         stateMachine = new StateMachine(this);
-        EnergyManager = new EnergyManager(this, maxEnergy, maxEnergy);
+        EnergyManager = new EnergyManager(this, maxEnergy* GameConfig.Instance.initialEnergyPercentage, maxEnergy);
         EnergyManager.UpdateEnergyBar();
         EatingManager = new EatingManager(this);
     }
-
+    //void OnDrawGizmos()
+    //{
+    //    Gizmos.color = Color.blue; // Beállítjuk a gizmo színét
+    //    Gizmos.DrawWireSphere(transform.position, ObservationManager.SenseRadius); // Rajzolunk egy drótváz gömböt, amely jelzi a vizsgált területet
+    //}
     void FixedUpdate()
     {
         lastObservation += Time.fixedDeltaTime;
-        if (lastObservation >= config.updateInterval)
+        if (lastObservation >= GameConfig.Instance.updateInterval)
         {
             ObservationManager.UpdateObservations();
             var energyConsumption = EnergyManager.CalculateEnergyConsumption();
@@ -91,14 +106,18 @@ public class CreatureBehaviour : MonoBehaviour
         stateMachine.Update();
         CheckTransitions();
     }
-
+    private void OnDestroy()
+    {
+        EatingManager.InterruptEating();
+        creatureSpawner.RemoveFromList(this);
+    }
     void CheckTransitions()
     {
         if (stateMachine.CurrentState.StateType == CreatureStateType.MovingToFood || stateMachine.CurrentState.StateType == CreatureStateType.Eating || stateMachine.CurrentState.StateType == CreatureStateType.SearchingForFood || stateMachine.CurrentState.StateType == CreatureStateType.Reproducting)
         {
             return;
         }
-        else if (EnergyManager.EnergyLevel < config.eatingEnergyThreshold * maxEnergy)
+        else if (EnergyManager.EnergyLevel < GameConfig.Instance.eatingEnergyThreshold * maxEnergy)
         {
             stateMachine.TransitionToSearchingForFood();
         }

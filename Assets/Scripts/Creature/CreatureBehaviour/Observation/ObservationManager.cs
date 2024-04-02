@@ -29,13 +29,13 @@ public class ObservationManager
         creature.ObservationManager.Observations.Clear();
 #if DEBUG
 
-        RaycastHit rayHit;
-        if (Physics.Raycast(creature.transform.position, creature.transform.forward, out rayHit, 100))
-        {
-            Vector3 incomingDirection = creature.transform.forward;
-            Vector3 reflectDirection = Vector3.Reflect(incomingDirection, rayHit.normal).normalized;
-            Debug.DrawRay(creature.transform.position + Vector3.up * 0.1f, reflectDirection * rayHit.distance, Color.blue);
-        }
+        //RaycastHit rayHit;
+        //if (Physics.Raycast(creature.transform.position, creature.transform.forward, out rayHit, 100))
+        //{
+        //    Vector3 incomingDirection = creature.transform.forward;
+        //    Vector3 reflectDirection = Vector3.Reflect(incomingDirection, rayHit.normal).normalized;
+        //    Debug.DrawRay(creature.transform.position + Vector3.up * 0.1f, reflectDirection * rayHit.distance, Color.blue);
+        //}
 #endif
         for (int i = 0; i < numberOfRaycasts; i++)
         {

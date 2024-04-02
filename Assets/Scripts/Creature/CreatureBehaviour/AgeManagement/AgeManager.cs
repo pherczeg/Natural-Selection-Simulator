@@ -14,7 +14,7 @@ public class AgeManager
     }
     public bool IsMaxAgeReached()
     {
-        return Age >= creature.config.maxAge;
+        return Age >= GameConfig.Instance.maxAge;
     }
 
     public void UpdateAge(float amount)

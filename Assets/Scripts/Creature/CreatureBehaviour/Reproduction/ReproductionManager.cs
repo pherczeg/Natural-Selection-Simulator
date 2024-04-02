@@ -8,6 +8,7 @@ using UnityEngine;
 public class ReproductionManager
 {
     CreatureBehaviour creature;
+    public Coroutine reproductionCoroutine { get; set; }
     public float ReproductionCooldown { get; private set; }
     public ReproductionManager(CreatureBehaviour creatureBehaviour)
     {
@@ -16,7 +17,7 @@ public class ReproductionManager
     public void UpdateReproductionCooldown(float amount)
     {
         ReproductionCooldown -= amount;
-        ReproductionCooldown = Math.Clamp(ReproductionCooldown, 0, creature.config.reproductionCooldown);
+        ReproductionCooldown = Math.Clamp(ReproductionCooldown, 0, GameConfig.Instance.reproductionCooldown);
     }
     public bool IsOnCooldown()
     {
@@ -25,7 +26,7 @@ public class ReproductionManager
 
     public void StartReproductionCooldown()
     {
-        ReproductionCooldown = creature.config.reproductionCooldown;
+        ReproductionCooldown = GameConfig.Instance.reproductionCooldown;
     }
     public void Reproduct(CreatureBehaviour mate)
     {
@@ -41,8 +42,8 @@ public class ReproductionManager
     {
         float inheritedTrait = UnityEngine.Random.value < 0.5f ? trait1 : trait2;
 
-        float mutationChance = creature.config.mutationChance;
-        float mutationRate = creature.config.mutationRate;
+        float mutationChance = GameConfig.Instance.mutationChance;
+        float mutationRate = GameConfig.Instance.mutationRate;
         if (UnityEngine.Random.value < mutationChance)
         {
             float mutationAmount = UnityEngine.Random.Range((-1) * mutationRate, mutationRate);
@@ -60,8 +61,9 @@ public class ReproductionManager
     public bool IsReadyToReproduction()
     {
         return !IsOnCooldown() && 
-                creature.AgeManager.Age >= creature.config.reproductionAge && 
-                creature.stateMachine.CurrentState.StateType != CreatureStateType.Reproducting && 
-                creature.EnergyManager.EnergyLevel  >= creature.config.reproductionEnergyThreshold* creature.config.maxEnergy;
+                creature.AgeManager.Age >= GameConfig.Instance.reproductionAge && 
+                creature.stateMachine.CurrentState.StateType != CreatureStateType.Reproducting &&
+                creature.stateMachine.CurrentState.StateType != CreatureStateType.Eating &&
+                creature.EnergyManager.EnergyLevel  >= GameConfig.Instance.reproductionEnergyThreshold* GameConfig.Instance.maxEnergy;
     }
 }

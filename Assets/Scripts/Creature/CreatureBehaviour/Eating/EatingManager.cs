@@ -31,21 +31,29 @@ public class EatingManager
     {
         if (blacklistedFoods.ContainsKey(food))
         {
-            blacklistedFoods[food] = Time.time + creature.config.blackListDuration;
+            blacklistedFoods[food] = Time.time + GameConfig.Instance.blackListDuration;
         }
         else
         {
-            blacklistedFoods.Add(food, Time.time + creature.config.blackListDuration);
+            blacklistedFoods.Add(food, Time.time + GameConfig.Instance.blackListDuration);
         }
     }
     public void InterruptEating()
     {
         if (eatingCoroutine != null)
         {
-            creature.EatingManager.BlacklistFood(foodTarget);
-            foodTarget.StopEating();
-            //isEating = false;
-            creature.stateMachine.TransitionToWandering();
+            if (foodTarget != null)
+            {
+                creature.EatingManager.BlacklistFood(foodTarget);
+                foodTarget.StopEating();
+                //isEating = false;
+                creature.stateMachine.TransitionToWandering();
+                creature.DEBUG_string += "eating interrubted" + Time.realtimeSinceStartup + "\n";
+            }
+            else 
+            {
+                Debug.Log("");
+            }
         }
     }
 }

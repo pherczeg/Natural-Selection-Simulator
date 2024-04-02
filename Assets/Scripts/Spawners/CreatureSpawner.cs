@@ -1,3 +1,8 @@
+using System.Collections.Generic;
+using Unity.Collections;
+using Unity.Entities;
+using Unity.Jobs;
+using UnityEditor;
 using UnityEngine;
 
 public class CreatureSpawner : MonoBehaviour
@@ -6,9 +11,10 @@ public class CreatureSpawner : MonoBehaviour
 
     public GameObject creaturePrefab;
     public int numberOfCreatures = 5;
-
+    public List<CreatureBehaviour> creatures;
     void Awake()
     {
+        creatures = new List<CreatureBehaviour>();
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
@@ -19,7 +25,6 @@ public class CreatureSpawner : MonoBehaviour
             InitializeSpawner();
         }
     }
-
     void InitializeSpawner()
     {
         if (GroundManager.Instance != null)
@@ -45,7 +50,10 @@ public class CreatureSpawner : MonoBehaviour
             newCreatureBehaviour.Initialize(moveSpeed, weight, senseRange);
         }
     }
-
+    public bool RemoveFromList(CreatureBehaviour creature)
+    {
+        return creatures.Remove(creature);
+    }
     Vector3 GetSpawnPosition(Bounds bounds)
     {
         Vector3 spawnPosition = new Vector3(
@@ -69,7 +77,9 @@ public class CreatureSpawner : MonoBehaviour
     public CreatureBehaviour SpawnCreature(Vector3 spawnPosition)
     {
         GameObject newCreature = Instantiate(creaturePrefab, spawnPosition, Quaternion.identity);
-        return newCreature.GetComponent<CreatureBehaviour>();
+        var creatureBehaviour = newCreature.GetComponent<CreatureBehaviour>();
+        creatures.Add(creatureBehaviour);
+        return creatureBehaviour;
     }
 
     bool IsPlaceOccupied(Vector3 position)

@@ -15,7 +15,6 @@ internal class EatingState : CreatureStateBase
 
     public override void ExitState()
     {
-        base.ExitState();
         isEating = false;
         if (creature.EatingManager.eatingCoroutine != null) 
         { 
@@ -23,6 +22,7 @@ internal class EatingState : CreatureStateBase
         }
         creature.EatingManager.eatingCoroutine = null;
         creature.EatingManager.foodTarget = null;
+        base.ExitState();
     }
 
     public override void UpdateState()
@@ -81,7 +81,7 @@ internal class EatingState : CreatureStateBase
 
     private void ProcessConsumptionInThisInterval(Food foodTarget)
     {
-        float energyDesiredThisFrame = creature.config.nutritionConsumptionRatePerSecond * Time.fixedDeltaTime;
+        float energyDesiredThisFrame = GameConfig.Instance.nutritionConsumptionRatePerSecond * Time.fixedDeltaTime;
         if (energyDesiredThisFrame + creature.EnergyManager.EnergyLevel > creature.maxEnergy)
         {
             energyDesiredThisFrame = creature.maxEnergy - creature.EnergyManager.EnergyLevel;

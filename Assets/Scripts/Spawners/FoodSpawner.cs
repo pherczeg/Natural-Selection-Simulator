@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class FoodSpawner : MonoBehaviour
@@ -8,8 +9,10 @@ public class FoodSpawner : MonoBehaviour
     public float spawnRate = 5f; // spawns food every 5 seconds by default
     public float spawnNumber = 5f;
     private GameObject ground;
+    public List<Food> foods;
     private void Awake()
     {
+        foods = new List<Food>();
         ground = GameObject.FindGameObjectWithTag("Ground");
         if (ground == null)
         {
@@ -48,9 +51,15 @@ public class FoodSpawner : MonoBehaviour
                     );
                 }
 
-                Instantiate(foodPrefab, randomPosition, Quaternion.identity);
+                var foodGameObject = Instantiate(foodPrefab, randomPosition, Quaternion.identity);
+                foods.Add(foodGameObject.GetComponent<Food>());
             }
         }
+    }
+
+    public void RemoveFromList(Food food)
+    {
+        foods.Remove(food);
     }
 
     bool IsPlaceOccupied(Vector3 position)
