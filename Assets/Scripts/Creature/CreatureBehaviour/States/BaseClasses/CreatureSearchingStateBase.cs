@@ -32,39 +32,35 @@ public abstract class CreatureSearchingStateBase : CreatureStateBase
         base.ExitState();
         wanderTarget = Vector3.zero;
     }
-    protected void SearchForTarget(ObservationType targetType, TargetAction onTargetFound, Func<GameObject, bool> additionalCriteria = null)
+    protected void SearchForTarget(ObservationType targetType, Action<GameObject> onTargetFound, Func<GameObject, bool> additionalCriteria = null)
     {
-        GameObject closestTarget = null;
-        float closestTargetDistance = float.MaxValue;
-
-        foreach (var observation in creature.ObservationManager.Observations.Where(x=>x.Value.observedObject != null))
+        try
         {
-            GameObject observedObject = observation.Value.observedObject;
-            if (observation.Value.type != targetType || observedObject == null)
-            {
-                continue;
-            }
-            if (additionalCriteria != null && !additionalCriteria(observedObject))
-            {
-                continue;
-            }
 
-            float distance = observation.Value.distance;
-            if (distance < closestTargetDistance)
+            var observation = creature.ObservationManager.Observations.FirstOrDefault(o => o.type == targetType);
+            if (observation.observedObject != null)
             {
-                closestTargetDistance = distance;
-                closestTarget = observedObject;
+                float distance = Vector3.Distance(creature.transform.position, observation.observedObject.transform.position);
+                if ((additionalCriteria == null || additionalCriteria(observation.observedObject)) && distance < creature.ObservationManager.SenseRadius)
+                {
+                    onTargetFound(observation.observedObject);
+                }
+                else
+                {
+                    EnsureWanderTarget();
+                }
+            }
+            else
+            {
+                EnsureWanderTarget();
             }
         }
+        catch (Exception ex)
+        {
+            Debug.LogException(ex);
+            throw;
+        }
 
-        if (closestTarget != null)
-        {
-            onTargetFound(closestTarget);
-        }
-        else
-        {
-            EnsureWanderTarget();
-        }
     }
 
 

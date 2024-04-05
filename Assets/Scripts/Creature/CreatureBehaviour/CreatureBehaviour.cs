@@ -84,7 +84,7 @@ public class CreatureBehaviour : MonoBehaviour
         lastObservation += Time.fixedDeltaTime;
         if (lastObservation >= GameConfig.Instance.updateInterval)
         {
-            ObservationManager.UpdateObservations();
+            //ObservationManager.UpdateObservations();
             var energyConsumption = EnergyManager.CalculateEnergyConsumption();
             EnergyManager.ConsumeEnergy(energyConsumption);
             AgeManager.UpdateAge(lastObservation);

@@ -3,7 +3,6 @@
 public struct ObservationData
 {
     public ObservationType type;
-    public float distance;
     public GameObject observedObject;
 }
 

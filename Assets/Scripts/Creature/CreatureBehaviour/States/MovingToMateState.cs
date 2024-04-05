@@ -1,6 +1,8 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 public class MovingToMateState : MoveToTargetBase, ICreatureState
 {
@@ -10,10 +12,10 @@ public class MovingToMateState : MoveToTargetBase, ICreatureState
     {
         base.EnterState();
     }
-    public override void SetTarget(GameObject targetFood)
+    public override void SetTarget(GameObject targetCreature)
     {
-        base.SetTarget(targetFood);
-        targetCreature = target.transform.parent.GetComponent<CreatureBehaviour>();
+        base.SetTarget(targetCreature);
+        this.targetCreature = target.transform.GetComponent<CreatureBehaviour>();
     }
     public override void UpdateState()
     {

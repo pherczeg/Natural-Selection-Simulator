@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using static UnityEngine.GraphicsBuffer;
@@ -19,7 +20,7 @@ public class SearchingForMateState : CreatureSearchingStateBase
             creature.stateMachine.TransitionToMovingToMate(target);
         },
         target => {
-            var creatureBehaviour = target.transform.parent.GetComponent<CreatureBehaviour>();
+            var creatureBehaviour = target.transform.GetComponent<CreatureBehaviour>();
             return creatureBehaviour != null && creatureBehaviour.ReproductionManager.IsReadyToReproduction();
         });
 
