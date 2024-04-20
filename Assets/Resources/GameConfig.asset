@@ -15,7 +15,7 @@ MonoBehaviour:
   maxAge: 120
   maxEnergy: 200
   updateInterval: 0.2
-  nutritionConsumptionRatePerSecond: 35
+  nutritionConsumptionRatePerSecond: 15
   blackListDuration: 0.5
   eatingEnergyThreshold: 0.7
   initialEnergyPercentage: 0.5
@@ -27,3 +27,5 @@ MonoBehaviour:
   mutationChance: 0.5
   energyConsumptionCoefficient: 0.0002
   sizeDifferentFactor: 1.5
+  minNutrionValue: 50
+  maxNutrionValue: 100

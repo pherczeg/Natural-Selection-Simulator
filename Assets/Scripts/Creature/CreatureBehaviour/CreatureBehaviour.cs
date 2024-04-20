@@ -1,5 +1,6 @@
 using System;
 using Unity.IO.LowLevel.Unsafe;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class CreatureBehaviour : MonoBehaviour
@@ -90,7 +91,7 @@ public class CreatureBehaviour : MonoBehaviour
             AgeManager.UpdateAge(lastObservation);
             if (AgeManager.IsMaxAgeReached())
             {
-                Destroy(this.gameObject);
+                DestroyObject();
             }
             if (ReproductionManager.IsOnCooldown())
             {
@@ -100,14 +101,15 @@ public class CreatureBehaviour : MonoBehaviour
         }
         if (EnergyManager.IsEnergyDepleted())
         {
-            Destroy(gameObject);
+            DestroyObject();
             return;
         }
         stateMachine.Update();
         CheckTransitions();
     }
-    private void OnDestroy()
+    private void DestroyObject()
     {
+        PoolManager.Instance.ReturnObject(CreatureSpawner.Instance.creaturePrefab, this.gameObject);
         EatingManager.InterruptEating();
         creatureSpawner.RemoveFromList(this);
     }

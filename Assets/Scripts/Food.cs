@@ -2,8 +2,6 @@ using UnityEngine;
 
 public class Food : MonoBehaviour
 {
-    public static float minNutrionValue = 50f;
-    public static float maxNutrionValue = 100f;
     public static float maxAge = 20f;
 
     public float nutritionValue = 10f;
@@ -20,13 +18,12 @@ public class Food : MonoBehaviour
             }
             else
             {
-                FoodColor = Color.Lerp(Color.green, Color.red, (nutritionValue - minNutrionValue) / maxNutrionValue);
+                FoodColor = Color.Lerp(Color.green, Color.red, (nutritionValue - GameConfig.Instance.minNutrionValue) / GameConfig.Instance.maxNutrionValue);
             }
         }
     }
     public float age = 0f;
     private CreatureBehaviour eatingCreature = null;
-    private FoodSpawner foodSpawner;
     private Renderer _renderer;
     private Color foodColor;
     Color FoodColor 
@@ -44,12 +41,10 @@ public class Food : MonoBehaviour
             }
         }
     }
-    void Start()
+    void Awake()
     {
         _renderer = GetComponentInChildren<Renderer>();
-        foodSpawner = FindObjectOfType<FoodSpawner>();
-        nutritionValue = Random.Range(minNutrionValue, maxNutrionValue);
-        Color foodColor = Color.Lerp(Color.green, Color.red, (nutritionValue - minNutrionValue) / maxNutrionValue);
+        Color foodColor = Color.Lerp(Color.green, Color.red, (nutritionValue - GameConfig.Instance.minNutrionValue) / GameConfig.Instance.maxNutrionValue);
         _renderer.material.color = foodColor;
     }
 
@@ -58,9 +53,15 @@ public class Food : MonoBehaviour
         age += Time.fixedDeltaTime;
         if (eatingCreature == null && age > maxAge && !IsBeingEaten)
         {
-            Destroy(this.gameObject);
+            DestroyObject();
         }
 
+    }
+
+    private void DestroyObject()
+    {
+        PoolManager.Instance.ReturnObject(FoodSpawner.Instance.foodPrefab, this.gameObject);
+        FoodSpawner.Instance.RemoveFromList(this);
     }
     public bool TryStartEating(CreatureBehaviour creature)
     {
@@ -126,10 +127,12 @@ public class Food : MonoBehaviour
     }
     private void OnDestroy()
     {
-        foodSpawner.RemoveFromList(this);
+        FoodSpawner.Instance.RemoveFromList(this);
     }
     public void DestroyOnDepletion()
     {
-        Destroy(this.gameObject);
+        //Destroy(this.gameObject);
+        DestroyObject();
+        //PoolManager.Instance.ReturnObject(FoodSpawner.Instance.foodPrefab, this.gameObject);
     }
 }

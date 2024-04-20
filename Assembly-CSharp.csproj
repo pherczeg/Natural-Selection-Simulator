@@ -90,8 +90,10 @@
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\AgeManagement\AgeManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\SearchingForMateState.cs" />
     <Compile Include="Assets\Scripts\Jobs\FindClosestReproductiveCreature.cs" />
+    <Compile Include="Assets\Scripts\SimpleLineChart.cs" />
     <Compile Include="Assets\Scripts\Creature\InfoBars\EnergyBar.cs" />
     <Compile Include="Assets\Scripts\GameManager.cs" />
+    <Compile Include="Assets\Scripts\PoolManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\MovingToMateState.cs" />
     <Compile Include="Assets\Resources\GameConfig.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\EnergyManagement\EnergyManager.cs" />

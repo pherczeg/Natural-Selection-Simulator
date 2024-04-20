@@ -24,7 +24,7 @@ public class GameConfig : ScriptableObject
     public float maxAge = 120f;
     public float maxEnergy = 200f;
     public float updateInterval = .2f;
-    public float nutritionConsumptionRatePerSecond = 10.0f;
+    public float nutritionConsumptionRatePerSecond = 1.0f;
     public float blackListDuration = .5f;
     public float eatingEnergyThreshold = 0.7f;
     public float initialEnergyPercentage = 0.5f;
@@ -36,4 +36,6 @@ public class GameConfig : ScriptableObject
     public float mutationChance = 0.5f;
     public float energyConsumptionCoefficient = 0.0002f;
     public float sizeDifferentFactor = 1.5f;
+    public float minNutrionValue = 50f;
+    public float maxNutrionValue = 100f;
 }

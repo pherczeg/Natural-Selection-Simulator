@@ -4,13 +4,16 @@ using UnityEngine;
 
 public class FoodSpawner : MonoBehaviour
 {
+    public static FoodSpawner Instance { get; private set; }
+
     public GameObject foodPrefab;
     public int initialFoodCount = 20;
+    public int poolSizeOfFood = 2000;
     public float spawnRate = 5f; // spawns food every 5 seconds by default
     public float spawnNumber = 5f;
     private GameObject ground;
     public List<Food> foods;
-    private void Awake()
+    private void Start()
     {
         foods = new List<Food>();
         ground = GameObject.FindGameObjectWithTag("Ground");
@@ -18,6 +21,16 @@ public class FoodSpawner : MonoBehaviour
         {
             throw new System.Exception("Ground was not found for FoodSpawing");
         }
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+        }
+        else
+        {
+            Instance = this;
+        }
+        
+        PoolManager.Instance.CreatePool(foodPrefab, poolSizeOfFood);
         for (int i = 0; i < initialFoodCount; i++)
         {
             SpawnFood();
@@ -50,9 +63,14 @@ public class FoodSpawner : MonoBehaviour
                         Random.Range(bounds.min.z, bounds.max.z)
                     );
                 }
+                var foodGameObject = PoolManager.Instance.GetObject(foodPrefab);
+                foodGameObject.transform.position = randomPosition;
+                foodGameObject.transform.rotation = Quaternion.identity;
+                var foodComponent = foodGameObject.GetComponent<Food>();
+                foodComponent.nutritionValue = Random.Range(GameConfig.Instance.minNutrionValue, GameConfig.Instance.maxNutrionValue);
 
-                var foodGameObject = Instantiate(foodPrefab, randomPosition, Quaternion.identity);
-                foods.Add(foodGameObject.GetComponent<Food>());
+                foodComponent.age = 0;
+                foods.Add(foodComponent);
             }
         }
     }

@@ -4,9 +4,11 @@ using System.Collections.Generic;
 
 public class Statistics : MonoBehaviour
 {
+    public static Statistics Instance { get; private set; }
+
     public float updateInterval = 1f;
     private float timer = 0f;
-
+    private int counter = 0;
     public List<int> numberOfCreaturesHistory;
     public List<float> averageWeightHistory;
     public List<float> averageSpeedHistory;
@@ -22,6 +24,14 @@ public class Statistics : MonoBehaviour
     public List<float> minSenseHistory;
     private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+        }
+        else
+        {
+            Instance = this;
+        }
         Reset();
     }
     void FixedUpdate()

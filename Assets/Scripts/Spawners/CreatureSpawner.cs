@@ -11,8 +11,9 @@ public class CreatureSpawner : MonoBehaviour
 
     public GameObject creaturePrefab;
     public int numberOfCreatures = 5;
+    private int poolSizeOfCreatures = 100;
     public List<CreatureBehaviour> creatures;
-    void Awake()
+    void Start()
     {
         creatures = new List<CreatureBehaviour>();
         if (Instance != null && Instance != this)
@@ -30,6 +31,7 @@ public class CreatureSpawner : MonoBehaviour
         if (GroundManager.Instance != null)
         {
             Bounds bounds = GroundManager.Instance.GroundBounds;
+            PoolManager.Instance.CreatePool(creaturePrefab, poolSizeOfCreatures);
             SpawnCreatures(bounds);
         }
         else
@@ -76,12 +78,12 @@ public class CreatureSpawner : MonoBehaviour
 
     public CreatureBehaviour SpawnCreature(Vector3 spawnPosition)
     {
-        GameObject newCreature = Instantiate(creaturePrefab, spawnPosition, Quaternion.identity);
+        GameObject newCreature = PoolManager.Instance.GetObject(creaturePrefab);
+        newCreature.transform.position = spawnPosition;
         var creatureBehaviour = newCreature.GetComponent<CreatureBehaviour>();
         creatures.Add(creatureBehaviour);
         return creatureBehaviour;
     }
-
     bool IsPlaceOccupied(Vector3 position)
     {
         float checkRadius = .5f;
