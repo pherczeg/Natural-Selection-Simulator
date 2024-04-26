@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class SearchingForFoodState : CreatureSearchingStateBase
 {
-    public SearchingForFoodState(CreatureBehaviour creature) : base(creature, CreatureStateType.SearchingForFood) { }
+    public SearchingForFoodState(BaseCreatureBehaviour creature) : base(creature, CreatureStateType.SearchingForFood) { }
     public override void EnterState()
     {
         base.EnterState();

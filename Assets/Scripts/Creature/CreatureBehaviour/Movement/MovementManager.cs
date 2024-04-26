@@ -5,10 +5,10 @@ public class MovementManager
     private float moveSpeed;
     public float MoveSpeed  => moveSpeed;
     
-    private CreatureBehaviour creature;
+    private BaseCreatureBehaviour creature;
     private Transform creatureTransform;
     private Bounds bounds;
-    public MovementManager(CreatureBehaviour creature, float moveSpeed)
+    public MovementManager(BaseCreatureBehaviour creature, float moveSpeed)
     {
         if (GroundManager.Instance != null)
         {

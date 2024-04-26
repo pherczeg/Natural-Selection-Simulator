@@ -6,7 +6,7 @@ internal class WanderingState : CreatureStateBase
 {
     
     private Vector3 target;
-    public WanderingState(CreatureBehaviour creature):base(creature,CreatureStateType.Wandering){}
+    public WanderingState(BaseCreatureBehaviour creature):base(creature,CreatureStateType.Wandering){}
 
     public override void EnterState()
     {

@@ -4,24 +4,21 @@ using Unity.Jobs;
 using Unity.Mathematics;
 
 [BurstCompile]
-public struct FindClosestReproductiveCreature : IJobParallelFor
+public struct FindClosestFoodCreatureJob : IJobParallelFor
 {
-    [ReadOnly] public NativeArray<float3> creaturePositions;
+    [ReadOnly] public NativeArray<float3> predatorPositions;
+    [ReadOnly] public NativeArray<float3> herbivorPositions;
     public NativeArray<int> closestCreatureIndices;
 
     public void Execute(int index)
     {
-        float3 creaturePosition = creaturePositions[index];
+        float3 creaturePosition = predatorPositions[index];
         float closestDistance = float.MaxValue;
         int closestCreatureIndex = -1;
 
-        for (int j = 0; j < creaturePositions.Length; j++)
+        for (int j = 0; j < herbivorPositions.Length; j++)
         {
-            if (j == index)
-            {
-                continue;
-            }
-            float distance = math.distance(creaturePosition, creaturePositions[j]);
+            float distance = math.distance(creaturePosition, herbivorPositions[j]);
             if (distance < closestDistance)
             {
                 closestDistance = distance;

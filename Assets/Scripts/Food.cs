@@ -23,7 +23,7 @@ public class Food : MonoBehaviour
         }
     }
     public float age = 0f;
-    private CreatureBehaviour eatingCreature = null;
+    private BaseCreatureBehaviour eatingCreature = null;
     private Renderer _renderer;
     private Color foodColor;
     Color FoodColor 
@@ -63,7 +63,7 @@ public class Food : MonoBehaviour
         PoolManager.Instance.ReturnObject(FoodSpawner.Instance.foodPrefab, this.gameObject);
         FoodSpawner.Instance.RemoveFromList(this);
     }
-    public bool TryStartEating(CreatureBehaviour creature)
+    public bool TryStartEating(BaseCreatureBehaviour creature)
     {
         if (!IsBeingEaten)
         {
@@ -94,7 +94,7 @@ public class Food : MonoBehaviour
         eatingCreature = null;
     }
 
-    public CreatureBehaviour GetEatingCreature()
+    public BaseCreatureBehaviour GetEatingCreature()
     {
         return eatingCreature;
     }

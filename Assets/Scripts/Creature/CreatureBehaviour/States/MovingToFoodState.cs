@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class MovingToFoodState : MoveToTargetBase
 {
-    public MovingToFoodState(CreatureBehaviour creature) : base(creature, CreatureStateType.MovingToFood) { }
+    public MovingToFoodState(BaseCreatureBehaviour creature) : base(creature, CreatureStateType.MovingToFood) { }
     public override void EnterState()
     {
         base.EnterState();

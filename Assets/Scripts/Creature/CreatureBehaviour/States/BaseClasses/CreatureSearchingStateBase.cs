@@ -6,7 +6,7 @@ public abstract class CreatureSearchingStateBase : CreatureStateBase
 {
     protected Vector3 wanderTarget;
     protected delegate void TargetAction(GameObject target);
-    protected CreatureSearchingStateBase(CreatureBehaviour creature, CreatureStateType initialType)
+    protected CreatureSearchingStateBase(BaseCreatureBehaviour creature, CreatureStateType initialType)
         : base(creature, initialType) { }
 
     public override void EnterState()

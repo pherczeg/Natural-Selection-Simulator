@@ -3,7 +3,7 @@
 public abstract class MoveToTargetBase : CreatureStateBase
 {
     protected GameObject target;
-    protected MoveToTargetBase(CreatureBehaviour creature, CreatureStateType stateType) : base(creature, stateType)
+    protected MoveToTargetBase(BaseCreatureBehaviour creature, CreatureStateType stateType) : base(creature, stateType)
     {
     }
     public virtual void SetTarget(GameObject target)

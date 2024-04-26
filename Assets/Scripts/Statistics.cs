@@ -46,7 +46,7 @@ public class Statistics : MonoBehaviour
 
     void UpdateStatistics()
     {
-        CreatureBehaviour[] creatures = FindObjectsOfType<CreatureBehaviour>();
+        BaseCreatureBehaviour[] creatures = CreatureSpawner.Instance.herbivorCreatures.ToArray();
         int creatureCount = creatures.Length;
 
         if (creatureCount > 0)

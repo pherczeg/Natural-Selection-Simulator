@@ -6,7 +6,7 @@ using static UnityEngine.GraphicsBuffer;
 
 public class SearchingForMateState : CreatureSearchingStateBase
 {
-    public SearchingForMateState(CreatureBehaviour creature) : base(creature, CreatureStateType.SearchingForMate) { }
+    public SearchingForMateState(BaseCreatureBehaviour creature) : base(creature, CreatureStateType.SearchingForMate) { }
     public override void EnterState()
     {
         base.EnterState();
@@ -15,12 +15,12 @@ public class SearchingForMateState : CreatureSearchingStateBase
 
     private void SearchForMate() 
     {
-        SearchForTarget(ObservationType.Creature, (target) =>
+        SearchForTarget(ObservationType.MatingCreature, (target) =>
         {
             creature.stateMachine.TransitionToMovingToMate(target);
         },
         target => {
-            var creatureBehaviour = target.transform.GetComponent<CreatureBehaviour>();
+            var creatureBehaviour = target.transform.GetComponent<BaseCreatureBehaviour>();
             return creatureBehaviour != null && creatureBehaviour.ReproductionManager.IsReadyToReproduction();
         });
 

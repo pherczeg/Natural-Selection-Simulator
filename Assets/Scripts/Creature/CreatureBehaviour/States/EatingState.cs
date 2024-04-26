@@ -6,7 +6,7 @@ internal class EatingState : CreatureStateBase
 {
     public bool isEating = false;
 
-    public EatingState(CreatureBehaviour creatureBehaviour) : base(creatureBehaviour, CreatureStateType.Eating) { }
+    public EatingState(BaseCreatureBehaviour creatureBehaviour) : base(creatureBehaviour, CreatureStateType.Eating) { }
 
     public override void EnterState()
     {

@@ -4,10 +4,10 @@ using UnityEngine;
 public class EatingManager
 {
     private Dictionary<Food, float> blacklistedFoods;
-    private CreatureBehaviour creature;
+    private BaseCreatureBehaviour creature;
     public Coroutine eatingCoroutine { get; set; }
     public Food foodTarget { get; set; }
-    public EatingManager(CreatureBehaviour creatureBehaviour)
+    public EatingManager(BaseCreatureBehaviour creatureBehaviour)
     {
         this.creature = creatureBehaviour;
         blacklistedFoods = new Dictionary<Food, float>();

@@ -647,7 +647,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e7b1142436dce7d429d60be2090572f1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  restartTime: 3
+  restartTime: 300
   numberOfSimulations: 5
 --- !u!1 &705507993
 GameObject:

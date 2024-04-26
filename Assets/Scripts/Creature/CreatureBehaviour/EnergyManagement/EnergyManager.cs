@@ -4,11 +4,11 @@ using UnityEngine;
 [Serializable]
 public class EnergyManager
 {
-    private CreatureBehaviour creature;
+    private BaseCreatureBehaviour creature;
     public float EnergyLevel { get; private set; }
     private float maxEnergy;
 
-    public EnergyManager(CreatureBehaviour creature, float initialEnergy, float maxEnergy)
+    public EnergyManager(BaseCreatureBehaviour creature, float initialEnergy, float maxEnergy)
     {
         this.creature = creature;
         this.EnergyLevel = initialEnergy;

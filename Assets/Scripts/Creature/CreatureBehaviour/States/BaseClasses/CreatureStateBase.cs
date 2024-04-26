@@ -2,7 +2,7 @@
 
 public abstract class CreatureStateBase : ICreatureState
 {
-    protected CreatureBehaviour creature;
+    protected BaseCreatureBehaviour creature;
 
     private CreatureStateType stateType;
     public CreatureStateType StateType
@@ -10,7 +10,7 @@ public abstract class CreatureStateBase : ICreatureState
         get => stateType;
         protected set => stateType = value;
     }
-    protected CreatureStateBase(CreatureBehaviour creature, CreatureStateType  initialType)
+    protected CreatureStateBase(BaseCreatureBehaviour creature, CreatureStateType  initialType)
     {
         this.creature = creature;
         this.StateType = initialType;

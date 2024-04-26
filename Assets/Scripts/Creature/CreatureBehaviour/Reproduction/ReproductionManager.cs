@@ -7,10 +7,10 @@ using UnityEngine;
 
 public class ReproductionManager
 {
-    CreatureBehaviour creature;
+    BaseCreatureBehaviour creature;
     public Coroutine reproductionCoroutine { get; set; }
     public float ReproductionCooldown { get; private set; }
-    public ReproductionManager(CreatureBehaviour creatureBehaviour)
+    public ReproductionManager(BaseCreatureBehaviour creatureBehaviour)
     {
         creature = creatureBehaviour;
     }
@@ -28,10 +28,10 @@ public class ReproductionManager
     {
         ReproductionCooldown = GameConfig.Instance.reproductionCooldown;
     }
-    public void Reproduct(CreatureBehaviour mate)
+    public void Reproduct(BaseCreatureBehaviour mate)
     {
         if (mate == null) { return; }
-        CreatureBehaviour offspringBehavior = CreatureSpawner.Instance.SpawnCreature(mate.transform.position);
+        BaseCreatureBehaviour offspringBehavior = CreatureSpawner.Instance.SpawnCreature(mate.transform.position, CreatureSpawner.Instance.herbivorPrefab);
         var newWeight = InheritWithMutation(creature.Weight, mate.Weight, 2);
         var newMoveSpeed = InheritWithMutation(creature.MovementManager.MoveSpeed, mate.MovementManager.MoveSpeed, 2);
         var newsenseRadius = InheritWithMutation(creature.ObservationManager.SenseRadius, mate.ObservationManager.SenseRadius, 5);

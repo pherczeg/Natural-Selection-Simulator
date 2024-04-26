@@ -11,5 +11,6 @@ public enum ObservationType
     None,
     Food,
     Obstacle,
-    Creature
+    MatingCreature,
+    FoodCreature
 }

@@ -6,7 +6,7 @@ using UnityEngine;
 public class StateMachine
 {
     public ICreatureState CurrentState { get; private set; }
-    private readonly CreatureBehaviour creatureBehaviour;
+    private readonly BaseCreatureBehaviour creatureBehaviour;
 
     private readonly IdleState idleState;
     private readonly SearchingForFoodState searchingForFoodState;
@@ -17,7 +17,7 @@ public class StateMachine
     private readonly EatingState eatingState;
     private readonly ReproductionState reproductionState;
 
-    public StateMachine(CreatureBehaviour creatureBehaviour)
+    public StateMachine(BaseCreatureBehaviour creatureBehaviour)
     {
         idleState = new IdleState(creatureBehaviour);
         searchingForFoodState = new SearchingForFoodState(creatureBehaviour);
@@ -76,7 +76,7 @@ public class StateMachine
     {
         SetState(wanderingState);
     }
-    public  void TransitionToReproductionState(CreatureBehaviour otherCreature, bool isGivingBirth)
+    public  void TransitionToReproductionState(BaseCreatureBehaviour otherCreature, bool isGivingBirth)
     {
         SetState(reproductionState);
         if (isGivingBirth)

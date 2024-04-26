@@ -6,8 +6,8 @@ using UnityEngine.Rendering;
 
 public class MovingToMateState : MoveToTargetBase, ICreatureState
 {
-    public MovingToMateState(CreatureBehaviour creature) : base(creature, CreatureStateType.MovingToMate) { }
-    CreatureBehaviour targetCreature;
+    public MovingToMateState(BaseCreatureBehaviour creature) : base(creature, CreatureStateType.MovingToMate) { }
+    BaseCreatureBehaviour targetCreature;
     public override void EnterState()
     {
         base.EnterState();
@@ -15,7 +15,7 @@ public class MovingToMateState : MoveToTargetBase, ICreatureState
     public override void SetTarget(GameObject targetCreature)
     {
         base.SetTarget(targetCreature);
-        this.targetCreature = target.transform.GetComponent<CreatureBehaviour>();
+        this.targetCreature = target.transform.GetComponent<BaseCreatureBehaviour>();
     }
     public override void UpdateState()
     {

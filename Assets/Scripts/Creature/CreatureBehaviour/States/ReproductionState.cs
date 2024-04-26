@@ -5,7 +5,7 @@ using UnityEngine;
 public class ReproductionState : CreatureStateBase
 {
     private float timer;
-    public ReproductionState(CreatureBehaviour creature) : base(creature, CreatureStateType.Reproducting) { }
+    public ReproductionState(BaseCreatureBehaviour creature) : base(creature, CreatureStateType.Reproducting) { }
     public override void EnterState()
     {
         base.EnterState();
@@ -28,12 +28,12 @@ public class ReproductionState : CreatureStateBase
         }
         creature.ReproductionManager.reproductionCoroutine = null;
     }
-    public void StartReproductionCoroutine(CreatureBehaviour otherCreature)
+    public void StartReproductionCoroutine(BaseCreatureBehaviour otherCreature)
     {
         creature.ReproductionManager.reproductionCoroutine = creature.coroutineRunner.StartCoroutine(ReproductionRoutine(otherCreature));
     }
 
-    IEnumerator ReproductionRoutine(CreatureBehaviour otherCreature)
+    IEnumerator ReproductionRoutine(BaseCreatureBehaviour otherCreature)
     {
         creature.ReproductionManager.StartReproductionCooldown();
         otherCreature.ReproductionManager.StartReproductionCooldown();

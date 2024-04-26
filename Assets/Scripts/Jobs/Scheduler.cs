@@ -22,10 +22,11 @@ internal class Scheduler : MonoBehaviour
         lastObservation += Time.fixedDeltaTime;
         if (lastObservation >= GameConfig.Instance.updateInterval)
         {
-            creatureSpawner.creatures.RemoveAll(creature => creature == null);
+            creatureSpawner.herbivorCreatures.RemoveAll(creature => creature == null);
             foodSpawner.foods.RemoveAll(food => food == null);
             ScheduleFoodObservationJobs();
             SchedulePossibleMatingObservationJobs();
+            ScheduleFoodCreatureObservationJobs();
             lastObservation = 0f;
         }
     }
@@ -33,7 +34,7 @@ internal class Scheduler : MonoBehaviour
     private void ScheduleFoodObservationJobs()
     {
         
-        List<CreatureBehaviour> creatures = creatureSpawner.creatures;
+        List<BaseCreatureBehaviour> creatures = creatureSpawner.herbivorCreatures;
         List<Food> foods = foodSpawner.foods;
 
         NativeArray<float3> creaturePositions = new NativeArray<float3>(creatures.Count, Allocator.TempJob);
@@ -79,14 +80,14 @@ internal class Scheduler : MonoBehaviour
 
     private void SchedulePossibleMatingObservationJobs()
     {
-        List<CreatureBehaviour> creatures = creatureSpawner.creatures.Where(c=>c.ReproductionManager.IsReadyToReproduction()).ToList();
+        List<BaseCreatureBehaviour> creatures = creatureSpawner.herbivorCreatures.Where(c=>c.ReproductionManager.IsReadyToReproduction()).ToList();
         NativeArray<float3> creaturePositions = new NativeArray<float3>(creatures.Count, Allocator.TempJob);
         for (int i = 0; i < creatures.Count; i++)
         {
             creaturePositions[i] = creatures[i].transform.position;
         }
         NativeArray<int> closestReproductiveCreatures = new NativeArray<int>(creatures.Count, Allocator.TempJob);
-        FindClosestReproductiveCreature job = new FindClosestReproductiveCreature
+        FindClosestReproductiveCreatureJob job = new FindClosestReproductiveCreatureJob
         {
             creaturePositions = creaturePositions,
             closestCreatureIndices = closestReproductiveCreatures
@@ -103,11 +104,51 @@ internal class Scheduler : MonoBehaviour
             var creature = creatures[index];
             ObservationData observationData = new();
             observationData.observedObject = creature.gameObject;
-            observationData.type = ObservationType.Creature;
+            observationData.type = ObservationType.MatingCreature;
             creatures[i].ObservationManager.Observations.Add(observationData);
         }
         closestReproductiveCreatures.Dispose();
         creaturePositions.Dispose();
+    }
+
+    private void ScheduleFoodCreatureObservationJobs()
+    {
+        List<BaseCreatureBehaviour> herbivoreCreatures = creatureSpawner.herbivorCreatures;
+        List<BaseCreatureBehaviour> predatorCreatures = creatureSpawner.predatorCreatures;
+        NativeArray<float3> herbivoreCreaturePositions = new NativeArray<float3>(herbivoreCreatures.Count, Allocator.TempJob);
+        NativeArray<float3> predatorCreaturePositions = new NativeArray<float3>(predatorCreatures.Count, Allocator.TempJob);
+        for (int i = 0; i < herbivoreCreatures.Count; i++)
+        {
+            herbivoreCreaturePositions[i] = herbivoreCreatures[i].transform.position;
+        }
+        for (int i = 0; i < predatorCreatures.Count; i++)
+        {
+            predatorCreaturePositions[i] = predatorCreatures[i].transform.position;
+        }
+        NativeArray<int> closestFoodCreatureIndices = new NativeArray<int>(predatorCreatures.Count, Allocator.TempJob);
+        FindClosestFoodCreatureJob job = new FindClosestFoodCreatureJob
+        {
+            herbivorPositions = herbivoreCreaturePositions,
+            predatorPositions = predatorCreaturePositions,
+            closestCreatureIndices = closestFoodCreatureIndices
+        };
+        JobHandle handle = job.Schedule(predatorCreatures.Count, 64);
+        handle.Complete();
+        for (int i = 0; i < predatorCreatures.Count; i++)
+        {
+            var index = closestFoodCreatureIndices[i];
+            if (index < 0 || index > herbivoreCreatures.Count)
+            {
+                continue;
+            }
+            var foodCreature = herbivoreCreatures[index];
+            ObservationData observationData = new();
+            observationData.observedObject = foodCreature.gameObject;
+            observationData.type = ObservationType.FoodCreature;
+            predatorCreatures[i].ObservationManager.Observations.Add(observationData);
+        }
+        closestFoodCreatureIndices.Dispose();
+        herbivoreCreaturePositions.Dispose();
     }
 }
 

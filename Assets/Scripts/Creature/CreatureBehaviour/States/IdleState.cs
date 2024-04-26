@@ -2,7 +2,7 @@
 
 public class IdleState : CreatureStateBase
 {
-    public IdleState(CreatureBehaviour creature) : base(creature, CreatureStateType.Idle) { }
+    public IdleState(BaseCreatureBehaviour creature) : base(creature, CreatureStateType.Idle) { }
 
     public override void EnterState()
     {

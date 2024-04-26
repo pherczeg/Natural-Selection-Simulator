@@ -3,12 +3,12 @@ using UnityEngine;
 
 public class AgeManager
 {
-    private CreatureBehaviour creature;
+    private BaseCreatureBehaviour creature;
     public float Age { get; private set; }
 
     
 
-    public AgeManager(CreatureBehaviour creature)
+    public AgeManager(BaseCreatureBehaviour creature)
     {
         this.creature = creature;
     }

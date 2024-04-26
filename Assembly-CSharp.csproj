@@ -75,8 +75,8 @@
     <Compile Include="Assets\Scripts\Spawners\CreatureSpawner.cs" />
     <Compile Include="Assets\Scripts\Food.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\StateMachine.cs" />
-    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\CreatureBehaviour.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\Eating\EatingManager.cs" />
+    <Compile Include="Assets\Scripts\Jobs\FindClosestReproductiveCreatureJob.cs" />
     <Compile Include="Assets\Scripts\CoroutineRunner.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\BaseClasses\CreatureStateType.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\Observation\ObservationData.cs" />
@@ -87,11 +87,12 @@
     <Compile Include="Assets\Scripts\Spawners\FoodSpawner.cs" />
     <Compile Include="Assets\Scripts\GroundManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\EatingState.cs" />
+    <Compile Include="Assets\Scripts\Jobs\FindClosestFoodCreatureJob.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\AgeManagement\AgeManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\SearchingForMateState.cs" />
-    <Compile Include="Assets\Scripts\Jobs\FindClosestReproductiveCreature.cs" />
     <Compile Include="Assets\Scripts\SimpleLineChart.cs" />
     <Compile Include="Assets\Scripts\Creature\InfoBars\EnergyBar.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\BaseCreatureBehaviour.cs" />
     <Compile Include="Assets\Scripts\GameManager.cs" />
     <Compile Include="Assets\Scripts\PoolManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\MovingToMateState.cs" />
@@ -106,8 +107,10 @@
     <Compile Include="Assets\Scripts\Jobs\FindClosestFoodJob.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\BaseClasses\MoveToTargetBase.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\BaseClasses\CreatureStateBase.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\PredatorBehaviour.cs" />
     <Compile Include="Assets\Scripts\Statistics.cs" />
     <Compile Include="Assets\Scripts\CameraController.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\HerbivoreBehaviour.cs" />
     <Compile Include="Assets\Scripts\Creature\InfoBars\Billboard.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\BaseClasses\CreatureSearchingStateBase.cs" />
   </ItemGroup>
