@@ -38,7 +38,6 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 705507994}
-  m_IndirectSpecularColor: {r: 0.44657898, g: 0.4964133, b: 0.5748178, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -269,7 +268,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 22265195}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e1f56ae1bf74cd4d81f180d723b9558, type: 3}
+  m_Script: {fileID: 11500000, guid: e81c173fe3f9d394d88bce56960180ab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1 &68692448
@@ -374,7 +373,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 10, y: 5, z: 10}
+  m_LocalScale: {x: 1, y: 0.5, z: 1}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 1059404836}
@@ -550,7 +549,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 224538313}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: caad4ed9f9b1ae6448ae7fdf4ac72abd, type: 3}
+  m_Script: {fileID: 11500000, guid: 10bfd3e1f6a68c24787c1237cd7c683f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1 &337948969
@@ -594,14 +593,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 337948969}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b27590a9cebefcb4c97e4d8644363807, type: 3}
+  m_Script: {fileID: 11500000, guid: 830bbb85c31f1274bb0a829aefaca34e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  foodPrefab: {fileID: 1909847660352713250, guid: f8098a75fb07c18479522367c42d5944, type: 3}
-  initialFoodCount: 20
-  poolSizeOfFood: 200
+  foodPrefab: {fileID: 1909847660352713250, guid: 854af4518b082124a86cf112ecf1f438, type: 3}
+  initialFoodCount: 1
+  poolSizeOfFood: 10
   spawnRate: 10
-  spawnNumber: 10
+  spawnNumber: 1
   foods: []
 --- !u!1 &552452033
 GameObject:
@@ -644,11 +643,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 552452033}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e7b1142436dce7d429d60be2090572f1, type: 3}
+  m_Script: {fileID: 11500000, guid: e2b73598cc588434da1d09855d66d518, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  restartTime: 300
-  numberOfSimulations: 5
+  restartTime: 3600
+  numberOfSimulations: 2
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
@@ -784,7 +783,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 821641118}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 42f7206e111c7b64dbe400c231030b48, type: 3}
+  m_Script: {fileID: 11500000, guid: 7baa7dd3d76cdc742a8e40d1d1f82555, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1 &884464868
@@ -828,7 +827,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 884464868}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 21c61e6625ff8954a9eb5133f1dc0f76, type: 3}
+  m_Script: {fileID: 11500000, guid: ceda7de06c3c17b428a1c5467afd7da8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   updateInterval: 1
@@ -845,6 +844,10 @@ MonoBehaviour:
   minWeightHistory: []
   minSpeedHistory: []
   minSenseHistory: []
+  femaleCountHistory: 
+  maleCountHistory: 
+  herbivoreHistory: []
+  predatorHistory: []
 --- !u!1 &963194225
 GameObject:
   m_ObjectHideFlags: 0
@@ -947,17 +950,19 @@ MonoBehaviour:
   m_GameObject: {fileID: 963194225}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a861c71b5e5f0a24eb792213cb251d7f, type: 3}
+  m_Script: {fileID: 11500000, guid: c5ce23e6b85d2c34fb2c9ce359bef1b0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  panSpeed: 30
-  panBorderThickness: 0
-  panLimit: {x: 500, y: 500}
+  panSpeed: 40
+  panBorderThickness: 10
+  enableEdgeScrolling: 0
+  panLimit: {x: 0, y: 0}
   scrollSpeed: 40
-  minY: 10
+  minY: 5
   maxY: 120
   rotationSpeed: 100
-  rotationLimit: {x: -80, y: 80}
+  pitchLimit: {x: 10, y: 80}
+  moveSmoothTime: 0.1
 --- !u!1 &1010689918
 GameObject:
   m_ObjectHideFlags: 0
@@ -1246,12 +1251,15 @@ MonoBehaviour:
   m_GameObject: {fileID: 1543656209}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 323e049fe2c2abb4b8faa4158cf6b197, type: 3}
+  m_Script: {fileID: 11500000, guid: 3c1712416b9542640a4f8fafc37b4fa2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  creaturePrefab: {fileID: 8674103884923863129, guid: 0d4cb093021d5034499a9b1187271de5, type: 3}
-  numberOfCreatures: 10
-  creatures: []
+  herbivorPrefab: {fileID: 8674103884923863129, guid: d6cf4cca45a317a48a8fa4e0039d3133, type: 3}
+  predatorPrefab: {fileID: 8674103884923863129, guid: b72a8aa173a9b214ca354fbeed05f01c, type: 3}
+  numberOfHerbivores: 0
+  numberOfPredators: 3
+  herbivorCreatures: []
+  predatorCreatures: []
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

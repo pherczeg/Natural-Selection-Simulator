@@ -2,6 +2,13 @@ using System;
 using Unity.IO.LowLevel.Unsafe;
 using Unity.VisualScripting;
 using UnityEngine;
+
+public enum CreatureSex
+{
+    Female,
+    Male
+}
+
 public abstract class BaseCreatureBehaviour : MonoBehaviour
 {
     [SerializeField,TextArea]
@@ -17,6 +24,7 @@ public abstract class BaseCreatureBehaviour : MonoBehaviour
     public GameObject energyBarObject;
     public float maxEnergy;
     public float Weight => weight;
+    public CreatureSex Sex { get; private set; }
     public MovementManager MovementManager { get; set; }
     public AgeManager AgeManager { get; set; }
     public EnergyManager EnergyManager { get; set; }
@@ -39,8 +47,23 @@ public abstract class BaseCreatureBehaviour : MonoBehaviour
     {
         creatureSpawner = FindObjectOfType<CreatureSpawner>();
     }
+
+    public void SetSex(CreatureSex sex)
+    {
+        Sex = sex;
+        OnSexChanged();
+    }
+
+    protected virtual void OnSexChanged()
+    {
+        // Subclasses decide how sex-based visuals are applied.
+    }
     
     public abstract void Initialize(float moveSpeed, float weight, float senseRadius);
+    public void Despawn()
+    {
+        DestroyObject();
+    }
     protected abstract void DestroyObject();    
     protected abstract void CheckTransitions();
     

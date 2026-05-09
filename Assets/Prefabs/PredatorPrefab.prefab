@@ -86,7 +86,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: f916a99f3af1a434bb398575db028412, type: 2}
+  - {fileID: 2100000, guid: 999a8413dfcb5cc4e8e8864f99407e4b, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -121,7 +121,6 @@ GameObject:
   - component: {fileID: 3233491307523426132}
   - component: {fileID: 1315667210310748175}
   - component: {fileID: 2191270832209742995}
-  - component: {fileID: 4760114648828178996}
   m_Layer: 0
   m_Name: EnergyBar
   m_TagString: Untagged
@@ -172,7 +171,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 7105f321d42268040b29e61c68a17153, type: 2}
+  - {fileID: 2100000, guid: 82a691e14780aea48b89c53ab82f0ab7, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -225,21 +224,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 822491502839785203}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: bd4f79e9ea807eb42ac324cca00c5d81, type: 3}
+  m_Script: {fileID: 11500000, guid: 175ecc5fb27bdf64eafdcc09439a0119, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &4760114648828178996
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 822491502839785203}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 954e9b470d686e548a920202b013a205, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  energyBarRenderer: {fileID: 3233491307523426132}
 --- !u!1 &8674103884923863129
 GameObject:
   m_ObjectHideFlags: 0
@@ -310,10 +298,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 8674103884923863129}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7f4a576fadd4c8445b50e724cf35baa1, type: 3}
+  m_Script: {fileID: 11500000, guid: e10cf5eda0ff33b4b89177deb14723f9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   DEBUG_string: 
-  energyBarObject: {fileID: 0}
+  energyBarObject: {fileID: 822491502839785203}
   maxEnergy: 0
   coroutineRunner: {fileID: 0}

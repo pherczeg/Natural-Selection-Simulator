@@ -9,23 +9,98 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5ca8526779facd24eb084ccf956cc160, type: 3}
+  m_Script: {fileID: 11500000, guid: e65fdd88d2f310c4b89ce292f7f19421, type: 3}
   m_Name: GameConfig
   m_EditorClassIdentifier: 
-  maxAge: 120
-  maxEnergy: 200
   updateInterval: 0.2
-  nutritionConsumptionRatePerSecond: 15
-  blackListDuration: 0.5
+  oldAgeStartAge: 120
+  maturityAge: 24
+  oldAgeSpeedDecayPerSecond: 0.01
+  oldAgeSenseDecayPerSecond: 0.008
+  oldAgeDesirabilityDecayPerSecond: 0.012
+  oldAgeMinSpeedMultiplier: 0.2
+  oldAgeMinSenseMultiplier: 0.2
+  oldAgeMinDesirabilityMultiplier: 0.05
+  maxEnergy: 200
+  herbivoreMaxEnergy: 200
+  predatorMaxEnergy: 1000
+  initialEnergyPercentageHerbivore: 0.5
+  initialEnergyPercentagePredator: 0.8
   eatingEnergyThreshold: 0.7
-  initialEnergyPercentage: 0.5
-  reproductionCooldown: 30
-  reproductionAge: 30
+  energyConsumptionCoefficient: 0.0000002
+  predatorEnergyGainPerPreyWeight: 25
   reproductionTime: 1
-  reproductionEnergyThreshold: 0.6
+  reproductionEnergyThreshold: 0.3
+  blackListDuration: 0.5
+  femaleReproductionCooldown: 45
+  maleReproductionCooldown: 15
+  rejectedMateCooldown: 10
+  minMateAcceptanceChance: 0.7
+  maxMateAcceptanceChance: 0.95
+  reproductionCooldown: 10
+  minOffspringPerReproduction: 1
+  maxOffspringPerReproduction: 5
+  offspringCountMean: 3
+  offspringCountStdDev: 1
   mutationRate: 0.5
   mutationChance: 0.5
-  energyConsumptionCoefficient: 0.0002
   sizeDifferentFactor: 1.5
-  minNutrionValue: 50
-  maxNutrionValue: 100
+  herbivoreWeightMin: 5
+  herbivoreWeightMax: 20
+  herbivoreSpeedMin: 5
+  herbivoreSpeedMax: 25
+  herbivoreSprintDurationMin: 0.6
+  herbivoreSprintDurationMax: 1.8
+  herbivoreSprintFactorMin: 1.15
+  herbivoreSprintFactorMax: 1.9
+  herbivoreSprintCooldownMin: 1.5
+  herbivoreSprintCooldownMax: 4
+  herbivoreSprintCooldownSpeedFactorMin: 0.7
+  herbivoreSprintCooldownSpeedFactorMax: 0.95
+  herbivoreSenseMin: 10
+  herbivoreSenseMax: 25
+  herbivoreDesirabilityMin: 0
+  herbivoreDesirabilityMax: 1
+  herbivoreAgilityMin: 0
+  herbivoreAgilityMax: 1
+  predatorWeightMin: 20
+  predatorWeightMax: 40
+  predatorSpeedMin: 15
+  predatorSpeedMax: 35
+  predatorSprintDurationMin: 0.5
+  predatorSprintDurationMax: 1.6
+  predatorSprintFactorMin: 1.2
+  predatorSprintFactorMax: 2
+  predatorSprintCooldownMin: 1.5
+  predatorSprintCooldownMax: 4.5
+  predatorSprintCooldownSpeedFactorMin: 0.65
+  predatorSprintCooldownSpeedFactorMax: 0.95
+  predatorSenseMin: 20
+  predatorSenseMax: 60
+  predatorStrengthMin: 0.5
+  predatorStrengthMax: 1
+  herbivoreFleeDistance: 4
+  herbivoreFleeObstacleProbeDistance: 2
+  herbivoreFleeMemoryDuration: 0.35
+  herbivorePostEscapeFleeDuration: 2
+  predatorEatingDuration: 2.5
+  predatorFailedHuntSpeedMultiplier: 0.5
+  predatorFailedHuntDebuffDuration: 2
+  escapedPreyBlacklistDuration: 3
+  predatorStrengthScoreWeight: 0.65
+  predatorWeightScoreWeight: 0.35
+  herbivoreAgilityScoreWeight: 0.6
+  herbivoreWeightScoreWeight: 0.4
+  predationBias: 0.6
+  predationSharpness: 3
+  minPredationSuccessChance: 0.1
+  maxPredationSuccessChance: 0.95
+  herbivoreFemaleColor: {r: 1, g: 0.45, b: 0.65, a: 1}
+  herbivoreMaleColor: {r: 0.35, g: 0.65, b: 1, a: 1}
+  predatorFemaleColor: {r: 1, g: 0.35, b: 0.35, a: 1}
+  predatorMaleColor: {r: 0.45, g: 0.45, b: 0.45, a: 1}
+  nutritionConsumptionRatePerSecond: 100
+  minNutrionValue: 100
+  maxNutrionValue: 300
+  foodMaturityAge: 5
+  foodMaxAge: 120

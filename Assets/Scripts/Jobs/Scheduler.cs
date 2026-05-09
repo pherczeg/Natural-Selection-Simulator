@@ -19,14 +19,16 @@ internal class Scheduler : MonoBehaviour
     float lastObservation;
     private void Update()
     {
+        if (GameConfig.Instance == null) return;
         lastObservation += Time.fixedDeltaTime;
         if (lastObservation >= GameConfig.Instance.updateInterval)
         {
             creatureSpawner.herbivorCreatures.RemoveAll(creature => creature == null);
+            creatureSpawner.predatorCreatures.RemoveAll(creature => creature == null);
             foodSpawner.foods.RemoveAll(food => food == null);
             ScheduleFoodObservationJobs();
-            SchedulePossibleMatingObservationJobs();
             ScheduleFoodCreatureObservationJobs();
+            SchedulePossibleMatingObservationJobs();
             lastObservation = 0f;
         }
     }
@@ -39,9 +41,11 @@ internal class Scheduler : MonoBehaviour
 
         NativeArray<float3> creaturePositions = new NativeArray<float3>(creatures.Count, Allocator.TempJob);
         NativeArray<float3> foodPositions = new NativeArray<float3>(foods.Count, Allocator.TempJob);
+        NativeArray<float> senseRadii = new NativeArray<float>(creatures.Count, Allocator.TempJob);
         for (int i = 0; i < creatures.Count; i++)
         {
             creaturePositions[i] = creatures[i].transform.position;
+            senseRadii[i] = creatures[i].ObservationManager.SenseRadius;
         }
         for (int i = 0; i < foods.Count; i++)
         {
@@ -52,6 +56,7 @@ internal class Scheduler : MonoBehaviour
         {
             creaturePositions = creaturePositions,
             foodPositions = foodPositions,
+            senseRadii = senseRadii,
             closestFoodIndices = closestFoods
         };
         JobHandle handle = job.Schedule(creatures.Count, 64);
@@ -63,7 +68,7 @@ internal class Scheduler : MonoBehaviour
         for (int i = 0; i < creatures.Count; i++)
         {
             var index = closestFoods[i];
-            if (index < 0 || index > foods.Count)
+            if (index < 0 || index >= foods.Count)
             {
                 continue;
             }
@@ -74,47 +79,80 @@ internal class Scheduler : MonoBehaviour
             creatures[i].ObservationManager.Observations.Add(observationData);
         }
         closestFoods.Dispose();
+        senseRadii.Dispose();
         creaturePositions.Dispose();
         foodPositions.Dispose();
     }
 
     private void SchedulePossibleMatingObservationJobs()
     {
-        List<BaseCreatureBehaviour> creatures = creatureSpawner.herbivorCreatures.Where(c=>c.ReproductionManager.IsReadyToReproduction()).ToList();
-        NativeArray<float3> creaturePositions = new NativeArray<float3>(creatures.Count, Allocator.TempJob);
+        SchedulePossibleMatingObservationJobsFor(creatureSpawner.herbivorCreatures);
+        SchedulePossibleMatingObservationJobsFor(creatureSpawner.predatorCreatures);
+    }
+
+    private void SchedulePossibleMatingObservationJobsFor(List<BaseCreatureBehaviour> sourceCreatures)
+    {
+        if (sourceCreatures == null || sourceCreatures.Count == 0)
+            return;
+
+        List<BaseCreatureBehaviour> creatures = sourceCreatures
+            .Where(c => c != null
+                        && c.gameObject.activeInHierarchy
+                        && c.ReproductionManager != null
+                        && c.ReproductionManager.IsReadyToReproduction())
+            .ToList();
+
         for (int i = 0; i < creatures.Count; i++)
         {
-            creaturePositions[i] = creatures[i].transform.position;
-        }
-        NativeArray<int> closestReproductiveCreatures = new NativeArray<int>(creatures.Count, Allocator.TempJob);
-        FindClosestReproductiveCreatureJob job = new FindClosestReproductiveCreatureJob
-        {
-            creaturePositions = creaturePositions,
-            closestCreatureIndices = closestReproductiveCreatures
-        };
-        JobHandle handle = job.Schedule(creatures.Count, 64);
-        handle.Complete();
-        for (int i = 0; i < creatures.Count; i++)
-        {
-            var index = closestReproductiveCreatures[i];
-            if (index < 0 || index > creatures.Count)
+            BaseCreatureBehaviour creature = creatures[i];
+            BaseCreatureBehaviour closestMate = null;
+            float closestDistance = float.MaxValue;
+
+            for (int j = 0; j < creatures.Count; j++)
             {
-                continue;
+                BaseCreatureBehaviour candidate = creatures[j];
+                if (candidate == creature || !creature.ReproductionManager.CanMateWith(candidate))
+                    continue;
+
+                float distance = Vector3.Distance(creature.transform.position, candidate.transform.position);
+                if (distance < closestDistance)
+                {
+                    closestDistance = distance;
+                    closestMate = candidate;
+                }
             }
-            var creature = creatures[index];
+
+            if (closestMate == null)
+                continue;
+
             ObservationData observationData = new();
-            observationData.observedObject = creature.gameObject;
+            observationData.observedObject = closestMate.gameObject;
             observationData.type = ObservationType.MatingCreature;
-            creatures[i].ObservationManager.Observations.Add(observationData);
+            creature.ObservationManager.Observations.Add(observationData);
         }
-        closestReproductiveCreatures.Dispose();
-        creaturePositions.Dispose();
     }
 
     private void ScheduleFoodCreatureObservationJobs()
     {
-        List<BaseCreatureBehaviour> herbivoreCreatures = creatureSpawner.herbivorCreatures;
-        List<BaseCreatureBehaviour> predatorCreatures = creatureSpawner.predatorCreatures;
+        List<BaseCreatureBehaviour> herbivoreCreatures = creatureSpawner.herbivorCreatures
+            .Where(c => c != null && c.gameObject.activeInHierarchy)
+            .ToList();
+        List<BaseCreatureBehaviour> predatorCreatures = creatureSpawner.predatorCreatures
+            .Where(c => c != null && c.gameObject.activeInHierarchy)
+            .ToList();
+
+        if (predatorCreatures.Count == 0)
+            return;
+
+        if (herbivoreCreatures.Count == 0)
+        {
+            for (int i = 0; i < predatorCreatures.Count; i++)
+            {
+                predatorCreatures[i].ObservationManager.Observations.Clear();
+            }
+            return;
+        }
+
         NativeArray<float3> herbivoreCreaturePositions = new NativeArray<float3>(herbivoreCreatures.Count, Allocator.TempJob);
         NativeArray<float3> predatorCreaturePositions = new NativeArray<float3>(predatorCreatures.Count, Allocator.TempJob);
         for (int i = 0; i < herbivoreCreatures.Count; i++)
@@ -134,10 +172,16 @@ internal class Scheduler : MonoBehaviour
         };
         JobHandle handle = job.Schedule(predatorCreatures.Count, 64);
         handle.Complete();
+
+        for (int i = 0; i < predatorCreatures.Count; i++)
+        {
+            predatorCreatures[i].ObservationManager.Observations.Clear();
+        }
+
         for (int i = 0; i < predatorCreatures.Count; i++)
         {
             var index = closestFoodCreatureIndices[i];
-            if (index < 0 || index > herbivoreCreatures.Count)
+            if (index < 0 || index >= herbivoreCreatures.Count)
             {
                 continue;
             }
@@ -149,6 +193,7 @@ internal class Scheduler : MonoBehaviour
         }
         closestFoodCreatureIndices.Dispose();
         herbivoreCreaturePositions.Dispose();
+        predatorCreaturePositions.Dispose();
     }
 }
 

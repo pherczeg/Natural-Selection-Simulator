@@ -36,47 +36,49 @@ internal class EatingState : CreatureStateBase
         creature.EatingManager.eatingCoroutine = creature.coroutineRunner.StartCoroutine(EatingRoutine(food));
     }
 
+    private static readonly WaitForFixedUpdate WaitForFixedUpdateCached = new WaitForFixedUpdate();
+
     IEnumerator EatingRoutine(Food foodTarget)
     {
-        if (foodTarget.TryStartEating(creature))
+        if (foodTarget == null)
         {
-            creature.EatingManager.foodTarget = foodTarget;
-            isEating = true;
-            float elapsedTime = 0f;
-            while (isEating && foodTarget.nutritionValue >0)
+            isEating = false;
+            yield break;
+        }
+
+        if (!foodTarget.TryStartEating(creature))
+        {
+            isEating = false;
+            yield break;
+        }
+
+        creature.EatingManager.foodTarget = foodTarget;
+        isEating = true;
+
+        while (isEating &&
+               foodTarget != null &&
+               foodTarget.nutritionValue > 0f &&
+               creature.EnergyManager.EnergyLevel < creature.maxEnergy)
+        {
+            ProcessConsumptionInThisInterval(foodTarget);
+
+            yield return WaitForFixedUpdateCached;
+        }
+
+        if (foodTarget != null)
+        {
+            foodTarget.StopEating();
+
+            if (foodTarget.nutritionValue < 1f)
             {
-                ProcessConsumptionInThisInterval(foodTarget);
-                elapsedTime += Time.fixedDeltaTime;
-                if (creature.EnergyManager.EnergyLevel >= creature.maxEnergy)
-                {
-                    isEating = false;
-                    break;
-                }
-                yield return null;
-            }
-            if (!isEating)
-            {
-                foodTarget.StopEating();
-                if (foodTarget != null && foodTarget.nutritionValue < 1f)
-                {
-                    foodTarget.DestroyOnDepletion();
-                }
-                creature.stateMachine.TransitionToWandering();
-                Debug.Log($"{creature.GetInstanceID()}Eating Interrupted");
-            }
-            else
-            {
-                foodTarget.IsBeingEaten = false;
-                // If finished eating
-                if (foodTarget != null && foodTarget.nutritionValue < 1f)
-                {
-                    foodTarget.DestroyOnDepletion();
-                }
-                creature.EatingManager.foodTarget = null;
-                creature.stateMachine.TransitionToWandering();
+                foodTarget.DestroyOnDepletion();
             }
         }
+
+        creature.EatingManager.foodTarget = null;
         isEating = false;
+
+        creature.stateMachine.TransitionToWandering();
     }
 
     private void ProcessConsumptionInThisInterval(Food foodTarget)

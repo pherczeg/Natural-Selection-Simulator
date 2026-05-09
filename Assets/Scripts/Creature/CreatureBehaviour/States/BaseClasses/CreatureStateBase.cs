@@ -20,11 +20,11 @@ public abstract class CreatureStateBase : ICreatureState
     {
         //var debugString = $"{creature.GetInstanceID()}: Entering {stateType}";
         var debugString = $"Entering {stateType}";
-        Debug.Log(debugString);
+        // Debug.Log(debugString);
         creature.DEBUG_string += debugString + Time.realtimeSinceStartup + "\n";
         if (creature?.EatingManager?.eatingCoroutine != null)
         {
-            Debug.Log("adsf");
+            // Debug.Log("Stopping eating coroutine on state enter");
         }
     }
 
@@ -34,7 +34,7 @@ public abstract class CreatureStateBase : ICreatureState
     {
         //var debugString = $"{creature.GetInstanceID()}: Ending {stateType}";
         var debugString = $"Ending {stateType}";
-        Debug.Log(debugString);
+        // Debug.Log(debugString);
         creature.DEBUG_string += debugString + Time.realtimeSinceStartup + "\n";
     }
 }

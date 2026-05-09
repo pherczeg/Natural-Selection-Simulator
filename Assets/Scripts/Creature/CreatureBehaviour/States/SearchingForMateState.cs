@@ -21,7 +21,7 @@ public class SearchingForMateState : CreatureSearchingStateBase
         },
         target => {
             var creatureBehaviour = target.transform.GetComponent<BaseCreatureBehaviour>();
-            return creatureBehaviour != null && creatureBehaviour.ReproductionManager.IsReadyToReproduction();
+            return creatureBehaviour != null && creature.ReproductionManager.CanMateWith(creatureBehaviour);
         });
 
     }

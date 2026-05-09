@@ -15,6 +15,7 @@ public class StateMachine
     private readonly MovingToMateState movingToMateState;
     private readonly WanderingState wanderingState;
     private readonly EatingState eatingState;
+    private readonly PredationState predationState;
     private readonly ReproductionState reproductionState;
 
     public StateMachine(BaseCreatureBehaviour creatureBehaviour)
@@ -25,9 +26,9 @@ public class StateMachine
         wanderingState = new WanderingState(creatureBehaviour);
         searchingForMateState  = new SearchingForMateState(creatureBehaviour);
         eatingState = new EatingState(creatureBehaviour);
+        predationState = new PredationState(creatureBehaviour);
         movingToMateState = new MovingToMateState(creatureBehaviour);
         reproductionState = new ReproductionState(creatureBehaviour);
-        // Kezdõ állapot beállítása
         SetState(idleState);
     }
     public void SetState(ICreatureState newState)
@@ -50,6 +51,12 @@ public class StateMachine
     {
         SetState(eatingState);
         eatingState.StartEatingCoroutine(food);
+    }
+
+    public void TransitionToPredation(BaseCreatureBehaviour prey)
+    {
+        SetState(predationState);
+        predationState.StartPredationCoroutine(prey);
     }
 
     public void TransitionToMovingToFood(GameObject food)

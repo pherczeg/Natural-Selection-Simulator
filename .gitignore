@@ -391,3 +391,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Temporarily disabled scripts moved out of Unity's Assets folder
+DisabledScriptsTemp/

@@ -6,6 +6,7 @@ public enum CreatureStateType
     MovingToFood,
     MovingToMate,
     Eating,
+    Predation,
     Wandering,
     SearchingForMate,
     Reproducting

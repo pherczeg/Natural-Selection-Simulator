@@ -2,19 +2,23 @@ Shader "EnergyBarShader/EnergyBar"
 {
     Properties
     {
-        _Energy ("Energy Level", Range(0,1)) = 0
+        _Energy ("Energy Level", Range(0,1)) = 1
     }
+
     SubShader
     {
         Tags { "RenderType"="Opaque" }
 
         Pass
         {
+            Cull Off
+
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
 
             #include "UnityCG.cginc"
+
             struct appdata
             {
                 float4 vertex : POSITION;
@@ -27,10 +31,9 @@ Shader "EnergyBarShader/EnergyBar"
                 float4 vertex : SV_POSITION;
             };
 
-            sampler2D _MainTex;
             float _Energy;
 
-            v2f vert (appdata v)
+            v2f vert(appdata v)
             {
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
@@ -38,15 +41,16 @@ Shader "EnergyBarShader/EnergyBar"
                 return o;
             }
 
-            fixed4 frag (v2f i) : SV_Target
+            fixed4 frag(v2f i) : SV_Target
             {
                 if (i.uv.x > _Energy)
                 {
-                    return fixed4(1, 0, 0, 1); // Red for unfilled portion
+                    return fixed4(1, 0, 0, 1);
                 }
-                return fixed4(0, 1, 0, 1); // Green for filled portion
 
+                return fixed4(0, 1, 0, 1);
             }
+
             ENDCG
         }
     }

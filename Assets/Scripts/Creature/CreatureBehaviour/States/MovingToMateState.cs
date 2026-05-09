@@ -15,32 +15,60 @@ public class MovingToMateState : MoveToTargetBase, ICreatureState
     public override void SetTarget(GameObject targetCreature)
     {
         base.SetTarget(targetCreature);
-        this.targetCreature = target.transform.GetComponent<BaseCreatureBehaviour>();
+        this.targetCreature = targetCreature != null
+            ? targetCreature.GetComponent<BaseCreatureBehaviour>()
+            : null;
     }
     public override void UpdateState()
     {
-        if (target != null)
+        if (!HasActiveTargetCreature())
         {
-            if (ReachedTarget() && targetCreature.ReproductionManager.IsReadyToReproduction())
+            creature.stateMachine.TransitionToIdle();
+            return;
+        }
+
+        if (!creature.ReproductionManager.CanMateWith(targetCreature))
+        {
+            creature.stateMachine.TransitionToIdle();
+            return;
+        }
+
+        if (ReachedTarget())
+        {
+            Debug.Log($"{creature.name} reached mate: {targetCreature.name}");
+            if (creature.ReproductionManager.TryMutualAcceptance(targetCreature))
             {
-                //creature.stateMachine.TransitionToWandering();
-                creature.stateMachine.TransitionToReproductionState(targetCreature, true);
-                targetCreature.stateMachine.TransitionToReproductionState(creature, false);
-            }
-            else if (!targetCreature.ReproductionManager.IsReadyToReproduction())
-            {
-                creature.stateMachine.TransitionToIdle();
+                if (creature.Sex == CreatureSex.Female)
+                {
+                    creature.stateMachine.TransitionToReproductionState(targetCreature, true);
+                    targetCreature.stateMachine.TransitionToReproductionState(creature, false);
+                }
+                else
+                {
+                    creature.stateMachine.TransitionToReproductionState(targetCreature, false);
+                    targetCreature.stateMachine.TransitionToReproductionState(creature, true);
+                }
             }
             else
             {
-                MoveTowardsTarget();
+                creature.stateMachine.TransitionToIdle();
+                targetCreature.stateMachine.TransitionToIdle();
             }
+
+            return;
         }
-        else
-        {
-            creature.stateMachine.TransitionToIdle();
-        }
+
+        MoveTowardsTarget();
     }
+
+    private bool HasActiveTargetCreature()
+    {
+        return target != null &&
+               target.activeInHierarchy &&
+               targetCreature != null &&
+               targetCreature.gameObject.activeInHierarchy;
+    }
+
     public override void ExitState()
     {
         base.ExitState();

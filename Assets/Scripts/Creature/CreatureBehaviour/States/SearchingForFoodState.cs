@@ -29,12 +29,28 @@ public class SearchingForFoodState : CreatureSearchingStateBase
     }
     private void SearchForFood()
     {
-        SearchForTarget(ObservationType.Food, (target) =>
+        ObservationType targetType = creature is PredatorBehaviour ? ObservationType.FoodCreature : ObservationType.Food;
+        SearchForTarget(targetType, (target) =>
         {
             creature.stateMachine.TransitionToMovingToFood(target);
         }, 
-        (target) => !creature.EatingManager.IsFoodBlacklisted(target.GetComponent<Food>()
-        ));
+        (target) =>
+        {
+            if (creature is PredatorBehaviour)
+            {
+                var prey = target.GetComponent<BaseCreatureBehaviour>();
+                if (prey == null || prey == creature || !prey.gameObject.activeInHierarchy)
+                    return false;
+
+                if (prey is HerbivoreBehaviour herbivore && herbivore.IsCaptured)
+                    return false;
+
+                return creature is PredatorBehaviour predator && !predator.IsPreyBlacklisted(prey);
+            }
+
+            var food = target.GetComponent<Food>();
+            return food != null && !creature.EatingManager.IsFoodBlacklisted(food);
+        });
     }
 
     protected override void OnTargetReached()

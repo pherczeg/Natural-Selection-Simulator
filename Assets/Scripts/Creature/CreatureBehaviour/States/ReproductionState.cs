@@ -13,6 +13,9 @@ public class ReproductionState : CreatureStateBase
     }
     public override void UpdateState()
     {
+        if (creature.ReproductionManager.reproductionCoroutine != null)
+            return;
+
         timer += Time.fixedDeltaTime;
         if (timer >= GameConfig.Instance.reproductionTime)
         {
@@ -28,17 +31,62 @@ public class ReproductionState : CreatureStateBase
         }
         creature.ReproductionManager.reproductionCoroutine = null;
     }
-    public void StartReproductionCoroutine(BaseCreatureBehaviour otherCreature)
+    public bool StartReproductionCoroutine(BaseCreatureBehaviour otherCreature)
     {
+        if (!CanRunReproductionRoutine(otherCreature))
+        {
+            return false;
+        }
+
         creature.ReproductionManager.reproductionCoroutine = creature.coroutineRunner.StartCoroutine(ReproductionRoutine(otherCreature));
+        return true;
     }
 
     IEnumerator ReproductionRoutine(BaseCreatureBehaviour otherCreature)
     {
+        if (!CanRunReproductionRoutine(otherCreature))
+        {
+            creature.ReproductionManager.reproductionCoroutine = null;
+            yield break;
+        }
+
         creature.ReproductionManager.StartReproductionCooldown();
         otherCreature.ReproductionManager.StartReproductionCooldown();
         otherCreature.stateMachine.TransitionToReproductionState(creature, false);
-        yield return new WaitForSeconds(1f);
-        creature.ReproductionManager.Reproduct(otherCreature);
+
+        float reproductionTime = GameConfig.Instance != null
+            ? Mathf.Max(0f, GameConfig.Instance.reproductionTime)
+            : 0f;
+        yield return new WaitForSeconds(reproductionTime);
+
+        if (CanRunReproductionRoutine(otherCreature))
+        {
+            creature.ReproductionManager.Reproduct(otherCreature);
+        }
+
+        creature.ReproductionManager.reproductionCoroutine = null;
+
+        if (creature.CurrentStateType == CreatureStateType.Reproducting)
+        {
+            creature.stateMachine.TransitionToWandering();
+        }
+
+        if (otherCreature.CurrentStateType == CreatureStateType.Reproducting)
+        {
+            otherCreature.stateMachine.TransitionToWandering();
+        }
+    }
+
+    private bool CanRunReproductionRoutine(BaseCreatureBehaviour otherCreature)
+    {
+        return creature != null &&
+               creature.gameObject.activeInHierarchy &&
+               creature.coroutineRunner != null &&
+               creature.coroutineRunner.isActiveAndEnabled &&
+               creature.ReproductionManager != null &&
+               otherCreature != null &&
+               otherCreature.gameObject.activeInHierarchy &&
+               otherCreature.ReproductionManager != null &&
+               otherCreature.stateMachine != null;
     }
 }

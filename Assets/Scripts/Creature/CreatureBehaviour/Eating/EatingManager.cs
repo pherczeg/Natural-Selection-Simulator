@@ -52,7 +52,7 @@ public class EatingManager
             }
             else 
             {
-                Debug.Log("");
+                Debug.Log("No food target to blacklist or stop eating");
             }
         }
     }
