@@ -24,6 +24,11 @@ public class GameConfig : ScriptableObject
     [Header("Simulation")]
     public float updateInterval = .2f;
 
+    [Header("AI Migration")]
+    public bool useUtilityAI = false;
+    public bool logUtilityAIScores = false;
+    [Min(0.01f)] public float utilityDecisionInterval = .2f;
+
     [Header("Creature Lifecycle")]
     public float oldAgeStartAge = 120f;
     public float maturityAge = 24f; // age at which creature reaches full size, max energy, and can reproduce

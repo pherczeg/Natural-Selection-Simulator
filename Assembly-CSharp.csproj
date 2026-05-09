@@ -60,6 +60,7 @@
     <Analyzer Include="C:\Users\pherc\source\repos\Natural-Selection-Simulator\Library\PackageCache\com.unity.entities@1.4.6\Unity.Entities\SourceGenerators\SystemGenerator.Common.dll" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\UtilityAI\UtilityAction.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\PredationState.cs" />
     <Compile Include="Assets\Scripts\Spawners\CreatureSpawner.cs" />
     <Compile Include="Assets\Scripts\Food.cs" />
@@ -74,6 +75,7 @@
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\Reproduction\ReproductionManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\BaseClasses\ICreatureState.cs" />
     <Compile Include="Assets\Scripts\Spawners\FoodSpawner.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\UtilityAI\CreatureUtilityBrain.cs" />
     <Compile Include="Assets\Scripts\GroundManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\EatingState.cs" />
     <Compile Include="Assets\Scripts\Jobs\FindClosestFoodCreatureJob.cs" />
@@ -85,10 +87,12 @@
     <Compile Include="Assets\Scripts\PoolManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\MovingToMateState.cs" />
     <Compile Include="Assets\Resources\GameConfig.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\UtilityAI\UtilityConsideration.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\EnergyManagement\EnergyManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\WanderingState.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\IdleState.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\Observation\ObservationManager.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\UtilityAI\UtilityDecision.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\MovingToFoodState.cs" />
     <Compile Include="Assets\Scripts\Jobs\Scheduler.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\SearchingForFoodState.cs" />

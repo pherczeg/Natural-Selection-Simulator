@@ -30,8 +30,6 @@ public class CameraController : MonoBehaviour
     private Vector3 _dragOriginCameraPos;
     private bool _isDragging;
 
-    private static readonly int GroundLayer = ~0;
-
     private void Start()
     {
         _targetPosition = transform.position;
