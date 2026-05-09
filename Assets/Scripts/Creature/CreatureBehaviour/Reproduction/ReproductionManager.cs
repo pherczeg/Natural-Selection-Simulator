@@ -1,8 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
-using Unity.VisualScripting.FullSerializer;
 using UnityEngine;
 
 public class ReproductionManager
@@ -60,6 +58,7 @@ public class ReproductionManager
         if (offspringPrefab == null)
             return;
 
+        int spawnedOffspring = 0;
         for (int i = 0; i < offspringCount; i++)
         {
             BaseCreatureBehaviour offspringBehavior = CreatureSpawner.Instance.SpawnCreature(mate.transform.position, offspringPrefab);
@@ -88,6 +87,13 @@ public class ReproductionManager
             {
                 offspringPredator.SetStrength(GetInheritedStrength(mate, config));
             }
+
+            spawnedOffspring++;
+        }
+
+        if (spawnedOffspring > 0)
+        {
+            Statistics.Instance?.RecordReproduction(spawnedOffspring);
         }
     }
 

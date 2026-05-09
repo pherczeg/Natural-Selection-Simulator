@@ -62,6 +62,7 @@ public class FoodSpawner : MonoBehaviour
         float targetNutrition = Random.Range(GameConfig.Instance.minNutrionValue, GameConfig.Instance.maxNutrionValue);
         foodComponent.Initialize(targetNutrition);
         foods.Add(foodComponent);
+        Statistics.Instance?.RecordFoodSpawned();
     }
 
     Vector3 GetRandomGroundPosition(Bounds bounds)

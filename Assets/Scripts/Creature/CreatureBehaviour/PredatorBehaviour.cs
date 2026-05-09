@@ -165,7 +165,7 @@ public class PredatorBehaviour : BaseCreatureBehaviour
 
             if (EnergyManager.IsEnergyDepleted())
             {
-                DestroyObject();
+                Despawn(CreatureDeathReason.EnergyDepleted);
                 return;
             }
 

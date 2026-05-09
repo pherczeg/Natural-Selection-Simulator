@@ -373,7 +373,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 0.5, z: 1}
+  m_LocalScale: {x: 8, y: 4, z: 8}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 1059404836}
@@ -552,6 +552,52 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 10bfd3e1f6a68c24787c1237cd7c683f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1 &245018217
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 245018219}
+  - component: {fileID: 245018218}
+  m_Layer: 0
+  m_Name: SimulationDiagnostic
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &245018218
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 245018217}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c6d69e719514d34b9f6cf989dfced6e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  logInterval: 2
+  logOnStart: 1
+--- !u!4 &245018219
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 245018217}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.48259068, y: 1.0000036, z: 0.3922472}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &337948969
 GameObject:
   m_ObjectHideFlags: 0
@@ -597,10 +643,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   foodPrefab: {fileID: 1909847660352713250, guid: 854af4518b082124a86cf112ecf1f438, type: 3}
-  initialFoodCount: 1
+  initialFoodCount: 5
   poolSizeOfFood: 10
   spawnRate: 10
-  spawnNumber: 1
+  spawnNumber: 5
   foods: []
 --- !u!1 &552452033
 GameObject:
@@ -646,7 +692,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e2b73598cc588434da1d09855d66d518, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  restartTime: 3600
+  restartTime: 20
   numberOfSimulations: 2
 --- !u!1 &705507993
 GameObject:
@@ -831,6 +877,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   updateInterval: 1
+  logDiagnostics: 0
   numberOfCreaturesHistory: 
   averageWeightHistory: []
   averageSpeedHistory: []
@@ -848,6 +895,20 @@ MonoBehaviour:
   maleCountHistory: 
   herbivoreHistory: []
   predatorHistory: []
+  diagnosticsHistory: []
+  totalHerbivoresSpawned: 0
+  totalPredatorsSpawned: 0
+  totalFoodSpawned: 0
+  totalReproductionEvents: 0
+  totalOffspringBorn: 0
+  totalPredationAttempts: 0
+  totalPredationSuccesses: 0
+  totalPredationEscapes: 0
+  totalHerbivoreDeaths: 0
+  totalPredatorDeaths: 0
+  deathsByEnergy: 0
+  deathsByPredation: 0
+  deathsUnknown: 0
 --- !u!1 &963194225
 GameObject:
   m_ObjectHideFlags: 0
@@ -1256,8 +1317,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   herbivorPrefab: {fileID: 8674103884923863129, guid: d6cf4cca45a317a48a8fa4e0039d3133, type: 3}
   predatorPrefab: {fileID: 8674103884923863129, guid: b72a8aa173a9b214ca354fbeed05f01c, type: 3}
-  numberOfHerbivores: 0
-  numberOfPredators: 3
+  numberOfHerbivores: 15
+  numberOfPredators: 2
   herbivorCreatures: []
   predatorCreatures: []
 --- !u!1660057539 &9223372036854775807
@@ -1269,3 +1330,4 @@ SceneRoots:
   - {fileID: 1512924423}
   - {fileID: 68692452}
   - {fileID: 552452034}
+  - {fileID: 245018219}

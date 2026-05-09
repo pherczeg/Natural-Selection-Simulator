@@ -1,8 +1,4 @@
 using System.Collections.Generic;
-using Unity.Collections;
-using Unity.Entities;
-using Unity.Jobs;
-using UnityEditor;
 using UnityEngine;
 
 public class CreatureSpawner : MonoBehaviour
@@ -196,6 +192,7 @@ public class CreatureSpawner : MonoBehaviour
         {
             predatorCreatures.Add(creatureBehaviour);
         }
+        Statistics.Instance?.RecordCreatureSpawned(creatureBehaviour);
         return creatureBehaviour;
     }
     bool IsPlaceOccupied(Vector3 position)

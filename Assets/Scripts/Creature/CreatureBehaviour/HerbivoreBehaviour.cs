@@ -391,7 +391,7 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
 
         if (EnergyManager.IsEnergyDepleted())
         {
-            DestroyObject();
+            Despawn(CreatureDeathReason.EnergyDepleted);
             return true;
         }
 

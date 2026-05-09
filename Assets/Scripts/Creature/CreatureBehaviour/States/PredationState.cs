@@ -58,6 +58,7 @@ internal class PredationState : CreatureStateBase
         }
 
         isPredating = true;
+        Statistics.Instance?.RecordPredationAttempt();
 
         var config = GameConfig.Instance;
         float eatingDuration = config != null ? Mathf.Max(0f, config.predatorEatingDuration) : 0f;
@@ -94,13 +95,15 @@ internal class PredationState : CreatureStateBase
 
         if (predatorSucceeded)
         {
+            Statistics.Instance?.RecordPredationResolved(true);
             float gainedEnergy = CalculateEnergyGainFromPrey(prey);
             ReleasePrey();
             creature.EnergyManager.GainEnergy(gainedEnergy);
-            prey.Despawn();
+            prey.Despawn(CreatureDeathReason.Predation);
             return;
         }
 
+        Statistics.Instance?.RecordPredationResolved(false);
         ReleasePrey();
 
         if (prey is HerbivoreBehaviour herbivore)

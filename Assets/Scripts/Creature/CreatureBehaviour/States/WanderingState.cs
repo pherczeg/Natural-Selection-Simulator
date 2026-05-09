@@ -1,5 +1,4 @@
 ﻿
-using Unity.VisualScripting;
 using UnityEngine;
 
 internal class WanderingState : CreatureStateBase

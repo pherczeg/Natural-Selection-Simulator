@@ -1,6 +1,5 @@
 using System;
 using Unity.IO.LowLevel.Unsafe;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public enum CreatureSex
@@ -60,8 +59,9 @@ public abstract class BaseCreatureBehaviour : MonoBehaviour
     }
     
     public abstract void Initialize(float moveSpeed, float weight, float senseRadius);
-    public void Despawn()
+    public void Despawn(CreatureDeathReason reason = CreatureDeathReason.Unknown)
     {
+        Statistics.Instance?.RecordCreatureDeath(this, reason);
         DestroyObject();
     }
     protected abstract void DestroyObject();    

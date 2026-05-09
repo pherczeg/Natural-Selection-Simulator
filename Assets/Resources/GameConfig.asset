@@ -24,10 +24,10 @@ MonoBehaviour:
   maxEnergy: 200
   herbivoreMaxEnergy: 200
   predatorMaxEnergy: 1000
-  initialEnergyPercentageHerbivore: 0.5
+  initialEnergyPercentageHerbivore: 0.8
   initialEnergyPercentagePredator: 0.8
-  eatingEnergyThreshold: 0.7
-  energyConsumptionCoefficient: 0.0000002
+  eatingEnergyThreshold: 0.5
+  energyConsumptionCoefficient: 0.0004
   predatorEnergyGainPerPreyWeight: 25
   reproductionTime: 1
   reproductionEnergyThreshold: 0.3
@@ -46,9 +46,9 @@ MonoBehaviour:
   mutationChance: 0.5
   sizeDifferentFactor: 1.5
   herbivoreWeightMin: 5
-  herbivoreWeightMax: 20
-  herbivoreSpeedMin: 5
-  herbivoreSpeedMax: 25
+  herbivoreWeightMax: 30
+  herbivoreSpeedMin: 2
+  herbivoreSpeedMax: 10
   herbivoreSprintDurationMin: 0.6
   herbivoreSprintDurationMax: 1.8
   herbivoreSprintFactorMin: 1.15
@@ -57,33 +57,33 @@ MonoBehaviour:
   herbivoreSprintCooldownMax: 4
   herbivoreSprintCooldownSpeedFactorMin: 0.7
   herbivoreSprintCooldownSpeedFactorMax: 0.95
-  herbivoreSenseMin: 10
-  herbivoreSenseMax: 25
-  herbivoreDesirabilityMin: 0
+  herbivoreSenseMin: 5
+  herbivoreSenseMax: 15
+  herbivoreDesirabilityMin: 0.2
   herbivoreDesirabilityMax: 1
-  herbivoreAgilityMin: 0
+  herbivoreAgilityMin: 0.2
   herbivoreAgilityMax: 1
   predatorWeightMin: 20
   predatorWeightMax: 40
-  predatorSpeedMin: 15
-  predatorSpeedMax: 35
+  predatorSpeedMin: 5
+  predatorSpeedMax: 15
   predatorSprintDurationMin: 0.5
   predatorSprintDurationMax: 1.6
   predatorSprintFactorMin: 1.2
   predatorSprintFactorMax: 2
   predatorSprintCooldownMin: 1.5
   predatorSprintCooldownMax: 4.5
-  predatorSprintCooldownSpeedFactorMin: 0.65
+  predatorSprintCooldownSpeedFactorMin: 0.25
   predatorSprintCooldownSpeedFactorMax: 0.95
-  predatorSenseMin: 20
-  predatorSenseMax: 60
+  predatorSenseMin: 10
+  predatorSenseMax: 30
   predatorStrengthMin: 0.5
   predatorStrengthMax: 1
   herbivoreFleeDistance: 4
   herbivoreFleeObstacleProbeDistance: 2
   herbivoreFleeMemoryDuration: 0.35
   herbivorePostEscapeFleeDuration: 2
-  predatorEatingDuration: 2.5
+  predatorEatingDuration: 1.5
   predatorFailedHuntSpeedMultiplier: 0.5
   predatorFailedHuntDebuffDuration: 2
   escapedPreyBlacklistDuration: 3

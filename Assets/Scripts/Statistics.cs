@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using UnityEngine;
 
 [Serializable]
@@ -76,11 +77,86 @@ public class SpeciesStatisticsSnapshot
     public float maxStrength;
 }
 
+public enum CreatureDeathReason
+{
+    Unknown,
+    EnergyDepleted,
+    Predation
+}
+
+[Serializable]
+public class CreatureStateCount
+{
+    public CreatureStateType state;
+    public int herbivoreCount;
+    public int predatorCount;
+
+    public int TotalCount => herbivoreCount + predatorCount;
+}
+
+[Serializable]
+public class SimulationDiagnosticsSnapshot
+{
+    public float elapsedTime;
+
+    public int aliveHerbivores;
+    public int alivePredators;
+    public int foodCount;
+
+    public float averageEnergy;
+    public float averageHerbivoreEnergy;
+    public float averagePredatorEnergy;
+    public int reproductionReadyHerbivores;
+    public int reproductionReadyPredators;
+
+    public int totalHerbivoresSpawned;
+    public int totalPredatorsSpawned;
+    public int totalFoodSpawned;
+    public int totalReproductionEvents;
+    public int totalOffspringBorn;
+    public int totalPredationAttempts;
+    public int totalPredationSuccesses;
+    public int totalPredationEscapes;
+    public int totalHerbivoreDeaths;
+    public int totalPredatorDeaths;
+    public int deathsByEnergy;
+    public int deathsByPredation;
+    public int deathsUnknown;
+
+    public float herbivoreSurvivalRate;
+    public float predatorSurvivalRate;
+
+    public List<CreatureStateCount> stateDistribution = new List<CreatureStateCount>();
+
+    public string GetStateDistributionText()
+    {
+        if (stateDistribution == null || stateDistribution.Count == 0)
+            return "none";
+
+        var builder = new StringBuilder();
+        for (int i = 0; i < stateDistribution.Count; i++)
+        {
+            CreatureStateCount entry = stateDistribution[i];
+            if (i > 0)
+                builder.Append("; ");
+
+            builder.Append(entry.state);
+            builder.Append(" H=");
+            builder.Append(entry.herbivoreCount);
+            builder.Append(" P=");
+            builder.Append(entry.predatorCount);
+        }
+
+        return builder.ToString();
+    }
+}
+
 public class Statistics : MonoBehaviour
 {
     public static Statistics Instance { get; private set; }
 
     public float updateInterval = 60f;
+    public bool logDiagnostics = false;
     private float timer = 0f;
 
     // Legacy herbivore-only histories kept for compatibility with existing exporters/UI.
@@ -103,9 +179,25 @@ public class Statistics : MonoBehaviour
     // New complete per-species analysis.
     public List<SpeciesStatisticsSnapshot> herbivoreHistory;
     public List<SpeciesStatisticsSnapshot> predatorHistory;
+    public List<SimulationDiagnosticsSnapshot> diagnosticsHistory;
 
     public SpeciesStatisticsSnapshot LastHerbivoreSnapshot { get; private set; }
     public SpeciesStatisticsSnapshot LastPredatorSnapshot { get; private set; }
+    public SimulationDiagnosticsSnapshot LastDiagnosticsSnapshot { get; private set; }
+
+    public int totalHerbivoresSpawned;
+    public int totalPredatorsSpawned;
+    public int totalFoodSpawned;
+    public int totalReproductionEvents;
+    public int totalOffspringBorn;
+    public int totalPredationAttempts;
+    public int totalPredationSuccesses;
+    public int totalPredationEscapes;
+    public int totalHerbivoreDeaths;
+    public int totalPredatorDeaths;
+    public int deathsByEnergy;
+    public int deathsByPredation;
+    public int deathsUnknown;
 
     private void Awake()
     {
@@ -140,9 +232,11 @@ public class Statistics : MonoBehaviour
         LastPredatorSnapshot = BuildSnapshot(
             CreatureSpawner.Instance.predatorCreatures,
             "Predator");
+        LastDiagnosticsSnapshot = BuildDiagnosticsSnapshot();
 
         herbivoreHistory.Add(LastHerbivoreSnapshot);
         predatorHistory.Add(LastPredatorSnapshot);
+        diagnosticsHistory.Add(LastDiagnosticsSnapshot);
 
         // Keep old histories aligned to herbivore data for existing CSV/export logic.
         numberOfCreaturesHistory.Add(LastHerbivoreSnapshot.count);
@@ -160,21 +254,142 @@ public class Statistics : MonoBehaviour
         femaleCountHistory.Add(LastHerbivoreSnapshot.femaleCount);
         maleCountHistory.Add(LastHerbivoreSnapshot.maleCount);
 
-        Debug.Log(
-            $"Herbivorok: db={LastHerbivoreSnapshot.count}, nosteny={LastHerbivoreSnapshot.femaleCount}, him={LastHerbivoreSnapshot.maleCount}, " +
-            $"atlag speed={LastHerbivoreSnapshot.averageSpeed:F2}, atlag energia={LastHerbivoreSnapshot.averageEnergy:F2}, atlag age={LastHerbivoreSnapshot.averageAge:F2}, " +
-            $"atlag agility={LastHerbivoreSnapshot.averageAgility:F2}, atlag desirability={LastHerbivoreSnapshot.averageDesirability:F2} | " +
-            $"Predatorok: db={LastPredatorSnapshot.count}, nosteny={LastPredatorSnapshot.femaleCount}, him={LastPredatorSnapshot.maleCount}, " +
-            $"atlag speed={LastPredatorSnapshot.averageSpeed:F2}, atlag energia={LastPredatorSnapshot.averageEnergy:F2}, atlag age={LastPredatorSnapshot.averageAge:F2}, " +
-            $"atlag strength={LastPredatorSnapshot.averageStrength:F2}, atlag desirability={LastPredatorSnapshot.averageDesirability:F2}");
+        if (logDiagnostics)
+        {
+            Debug.Log(FormatDiagnosticsSnapshot(LastDiagnosticsSnapshot));
+        }
+    }
+
+    public void RecordCreatureSpawned(BaseCreatureBehaviour creature)
+    {
+        if (creature is PredatorBehaviour)
+        {
+            totalPredatorsSpawned++;
+        }
+        else if (creature is HerbivoreBehaviour)
+        {
+            totalHerbivoresSpawned++;
+        }
+    }
+
+    public void RecordFoodSpawned()
+    {
+        totalFoodSpawned++;
+    }
+
+    public void RecordReproduction(int offspringCount)
+    {
+        totalReproductionEvents++;
+        totalOffspringBorn += Mathf.Max(0, offspringCount);
+    }
+
+    public void RecordPredationAttempt()
+    {
+        totalPredationAttempts++;
+    }
+
+    public void RecordPredationResolved(bool predatorSucceeded)
+    {
+        if (predatorSucceeded)
+        {
+            totalPredationSuccesses++;
+        }
+        else
+        {
+            totalPredationEscapes++;
+        }
+    }
+
+    public void RecordCreatureDeath(BaseCreatureBehaviour creature, CreatureDeathReason reason)
+    {
+        if (creature is PredatorBehaviour)
+        {
+            totalPredatorDeaths++;
+        }
+        else if (creature is HerbivoreBehaviour)
+        {
+            totalHerbivoreDeaths++;
+        }
+
+        switch (reason)
+        {
+            case CreatureDeathReason.EnergyDepleted:
+                deathsByEnergy++;
+                break;
+            case CreatureDeathReason.Predation:
+                deathsByPredation++;
+                break;
+            default:
+                deathsUnknown++;
+                break;
+        }
+    }
+
+    public SimulationDiagnosticsSnapshot BuildDiagnosticsSnapshot()
+    {
+        return BuildDiagnosticsSnapshot(this);
+    }
+
+    public static SimulationDiagnosticsSnapshot BuildDiagnosticsSnapshot(Statistics statistics)
+    {
+        BaseCreatureBehaviour[] herbivores = GetActiveCreatures(CreatureSpawner.Instance?.herbivorCreatures);
+        BaseCreatureBehaviour[] predators = GetActiveCreatures(CreatureSpawner.Instance?.predatorCreatures);
+        BaseCreatureBehaviour[] allCreatures = herbivores.Concat(predators).ToArray();
+        int totalHerbivoresSpawned = statistics?.totalHerbivoresSpawned ?? 0;
+        int totalPredatorsSpawned = statistics?.totalPredatorsSpawned ?? 0;
+
+        return new SimulationDiagnosticsSnapshot
+        {
+            elapsedTime = Time.time,
+            aliveHerbivores = herbivores.Length,
+            alivePredators = predators.Length,
+            foodCount = CountActiveFood(),
+            averageEnergy = CalculateAverageEnergy(allCreatures),
+            averageHerbivoreEnergy = CalculateAverageEnergy(herbivores),
+            averagePredatorEnergy = CalculateAverageEnergy(predators),
+            reproductionReadyHerbivores = CountReproductionReady(herbivores),
+            reproductionReadyPredators = CountReproductionReady(predators),
+            totalHerbivoresSpawned = totalHerbivoresSpawned,
+            totalPredatorsSpawned = totalPredatorsSpawned,
+            totalFoodSpawned = statistics?.totalFoodSpawned ?? 0,
+            totalReproductionEvents = statistics?.totalReproductionEvents ?? 0,
+            totalOffspringBorn = statistics?.totalOffspringBorn ?? 0,
+            totalPredationAttempts = statistics?.totalPredationAttempts ?? 0,
+            totalPredationSuccesses = statistics?.totalPredationSuccesses ?? 0,
+            totalPredationEscapes = statistics?.totalPredationEscapes ?? 0,
+            totalHerbivoreDeaths = statistics?.totalHerbivoreDeaths ?? 0,
+            totalPredatorDeaths = statistics?.totalPredatorDeaths ?? 0,
+            deathsByEnergy = statistics?.deathsByEnergy ?? 0,
+            deathsByPredation = statistics?.deathsByPredation ?? 0,
+            deathsUnknown = statistics?.deathsUnknown ?? 0,
+            herbivoreSurvivalRate = CalculateSurvivalRate(herbivores.Length, totalHerbivoresSpawned),
+            predatorSurvivalRate = CalculateSurvivalRate(predators.Length, totalPredatorsSpawned),
+            stateDistribution = BuildStateDistribution(herbivores, predators)
+        };
+    }
+
+    public static string FormatDiagnosticsSnapshot(SimulationDiagnosticsSnapshot snapshot)
+    {
+        if (snapshot == null)
+            return "SimulationDiagnostics: snapshot unavailable";
+
+        return
+            $"SimulationDiagnostics t={snapshot.elapsedTime:F1}s | " +
+            $"alive H={snapshot.aliveHerbivores} P={snapshot.alivePredators}, food={snapshot.foodCount}, " +
+            $"avgEnergy all={snapshot.averageEnergy:F1} H={snapshot.averageHerbivoreEnergy:F1} P={snapshot.averagePredatorEnergy:F1} | " +
+            $"reproReady H={snapshot.reproductionReadyHerbivores} P={snapshot.reproductionReadyPredators} | " +
+            $"spawned H={snapshot.totalHerbivoresSpawned} P={snapshot.totalPredatorsSpawned} food={snapshot.totalFoodSpawned}, " +
+            $"repro events={snapshot.totalReproductionEvents} offspring={snapshot.totalOffspringBorn}, " +
+            $"predation attempts={snapshot.totalPredationAttempts} success={snapshot.totalPredationSuccesses} escapes={snapshot.totalPredationEscapes}, " +
+            $"deaths energy={snapshot.deathsByEnergy} predation={snapshot.deathsByPredation} unknown={snapshot.deathsUnknown}, " +
+            $"survival H={snapshot.herbivoreSurvivalRate:P0} P={snapshot.predatorSurvivalRate:P0} | " +
+            $"states: {snapshot.GetStateDistributionText()}";
     }
 
     private SpeciesStatisticsSnapshot BuildSnapshot(List<BaseCreatureBehaviour> source, string species)
     {
-        BaseCreatureBehaviour[] creatures = source
-            .Where(c => c != null
-                        && c.gameObject.activeInHierarchy
-                        && c.MovementManager != null
+        BaseCreatureBehaviour[] creatures = GetActiveCreatures(source)
+            .Where(c => c.MovementManager != null
                         && c.ObservationManager != null
                         && c.EnergyManager != null
                         && c.AgeManager != null
@@ -218,6 +433,103 @@ public class Statistics : MonoBehaviour
         return s;
     }
 
+    private static BaseCreatureBehaviour[] GetActiveCreatures(List<BaseCreatureBehaviour> source)
+    {
+        if (source == null)
+            return Array.Empty<BaseCreatureBehaviour>();
+
+        return source
+            .Where(c => c != null && c.gameObject.activeInHierarchy)
+            .ToArray();
+    }
+
+    private static int CountActiveFood()
+    {
+        if (FoodSpawner.Instance == null || FoodSpawner.Instance.foods == null)
+            return 0;
+
+        return FoodSpawner.Instance.foods.Count(f => f != null && f.gameObject.activeInHierarchy);
+    }
+
+    private static float CalculateAverageEnergy(BaseCreatureBehaviour[] creatures)
+    {
+        float[] energies = creatures
+            .Where(c => c.EnergyManager != null)
+            .Select(c => c.EnergyManager.EnergyLevel)
+            .ToArray();
+
+        return energies.Length == 0 ? 0f : energies.Average();
+    }
+
+    private static int CountReproductionReady(BaseCreatureBehaviour[] creatures)
+    {
+        return creatures.Count(IsReproductionReadyForDiagnostics);
+    }
+
+    private static bool IsReproductionReadyForDiagnostics(BaseCreatureBehaviour creature)
+    {
+        if (creature == null ||
+            !creature.gameObject.activeInHierarchy ||
+            creature.ReproductionManager == null ||
+            creature.AgeManager == null ||
+            creature.EnergyManager == null)
+        {
+            return false;
+        }
+
+        GameConfig config = Resources.Load<GameConfig>("GameConfig");
+        if (config == null)
+            return false;
+
+        CreatureStateType currentState = GetCurrentStateType(creature);
+        return !creature.ReproductionManager.IsOnCooldown() &&
+               creature.AgeManager.Age >= config.maturityAge &&
+               currentState != CreatureStateType.Reproducting &&
+               currentState != CreatureStateType.Eating &&
+               currentState != CreatureStateType.Predation &&
+               currentState != CreatureStateType.MovingToFood &&
+               currentState != CreatureStateType.SearchingForFood &&
+               creature.EnergyManager.EnergyLevel >= config.reproductionEnergyThreshold * creature.EnergyManager.CurrentMaxEnergy;
+    }
+
+    private static List<CreatureStateCount> BuildStateDistribution(
+        BaseCreatureBehaviour[] herbivores,
+        BaseCreatureBehaviour[] predators)
+    {
+        var stateDistribution = new List<CreatureStateCount>();
+
+        foreach (CreatureStateType state in Enum.GetValues(typeof(CreatureStateType)))
+        {
+            int herbivoreCount = herbivores.Count(c => GetCurrentStateType(c) == state);
+            int predatorCount = predators.Count(c => GetCurrentStateType(c) == state);
+
+            if (herbivoreCount == 0 && predatorCount == 0)
+                continue;
+
+            stateDistribution.Add(new CreatureStateCount
+            {
+                state = state,
+                herbivoreCount = herbivoreCount,
+                predatorCount = predatorCount
+            });
+        }
+
+        return stateDistribution;
+    }
+
+    private static CreatureStateType GetCurrentStateType(BaseCreatureBehaviour creature)
+    {
+        return creature?.stateMachine?.CurrentState?.StateType ?? CreatureStateType.None;
+    }
+
+    private static float CalculateSurvivalRate(int aliveCount, int spawnedCount)
+    {
+        if (spawnedCount <= 0)
+            return 0f;
+
+        return (float)aliveCount / spawnedCount;
+    }
+
     private static void FillTriplet(IEnumerable<float> source, out float avg, out float min, out float max)
     {
         float[] values = source.ToArray();
@@ -240,6 +552,7 @@ public class Statistics : MonoBehaviour
         averageWeightHistory = new List<float>();
         averageSpeedHistory = new List<float>();
         averageEnergyHistory = new List<float>();
+        averageSenseHistory = new List<float>();
         averageAgeHistory = new List<float>();
         averageSenseRadiusHistory = new List<float>();
         maxWeightHistory = new List<float>();
@@ -252,8 +565,23 @@ public class Statistics : MonoBehaviour
         maleCountHistory = new List<int>();
         herbivoreHistory = new List<SpeciesStatisticsSnapshot>();
         predatorHistory = new List<SpeciesStatisticsSnapshot>();
+        diagnosticsHistory = new List<SimulationDiagnosticsSnapshot>();
         LastHerbivoreSnapshot = null;
         LastPredatorSnapshot = null;
+        LastDiagnosticsSnapshot = null;
+        totalHerbivoresSpawned = 0;
+        totalPredatorsSpawned = 0;
+        totalFoodSpawned = 0;
+        totalReproductionEvents = 0;
+        totalOffspringBorn = 0;
+        totalPredationAttempts = 0;
+        totalPredationSuccesses = 0;
+        totalPredationEscapes = 0;
+        totalHerbivoreDeaths = 0;
+        totalPredatorDeaths = 0;
+        deathsByEnergy = 0;
+        deathsByPredation = 0;
+        deathsUnknown = 0;
         timer = 0f;
     }
 }
