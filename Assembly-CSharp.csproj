@@ -82,6 +82,7 @@
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\AgeManagement\AgeManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\UtilityAI\UtilityAIContextFactory.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\UtilityAI\CreatureAction.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\HerbivoreSocialStrategy.cs" />
     <Compile Include="Assets\Scripts\Creature\InfoBars\EnergyBar.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\BaseCreatureBehaviour.cs" />
     <Compile Include="Assets\Scripts\GameManager.cs" />

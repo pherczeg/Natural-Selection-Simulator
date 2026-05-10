@@ -137,14 +137,12 @@ public partial class ECSEatingExecutionSystem : SystemBase
                     creature,
                     targetFoodId,
                     ref foodData,
-                    creatureIdentities,
                     actionRequests,
                     actionStates,
                     actionTargets,
                     actionTimers,
                     creatureEntities,
                     creatureIndexByInstanceId,
-                    ref foodMirrors,
                     entityManager);
 
                 if (!hasLock)
@@ -191,6 +189,7 @@ public partial class ECSEatingExecutionSystem : SystemBase
 
                 bool reachedMaxEnergy = creature.EnergyManager.EnergyLevel >= creature.maxEnergy;
                 bool depleted = foodData.nutritionValue <= 0f;
+                bool ownsFoodLock = foodData.eatingCreatureInstanceId == identity.gameObjectInstanceId;
 
                 if (depleted)
                 {
@@ -203,10 +202,14 @@ public partial class ECSEatingExecutionSystem : SystemBase
                 }
                 else if (reachedMaxEnergy)
                 {
-                    foodData.isBeingEaten = false;
-                    foodData.eatingCreatureInstanceId = 0;
-                    foodMirrors[foodIndex] = foodData;
-                    entityManager.SetComponentData(foodEntity, foodData);
+                    if (ownsFoodLock)
+                    {
+                        foodData.isBeingEaten = false;
+                        foodData.eatingCreatureInstanceId = 0;
+                        foodMirrors[foodIndex] = foodData;
+                        entityManager.SetComponentData(foodEntity, foodData);
+                    }
+
                     FinalizeActionCompleted(ref request, ref actionState, ref actionTarget, ref actionTimer);
                 }
                 else
@@ -256,14 +259,12 @@ public partial class ECSEatingExecutionSystem : SystemBase
         BaseCreatureBehaviour creature,
         int targetFoodId,
         ref FoodMirrorData foodData,
-        NativeArray<CreatureIdentity> creatureIdentities,
         NativeArray<CreatureActionRequestData> actionRequests,
         NativeArray<CreatureActionStateData> actionStates,
         NativeArray<CreatureActionTargetData> actionTargets,
         NativeArray<CreatureActionTimerData> actionTimers,
         NativeArray<Entity> creatureEntities,
         Dictionary<int, int> creatureIndexByInstanceId,
-        ref NativeArray<FoodMirrorData> foodMirrors,
         EntityManager entityManager)
     {
         int currentCreatureId = creature.GetInstanceID();
@@ -285,11 +286,135 @@ public partial class ECSEatingExecutionSystem : SystemBase
             return true;
         }
 
+        if (TryResolveHerbivoreFoodCompetition(
+                creature,
+                previousCreature,
+                ref foodData,
+                out bool challengerCanEat,
+                out bool shouldTakeOver))
+        {
+            if (!challengerCanEat)
+                return false;
+
+            if (!shouldTakeOver)
+                return true;
+
+            EvictCurrentFoodOwner(
+                targetFoodId,
+                previousCreatureId,
+                actionRequests,
+                actionStates,
+                actionTargets,
+                actionTimers,
+                creatureEntities,
+                creatureIndexByInstanceId,
+                entityManager);
+
+            foodData.isBeingEaten = true;
+            foodData.eatingCreatureInstanceId = currentCreatureId;
+            return true;
+        }
+
         float threshold = previousCreature.Weight * GameConfig.Instance.sizeDifferentFactor;
         if (creature.Weight < threshold)
             return false;
 
-        if (ECSMirrorBridge.TryGetFoodByInstanceId(targetFoodId, out Food foodObject) && foodObject != null && previousCreature.EatingManager != null)
+        EvictCurrentFoodOwner(
+            targetFoodId,
+            previousCreatureId,
+            actionRequests,
+            actionStates,
+            actionTargets,
+            actionTimers,
+            creatureEntities,
+            creatureIndexByInstanceId,
+            entityManager);
+
+        foodData.isBeingEaten = true;
+        foodData.eatingCreatureInstanceId = currentCreatureId;
+        return true;
+    }
+
+    private static bool TryResolveHerbivoreFoodCompetition(
+        BaseCreatureBehaviour challenger,
+        BaseCreatureBehaviour owner,
+        ref FoodMirrorData foodData,
+        out bool challengerCanEat,
+        out bool shouldTakeOver)
+    {
+        challengerCanEat = false;
+        shouldTakeOver = false;
+
+        if (!(challenger is HerbivoreBehaviour challengerHerbivore) ||
+            !(owner is HerbivoreBehaviour ownerHerbivore))
+        {
+            return false;
+        }
+
+        if (!challengerHerbivore.IsHawk && !ownerHerbivore.IsHawk)
+        {
+            challengerCanEat = true;
+            shouldTakeOver = false;
+            return true;
+        }
+
+        if (!challengerHerbivore.IsHawk && ownerHerbivore.IsHawk)
+        {
+            challengerCanEat = false;
+            shouldTakeOver = false;
+            return true;
+        }
+
+        if (challengerHerbivore.IsHawk && !ownerHerbivore.IsHawk)
+        {
+            challengerCanEat = true;
+            shouldTakeOver = true;
+            return true;
+        }
+
+        BaseCreatureBehaviour winner = HerbivoreSocialDynamics.ResolveHawkFight(challenger, owner);
+        foodData.nutritionValue = Mathf.Max(0f, foodData.nutritionValue * HerbivoreSocialDynamics.HawkFightFoodRetentionFactor);
+        foodData.nutritionPercent = foodData.maxNutritionValue > 0f
+            ? Mathf.Clamp01(foodData.nutritionValue / foodData.maxNutritionValue)
+            : 0f;
+
+        if (winner == challenger)
+        {
+            challengerCanEat = !challenger.IsDespawnQueued;
+            shouldTakeOver = challengerCanEat;
+            return true;
+        }
+
+        if (winner == owner)
+        {
+            challengerCanEat = false;
+            shouldTakeOver = false;
+            return true;
+        }
+
+        foodData.isBeingEaten = false;
+        foodData.eatingCreatureInstanceId = 0;
+        challengerCanEat = false;
+        shouldTakeOver = false;
+        return true;
+    }
+
+    private static void EvictCurrentFoodOwner(
+        int targetFoodId,
+        int previousCreatureId,
+        NativeArray<CreatureActionRequestData> actionRequests,
+        NativeArray<CreatureActionStateData> actionStates,
+        NativeArray<CreatureActionTargetData> actionTargets,
+        NativeArray<CreatureActionTimerData> actionTimers,
+        NativeArray<Entity> creatureEntities,
+        Dictionary<int, int> creatureIndexByInstanceId,
+        EntityManager entityManager)
+    {
+        if (ECSMirrorBridge.TryGetFoodByInstanceId(targetFoodId, out Food foodObject) &&
+            foodObject != null &&
+            ECSMirrorBridge.TryGetCreatureByInstanceId(previousCreatureId, out BaseCreatureBehaviour previousCreature) &&
+            previousCreature?.EatingManager != null &&
+            !previousCreature.IsDespawnQueued)
         {
             previousCreature.EatingManager.BlacklistFood(foodObject);
         }
@@ -307,10 +432,6 @@ public partial class ECSEatingExecutionSystem : SystemBase
             Entity previousEntity = creatureEntities[previousIndex];
             WriteCreatureAction(entityManager, previousEntity, previousRequest, previousState, previousTarget, previousTimer);
         }
-
-        foodData.isBeingEaten = true;
-        foodData.eatingCreatureInstanceId = currentCreatureId;
-        return true;
     }
 
     private static void CreateFoodDepletionRequest(EntityManager entityManager, int foodInstanceId)

@@ -76,6 +76,7 @@ public class ReproductionManager
                 config.herbivoreDesirabilityMin,
                 config.herbivoreDesirabilityMax);
             float newAgility = GetInheritedAgility(mate, config);
+            HerbivoreSocialStrategy offspringSocialStrategy = GetInheritedHerbivoreSocialStrategy(mate);
             float newStrength = creature is PredatorBehaviour ? GetInheritedStrength(mate, config) : 0f;
             Vector3 spawnPosition = mate.transform.position;
             SpawnCreatureRequest request = new SpawnCreatureRequest
@@ -92,6 +93,7 @@ public class ReproductionManager
                 sprintCooldownSpeedFactor = newSprintCooldownSpeedFactor,
                 desirability = newDesirability,
                 agility = newAgility,
+                herbivoreSocialStrategy = (int)offspringSocialStrategy,
                 strength = newStrength,
                 initialAge = 0f
             };
@@ -428,11 +430,31 @@ public class ReproductionManager
         if (offspringBehavior is HerbivoreBehaviour offspringHerbivore)
         {
             offspringHerbivore.SetAgility(request.agility);
+            offspringHerbivore.SetSocialStrategy((HerbivoreSocialStrategy)request.herbivoreSocialStrategy);
         }
         else if (offspringBehavior is PredatorBehaviour offspringPredator)
         {
             offspringPredator.SetStrength(request.strength);
         }
+    }
+
+    private HerbivoreSocialStrategy GetInheritedHerbivoreSocialStrategy(BaseCreatureBehaviour mate)
+    {
+        if (!(creature is HerbivoreBehaviour parentHerbivore) ||
+            !(mate is HerbivoreBehaviour mateHerbivore))
+        {
+            return HerbivoreSocialStrategy.Dove;
+        }
+
+        bool parentIsHawk = parentHerbivore.IsHawk;
+        bool mateIsHawk = mateHerbivore.IsHawk;
+
+        if (parentIsHawk == mateIsHawk)
+            return parentIsHawk ? HerbivoreSocialStrategy.Hawk : HerbivoreSocialStrategy.Dove;
+
+        return UnityEngine.Random.value < 0.5f
+            ? HerbivoreSocialStrategy.Hawk
+            : HerbivoreSocialStrategy.Dove;
     }
   
     public bool IsReadyToReproduction()

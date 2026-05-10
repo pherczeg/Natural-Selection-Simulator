@@ -16,10 +16,18 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
     private float nextUtilityDecisionTime;
     private Vector3 lastFleeDirection;
     private BaseCreatureBehaviour capturePredator;
+    [SerializeField] private HerbivoreSocialStrategy socialStrategy = HerbivoreSocialStrategy.Dove;
 
     public float Agility { get; private set; }
+    public HerbivoreSocialStrategy SocialStrategy => socialStrategy;
+    public bool IsHawk => socialStrategy == HerbivoreSocialStrategy.Hawk;
     public bool IsCaptured => capturePredator != null;
     public bool IsThreatened => forcedThreat != null || cachedThreat != null || Time.time < activeFleeUntilTime;
+
+    public void SetSocialStrategy(HerbivoreSocialStrategy strategy)
+    {
+        socialStrategy = strategy;
+    }
 
     public bool IsCapturedBy(BaseCreatureBehaviour predator)
     {

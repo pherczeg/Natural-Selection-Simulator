@@ -75,6 +75,8 @@ public class CreatureSpawner : MonoBehaviour
             if (newCreatureBehaviour is HerbivoreBehaviour herbivore)
             {
                 herbivore.SetAgility(agility);
+                herbivore.SetSocialStrategy(Random.value < 0.5f ? HerbivoreSocialStrategy.Hawk : HerbivoreSocialStrategy.Dove);
+                //  herbivore.SetSocialStrategy(HerbivoreSocialStrategy.Hawk);
             }
         }
         for (int i = 0; i < initialPredatorCount; i++)

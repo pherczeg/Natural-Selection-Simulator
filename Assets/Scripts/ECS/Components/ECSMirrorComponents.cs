@@ -38,6 +38,7 @@ public struct SpawnCreatureRequest : IComponentData
     public float sprintCooldownSpeedFactor;
     public float desirability;
     public float agility;
+    public int herbivoreSocialStrategy;
     public float strength;
     public float initialAge;
 }

@@ -1347,6 +1347,7 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         if (creature is HerbivoreBehaviour herbivore)
         {
             herbivore.SetAgility(request.agility);
+            herbivore.SetSocialStrategy((HerbivoreSocialStrategy)request.herbivoreSocialStrategy);
         }
         else if (creature is PredatorBehaviour predator)
         {

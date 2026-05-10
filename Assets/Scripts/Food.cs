@@ -131,27 +131,118 @@ public class Food : MonoBehaviour
         if (despawnQueued)
             return false;
 
+        if (creature == null)
+            return false;
+
         if (!IsBeingEaten)
         {
             IsBeingEaten = true;
             eatingCreature = creature;
             return true;
         }
-        else if (eatingCreature != null)
+
+        if (eatingCreature == null)
         {
-            if (creature.Weight >= eatingCreature.Weight * GameConfig.Instance.sizeDifferentFactor)
+            IsBeingEaten = true;
+            eatingCreature = creature;
+            return true;
+        }
+
+        if (eatingCreature == creature)
+            return true;
+
+        if (TryResolveHerbivoreFoodCompetition(creature, eatingCreature, out bool challengerCanEat, out bool shouldTakeOver))
+        {
+            if (!challengerCanEat)
             {
-                eatingCreature.EatingManager.InterruptEating();
-                eatingCreature = creature;
-                IsBeingEaten = true;
+                creature.EatingManager?.BlacklistFood(this);
+                return false;
+            }
+
+            if (!shouldTakeOver)
+            {
                 return true;
             }
-            else
+
+            if (eatingCreature != null && !eatingCreature.IsDespawnQueued)
             {
-                creature.EatingManager.BlacklistFood(this);
+                eatingCreature.EatingManager?.InterruptEating();
             }
+
+            eatingCreature = creature;
+            IsBeingEaten = true;
+            return true;
         }
+
+        if (creature.Weight >= eatingCreature.Weight * GameConfig.Instance.sizeDifferentFactor)
+        {
+            eatingCreature.EatingManager.InterruptEating();
+            eatingCreature = creature;
+            IsBeingEaten = true;
+            return true;
+        }
+
+        creature.EatingManager?.BlacklistFood(this);
         return false;
+    }
+
+    private bool TryResolveHerbivoreFoodCompetition(
+        BaseCreatureBehaviour challenger,
+        BaseCreatureBehaviour currentOwner,
+        out bool challengerCanEat,
+        out bool shouldTakeOver)
+    {
+        challengerCanEat = false;
+        shouldTakeOver = false;
+
+        if (!(challenger is HerbivoreBehaviour challengerHerbivore) ||
+            !(currentOwner is HerbivoreBehaviour ownerHerbivore))
+        {
+            return false;
+        }
+
+        if (!challengerHerbivore.IsHawk && !ownerHerbivore.IsHawk)
+        {
+            challengerCanEat = true;
+            shouldTakeOver = false;
+            return true;
+        }
+
+        if (!challengerHerbivore.IsHawk && ownerHerbivore.IsHawk)
+        {
+            challengerCanEat = false;
+            shouldTakeOver = false;
+            return true;
+        }
+
+        if (challengerHerbivore.IsHawk && !ownerHerbivore.IsHawk)
+        {
+            challengerCanEat = true;
+            shouldTakeOver = true;
+            return true;
+        }
+
+        BaseCreatureBehaviour winner = HerbivoreSocialDynamics.ResolveHawkFight(challenger, currentOwner);
+        nutritionValue = Mathf.Max(0f, nutritionValue * HerbivoreSocialDynamics.HawkFightFoodRetentionFactor);
+
+        if (winner == challenger)
+        {
+            challengerCanEat = !challenger.IsDespawnQueued;
+            shouldTakeOver = challengerCanEat;
+            return true;
+        }
+
+        if (winner == currentOwner)
+        {
+            challengerCanEat = false;
+            shouldTakeOver = false;
+            return true;
+        }
+
+        StopEating();
+        challengerCanEat = false;
+        shouldTakeOver = false;
+        return true;
     }
 
     public void StopEating()
