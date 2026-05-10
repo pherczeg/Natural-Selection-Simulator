@@ -1,11 +1,18 @@
 using UnityEngine;
+using Unity.Mathematics;
+
+public enum FoodDespawnReason
+{
+    Unknown = 0,
+    Depletion = 1,
+    OldAge = 2
+}
 
 public class Food : MonoBehaviour
 {
-    private const float StartScale = 0.1f;
-
     public float nutritionValue = 10f;
     private float maxNutritionValue = 10f;
+    public float MaxNutritionValue => maxNutritionValue;
     private bool isBeingEaten = false;
     public bool IsBeingEaten
     {
@@ -20,9 +27,12 @@ public class Food : MonoBehaviour
         }
     }
     public float age = 0f;
+    public float GrowthFraction { get; private set; }
     private BaseCreatureBehaviour eatingCreature = null;
     private Renderer _renderer;
     private Color foodColor;
+    private bool despawnQueued;
+    public bool IsDespawnQueued => despawnQueued;
 
     Color FoodColor
     {
@@ -42,38 +52,72 @@ public class Food : MonoBehaviour
 
     public void Initialize(float targetNutrition)
     {
+        despawnQueued = false;
         maxNutritionValue = targetNutrition;
         age = 0f;
-        transform.localScale = Vector3.one * StartScale;
-        nutritionValue = targetNutrition * StartScale;
+        GrowthFraction = 0f;
+        transform.localScale = Vector3.one * FoodLifecycleCalculator.StartScale;
+        nutritionValue = targetNutrition * FoodLifecycleCalculator.StartScale;
         UpdateColor();
     }
 
     void FixedUpdate()
     {
+        if (despawnQueued)
+            return;
+
+        GameConfig config = GameConfig.Instance;
+        if (config == null || config.useEcsFoodLifecycle)
+            return;
+
         age += Time.fixedDeltaTime;
 
         if (!IsBeingEaten)
-            ApplyGrowth();
+            ApplyGrowth(config);
 
-        if (eatingCreature == null && age > GameConfig.Instance.foodMaxAge && !IsBeingEaten)
-            DestroyObject();
+        if (eatingCreature == null && age > config.foodMaxAge && !IsBeingEaten)
+            RequestDespawn(FoodDespawnReason.OldAge);
     }
 
-    private void ApplyGrowth()
+    private void ApplyGrowth(GameConfig config)
     {
-        float t = Mathf.Clamp01(age / GameConfig.Instance.foodMaturityAge);
-        float smooth = Mathf.SmoothStep(0f, 1f, t);
-        transform.localScale = Vector3.one * Mathf.Lerp(StartScale, 1f, smooth);
-        nutritionValue = Mathf.Lerp(maxNutritionValue * StartScale, maxNutritionValue, smooth);
-        UpdateColor();
+        GrowthFraction = FoodLifecycleCalculator.CalculateGrowthFraction(age, config.foodMaturityAge);
+        transform.localScale = Vector3.one * FoodLifecycleCalculator.CalculateScale(GrowthFraction);
+        nutritionValue = FoodLifecycleCalculator.CalculateNutritionValue(maxNutritionValue, GrowthFraction);
+        UpdateColor(config);
     }
 
     private void UpdateColor()
     {
-        float range = GameConfig.Instance.maxNutrionValue - GameConfig.Instance.minNutrionValue;
-        float t = range > 0 ? (nutritionValue - GameConfig.Instance.minNutrionValue) / range : 0f;
+        UpdateColor(GameConfig.Instance);
+    }
+
+    private void UpdateColor(GameConfig config)
+    {
+        if (config == null)
+            return;
+
+        float range = config.maxNutrionValue - config.minNutrionValue;
+        float t = range > 0 ? (nutritionValue - config.minNutrionValue) / range : 0f;
         FoodColor = Color.Lerp(Color.green, Color.yellow, Mathf.Clamp01(t));
+    }
+
+    public void ApplyECSLifecycle(FoodMirrorData data, bool applyGrowthVisuals)
+    {
+        age = data.age;
+        GrowthFraction = data.growthFraction;
+
+        if (!applyGrowthVisuals)
+            return;
+
+        maxNutritionValue = data.maxNutritionValue;
+        nutritionValue = Mathf.Max(0f, data.nutritionValue);
+        transform.localScale = ToVector3(data.scale);
+
+        if (IsBeingEaten)
+            FoodColor = Color.red;
+        else
+            UpdateColor();
     }
 
     private void DestroyObject()
@@ -84,6 +128,9 @@ public class Food : MonoBehaviour
 
     public bool TryStartEating(BaseCreatureBehaviour creature)
     {
+        if (despawnQueued)
+            return false;
+
         if (!IsBeingEaten)
         {
             IsBeingEaten = true;
@@ -133,11 +180,38 @@ public class Food : MonoBehaviour
 
     private void OnDestroy()
     {
-        FoodSpawner.Instance.RemoveFromList(this);
+        FoodSpawner.Instance?.RemoveFromList(this);
     }
 
     public void DestroyOnDepletion()
     {
+        RequestDespawn(FoodDespawnReason.Depletion);
+    }
+
+    public void DestroyFromECSLifecycle()
+    {
+        RequestDespawn(FoodDespawnReason.OldAge);
+    }
+
+    internal void CompleteDespawnFromBridge(FoodDespawnReason reason)
+    {
         DestroyObject();
+    }
+
+    private void RequestDespawn(FoodDespawnReason reason)
+    {
+        if (despawnQueued || !gameObject.activeInHierarchy)
+            return;
+
+        despawnQueued = true;
+        if (ECSMirrorBridge.TryRequestDespawnFood(this, reason))
+            return;
+
+        CompleteDespawnFromBridge(reason);
+    }
+
+    private static Vector3 ToVector3(float3 source)
+    {
+        return new Vector3(source.x, source.y, source.z);
     }
 }

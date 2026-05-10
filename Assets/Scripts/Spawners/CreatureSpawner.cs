@@ -10,9 +10,6 @@ public class CreatureSpawner : MonoBehaviour
 
     public GameObject herbivorPrefab;
     public GameObject predatorPrefab;
-    public int numberOfHerbivores = 5;
-    public int numberOfPredators = 5;
-    private int poolSizeOfCreatures = 100;
     public List<BaseCreatureBehaviour> herbivorCreatures;
     public List<BaseCreatureBehaviour> predatorCreatures;
     void Start()
@@ -31,21 +28,6 @@ public class CreatureSpawner : MonoBehaviour
     }
     void InitializeSpawner()
     {
-        if (GroundManager.Instance != null)
-        {
-            Bounds bounds = GroundManager.Instance.GroundBounds;
-            PoolManager.Instance.CreatePool(herbivorPrefab, poolSizeOfCreatures);
-            PoolManager.Instance.CreatePool(predatorPrefab, poolSizeOfCreatures);
-            SpawnCreatures(bounds);
-        }
-        else
-        {
-            Debug.LogError("GroundManager instance not found.");
-        }
-    }
-
-    void SpawnCreatures(Bounds bounds)
-    {
         var config = GameConfig.Instance;
         if (config == null)
         {
@@ -53,7 +35,26 @@ public class CreatureSpawner : MonoBehaviour
             return;
         }
 
-        for (int i = 0; i < numberOfHerbivores; i++)
+        if (GroundManager.Instance != null)
+        {
+            Bounds bounds = GroundManager.Instance.GroundBounds;
+            int creaturePoolSize = Mathf.Max(1, config.creaturePoolSize);
+            PoolManager.Instance.CreatePool(herbivorPrefab, creaturePoolSize);
+            PoolManager.Instance.CreatePool(predatorPrefab, creaturePoolSize);
+            SpawnCreatures(bounds, config);
+        }
+        else
+        {
+            Debug.LogError("GroundManager instance not found.");
+        }
+    }
+
+    void SpawnCreatures(Bounds bounds, GameConfig config)
+    {
+        int initialHerbivoreCount = Mathf.Max(0, config.initialHerbivoreCount);
+        int initialPredatorCount = Mathf.Max(0, config.initialPredatorCount);
+
+        for (int i = 0; i < initialHerbivoreCount; i++)
         {
             Vector3 spawnPosition = GetSpawnPosition(bounds, herbivorPrefab);
             BaseCreatureBehaviour newCreatureBehaviour = SpawnCreature(spawnPosition, herbivorPrefab);
@@ -76,7 +77,7 @@ public class CreatureSpawner : MonoBehaviour
                 herbivore.SetAgility(agility);
             }
         }
-        for (int i = 0; i < numberOfPredators; i++)
+        for (int i = 0; i < initialPredatorCount; i++)
         {
             Vector3 spawnPosition = GetSpawnPosition(bounds, predatorPrefab);
             BaseCreatureBehaviour newCreatureBehaviour = SpawnCreature(spawnPosition, predatorPrefab);
@@ -181,6 +182,16 @@ public class CreatureSpawner : MonoBehaviour
 
     public BaseCreatureBehaviour SpawnCreature(Vector3 spawnPosition, GameObject prefab)
     {
+        if (herbivorCreatures == null)
+        {
+            herbivorCreatures = new List<BaseCreatureBehaviour>();
+        }
+
+        if (predatorCreatures == null)
+        {
+            predatorCreatures = new List<BaseCreatureBehaviour>();
+        }
+
         GameObject newCreature = PoolManager.Instance.GetObject(prefab);
         newCreature.transform.position = spawnPosition;
         var creatureBehaviour = newCreature.GetComponent<BaseCreatureBehaviour>();

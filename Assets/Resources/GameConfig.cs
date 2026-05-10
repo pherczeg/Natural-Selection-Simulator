@@ -24,13 +24,31 @@ public class GameConfig : ScriptableObject
     [Header("Simulation")]
     public float updateInterval = .2f;
 
+    [Header("Creature Spawner")]
+    [Min(0)] public int initialHerbivoreCount = 5;
+    [Min(0)] public int initialPredatorCount = 5;
+    [Min(1)] public int creaturePoolSize = 100;
+
+    [Header("Food Spawner")]
+    [Min(0)] public int initialFoodCount = 20;
+    [Min(1)] public int foodPoolSize = 2000;
+    [Min(0.01f)] public float foodSpawnInterval = 5f;
+    [Min(0)] public int foodSpawnBatchSize = 5;
+
     [Header("AI Migration")]
     public bool useUtilityAI = false;
+    public bool useEcsObservation = false;
+    public bool useEcsAIContext = false;
+    public bool useEcsUtilityScoring = false;
+    public bool useEcsActionExecution = false;
+    public bool useEcsFoodLifecycle = false;
+    public bool useEcsCreatureLifecycle = false;
     public bool logUtilityAIScores = false;
     [Min(0.01f)] public float utilityDecisionInterval = .2f;
 
     [Header("Creature Lifecycle")]
     public float oldAgeStartAge = 120f;
+    public float creatureMaxAge = 180f;
     public float maturityAge = 24f; // age at which creature reaches full size, max energy, and can reproduce
     public float oldAgeSpeedDecayPerSecond = 0.01f;
     public float oldAgeSenseDecayPerSecond = 0.008f;
@@ -50,19 +68,33 @@ public class GameConfig : ScriptableObject
     public float predatorEnergyGainPerPreyWeight = 25f;
 
     [Header("Reproduction")]
-    public float reproductionTime = 1f;
-    public float reproductionEnergyThreshold = 0.6f;
     public float blackListDuration = .5f;
-    public float femaleReproductionCooldown = 45f;
-    public float maleReproductionCooldown = 15f;
-    public float rejectedMateCooldown = 10f;
-    public float minMateAcceptanceChance = 0.2f;
-    public float maxMateAcceptanceChance = 0.95f;
-    public float reproductionCooldown = 30f; // legacy/general cooldown value
-    public int minOffspringPerReproduction = 1;
-    public int maxOffspringPerReproduction = 5;
-    public float offspringCountMean = 3f;
-    public float offspringCountStdDev = 1f;
+
+    [Header("Reproduction - Herbivore")]
+    public float herbivoreReproductionTime = 1f;
+    [Range(0f, 1f)] public float herbivoreReproductionEnergyThreshold = 0.6f;
+    public float herbivoreFemaleReproductionCooldown = 45f;
+    public float herbivoreMaleReproductionCooldown = 15f;
+    public float herbivoreRejectedMateCooldown = 10f;
+    [Range(0f, 1f)] public float herbivoreMinMateAcceptanceChance = 0.2f;
+    [Range(0f, 1f)] public float herbivoreMaxMateAcceptanceChance = 0.95f;
+    public int herbivoreMinOffspringPerReproduction = 1;
+    public int herbivoreMaxOffspringPerReproduction = 5;
+    public float herbivoreOffspringCountMean = 3f;
+    public float herbivoreOffspringCountStdDev = 1f;
+
+    [Header("Reproduction - Predator")]
+    public float predatorReproductionTime = 1f;
+    [Range(0f, 1f)] public float predatorReproductionEnergyThreshold = 0.6f;
+    public float predatorFemaleReproductionCooldown = 45f;
+    public float predatorMaleReproductionCooldown = 15f;
+    public float predatorRejectedMateCooldown = 10f;
+    [Range(0f, 1f)] public float predatorMinMateAcceptanceChance = 0.2f;
+    [Range(0f, 1f)] public float predatorMaxMateAcceptanceChance = 0.95f;
+    public int predatorMinOffspringPerReproduction = 1;
+    public int predatorMaxOffspringPerReproduction = 5;
+    public float predatorOffspringCountMean = 3f;
+    public float predatorOffspringCountStdDev = 1f;
 
     [Header("Genetics")]
     public float mutationRate = 0.5f;
@@ -139,4 +171,75 @@ public class GameConfig : ScriptableObject
     public float maxNutrionValue = 200f;
     public float foodMaturityAge = 20f;
     public float foodMaxAge = 60f;
+
+    public float GetReproductionTime(bool isPredator)
+    {
+        return isPredator
+            ? predatorReproductionTime
+            : herbivoreReproductionTime;
+    }
+
+    public float GetReproductionEnergyThreshold(bool isPredator)
+    {
+        return isPredator
+            ? predatorReproductionEnergyThreshold
+            : herbivoreReproductionEnergyThreshold;
+    }
+
+    public float GetReproductionCooldown(bool isPredator, bool isFemale)
+    {
+        if (isPredator)
+            return isFemale ? predatorFemaleReproductionCooldown : predatorMaleReproductionCooldown;
+
+        return isFemale ? herbivoreFemaleReproductionCooldown : herbivoreMaleReproductionCooldown;
+    }
+
+    public float GetRejectedMateCooldown(bool isPredator)
+    {
+        return isPredator
+            ? predatorRejectedMateCooldown
+            : herbivoreRejectedMateCooldown;
+    }
+
+    public float GetMinMateAcceptanceChance(bool isPredator)
+    {
+        return isPredator
+            ? predatorMinMateAcceptanceChance
+            : herbivoreMinMateAcceptanceChance;
+    }
+
+    public float GetMaxMateAcceptanceChance(bool isPredator)
+    {
+        return isPredator
+            ? predatorMaxMateAcceptanceChance
+            : herbivoreMaxMateAcceptanceChance;
+    }
+
+    public int GetMinOffspringPerReproduction(bool isPredator)
+    {
+        return isPredator
+            ? predatorMinOffspringPerReproduction
+            : herbivoreMinOffspringPerReproduction;
+    }
+
+    public int GetMaxOffspringPerReproduction(bool isPredator)
+    {
+        return isPredator
+            ? predatorMaxOffspringPerReproduction
+            : herbivoreMaxOffspringPerReproduction;
+    }
+
+    public float GetOffspringCountMean(bool isPredator)
+    {
+        return isPredator
+            ? predatorOffspringCountMean
+            : herbivoreOffspringCountMean;
+    }
+
+    public float GetOffspringCountStdDev(bool isPredator)
+    {
+        return isPredator
+            ? predatorOffspringCountStdDev
+            : herbivoreOffspringCountStdDev;
+    }
 }

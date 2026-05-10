@@ -19,9 +19,16 @@ internal class Scheduler : MonoBehaviour
     float lastObservation;
     private void Update()
     {
-        if (GameConfig.Instance == null) return;
+        GameConfig config = GameConfig.Instance;
+        if (config == null) return;
+        if (config.useEcsObservation)
+        {
+            lastObservation = 0f;
+            return;
+        }
+
         lastObservation += Time.fixedDeltaTime;
-        if (lastObservation >= GameConfig.Instance.updateInterval)
+        if (lastObservation >= config.updateInterval)
         {
             creatureSpawner.herbivorCreatures.RemoveAll(creature => creature == null);
             creatureSpawner.predatorCreatures.RemoveAll(creature => creature == null);

@@ -5,6 +5,15 @@
 
 # Ignore auto-generated Visual Studio Code files
 .vscode/
+
+# Markdown files
+*.md
+*.MD
+
+# Temporarily ignore Unity test folders
+Assets/Test/
+Assets/Tests/
+
 # User-specific files
 *.rsuser
 *.suo

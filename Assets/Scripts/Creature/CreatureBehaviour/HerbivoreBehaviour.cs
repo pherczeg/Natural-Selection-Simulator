@@ -21,6 +21,11 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
     public bool IsCaptured => capturePredator != null;
     public bool IsThreatened => forcedThreat != null || cachedThreat != null || Time.time < activeFleeUntilTime;
 
+    public bool IsCapturedBy(BaseCreatureBehaviour predator)
+    {
+        return predator != null && capturePredator == predator;
+    }
+
     protected override void OnSexChanged()
     {
         var config = GameConfig.Instance;
@@ -80,25 +85,26 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
 
     private void CheckLegacyTransitions()
     {
-        if (stateMachine.CurrentState.StateType == CreatureStateType.MovingToFood || stateMachine.CurrentState.StateType == CreatureStateType.Eating || stateMachine.CurrentState.StateType == CreatureStateType.SearchingForFood || stateMachine.CurrentState.StateType == CreatureStateType.Reproducting)
+        CreatureStateType currentState = CurrentStateType;
+        if (currentState == CreatureStateType.MovingToFood || currentState == CreatureStateType.Eating || currentState == CreatureStateType.SearchingForFood || currentState == CreatureStateType.Reproducting)
         {
             return;
         }
         else if (EnergyManager.EnergyLevel < GameConfig.Instance.eatingEnergyThreshold * EnergyManager.CurrentMaxEnergy)
         {
-            stateMachine.TransitionToSearchingForFood();
+            CreatureActionExecutor.Execute(this, CreatureAction.SearchFood);
         }
-        else if (stateMachine.CurrentState.StateType == CreatureStateType.SearchingForMate || stateMachine.CurrentState.StateType == CreatureStateType.MovingToMate)
+        else if (currentState == CreatureStateType.SearchingForMate || currentState == CreatureStateType.MovingToMate)
         {
             return;
         }
         else if (!ReproductionManager.IsOnCooldown() && ReproductionManager.IsReadyToReproduction())
         {
-            stateMachine.TransitionToSearchingForMate();
+            CreatureActionExecutor.Execute(this, CreatureAction.SearchMate);
         }
-        else if (stateMachine.CurrentState.StateType == CreatureStateType.Idle)
+        else if (currentState == CreatureStateType.Idle || currentState == CreatureStateType.None)
         {
-            stateMachine.TransitionToWandering();
+            CreatureActionExecutor.Execute(this, CreatureAction.Wander);
         }
     }
 
@@ -107,7 +113,16 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
         if (Time.time < nextUtilityDecisionTime)
             return;
 
-        nextUtilityDecisionTime = Time.time + Mathf.Max(0.01f, config.utilityDecisionInterval);
+        float decisionInterval = Mathf.Max(0.01f, config.utilityDecisionInterval);
+
+        if (config.useEcsUtilityScoring)
+        {
+            EnsureUtilityBrain();
+            nextUtilityDecisionTime = Time.time + (TryExecuteECSUtilityDecision(config) ? decisionInterval : 0.01f);
+            return;
+        }
+
+        nextUtilityDecisionTime = Time.time + decisionInterval;
         EnsureUtilityBrain();
 
         if (utilityBrain == null)
@@ -159,7 +174,7 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
                 {
                     new UtilityConsideration("Reproduction Readiness", context => UtilityAIScoreRules.GetReproductionScore(context, GetUtilityAIScoringParameters()) * UtilityAIScoreRules.GetMateSearchAvailabilityScore(context))
                 },
-                0.85f),
+                UtilityAIDefaultScorer.SearchMateBaseScore),
             new UtilityAction(
                 CreatureAction.Wander,
                 "Wander",
@@ -167,7 +182,7 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
                 {
                     new UtilityConsideration("Idle Wander", UtilityAIScoreRules.GetIdleWanderScore)
                 },
-                0.3f)
+                UtilityAIDefaultScorer.WanderBaseScore)
         };
     }
 
@@ -179,12 +194,13 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
 
         return new UtilityAIScoringParameters(
             config.eatingEnergyThreshold,
-            config.reproductionEnergyThreshold);
+            config.GetReproductionEnergyThreshold(false));
     }
 
     public override void Initialize(float moveSpeed, float weight, float senseRadius)
     {
         var config = GameConfig.Instance;
+        ResetDespawnRequestState();
         ResetUtilityAIDebugState();
         nextUtilityDecisionTime = 0f;
         forcedThreat = null;
@@ -201,7 +217,6 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
         ReproductionManager = new ReproductionManager(this);
         MovementManager = new MovementManager(this, moveSpeed);
         ObservationManager = new ObservationManager(this, senseRadius, numberOfRaycasts, angleBetweenRaycasts);
-        stateMachine = new StateMachine(this);
         EnergyManager = new EnergyManager(this, maxEnergy * config.initialEnergyPercentageHerbivore, maxEnergy);
         EnergyManager.UpdateEnergyBar();
         EatingManager = new EatingManager(this);
@@ -211,38 +226,13 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
             EnsureUtilityBrain();
         }
     }
-    // void FixedUpdate()
-    // {
-    //     if (GameConfig.Instance == null) return;
-    //     lastObservation += Time.fixedDeltaTime;
-    //     if (lastObservation >= GameConfig.Instance.updateInterval)
-    //     {
-    //         //ObservationManager.UpdateObservations();
-    //         var energyConsumption = EnergyManager.CalculateEnergyConsumption();
-    //         EnergyManager.ConsumeEnergy(energyConsumption);
-    //         AgeManager.UpdateAge(lastObservation);
-    //         if (AgeManager.IsMaxAgeReached())
-    //         {
-    //             DestroyObject();
-    //         }
-    //         if (ReproductionManager.IsOnCooldown())
-    //         {
-    //             ReproductionManager.UpdateReproductionCooldown(lastObservation);
-    //         }
-    //         lastObservation = 0f;
-    //     }
-    //     if (EnergyManager.IsEnergyDepleted())
-    //     {
-    //         DestroyObject();
-    //         return;
-    //     }
-    //     stateMachine.Update();
-    //     CheckTransitions();
-    // }
     void FixedUpdate()
     {
+        if (IsDespawnQueued)
+            return;
+
         var config = GameConfig.Instance;
-        if (config == null || stateMachine == null) return;
+        if (config == null) return;
 
         MovementManager.UpdateTemporaryEffects(Time.fixedDeltaTime);
 
@@ -252,7 +242,14 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
         {
             float simulationDeltaTime = lastObservation;
             lastObservation = 0f;
-            if (UpdateSlowSimulation(simulationDeltaTime)) return;
+            if (config.useEcsCreatureLifecycle)
+            {
+                ReproductionManager.UpdateReproductionCooldown(simulationDeltaTime);
+            }
+            else if (UpdateSlowSimulation(simulationDeltaTime))
+            {
+                return;
+            }
         }
 
         if (IsCaptured)
@@ -261,7 +258,6 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
         if (TryHandlePredatorFlee(config))
             return;
 
-        stateMachine.Update();
         CheckTransitions();
     }
 
@@ -295,7 +291,7 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
         nextThreatScanTime = Time.time;
         lastFleeDirection = Vector3.zero;
 
-        if (stateMachine?.CurrentState?.StateType == CreatureStateType.Eating)
+        if (CurrentStateType == CreatureStateType.Eating)
         {
             EatingManager.InterruptEating();
         }
@@ -344,7 +340,7 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
             return false;
         }
 
-        if (stateMachine.CurrentState.StateType == CreatureStateType.Eating)
+        if (CurrentStateType == CreatureStateType.Eating)
         {
             EatingManager.InterruptEating();
         }
@@ -489,6 +485,12 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
         EnergyManager.ConsumeEnergy(energyConsumption);
 
         AgeManager.UpdateAge(deltaTime);
+
+        if (AgeManager.IsMaxAgeReached())
+        {
+            Despawn(CreatureDeathReason.OldAge);
+            return true;
+        }
 
         if (EnergyManager.IsEnergyDepleted())
         {

@@ -46,8 +46,7 @@ public class EatingManager
             {
                 creature.EatingManager.BlacklistFood(foodTarget);
                 foodTarget.StopEating();
-                //isEating = false;
-                creature.stateMachine.TransitionToWandering();
+                ECSMirrorBridge.TryRequestCreatureAction(creature, CreatureAction.Wander);
                 creature.DEBUG_string += "eating interrubted" + Time.realtimeSinceStartup + "\n";
             }
             else 

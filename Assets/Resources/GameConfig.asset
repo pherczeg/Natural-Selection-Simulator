@@ -13,45 +13,69 @@ MonoBehaviour:
   m_Name: GameConfig
   m_EditorClassIdentifier: 
   updateInterval: 0.2
-  useUtilityAI: 0
+  initialHerbivoreCount: 100
+  initialPredatorCount: 0
+  creaturePoolSize: 1000
+  initialFoodCount: 1
+  foodPoolSize: 100
+  foodSpawnInterval: 5
+  foodSpawnBatchSize: 1
+  useUtilityAI: 1
+  useEcsObservation: 1
+  useEcsAIContext: 1
+  useEcsUtilityScoring: 1
+  useEcsActionExecution: 1
+  useEcsFoodLifecycle: 1
+  useEcsCreatureLifecycle: 1
   logUtilityAIScores: 0
   utilityDecisionInterval: 0.2
   oldAgeStartAge: 120
-  maturityAge: 24
+  creatureMaxAge: 200
+  maturityAge: 20
   oldAgeSpeedDecayPerSecond: 0.01
-  oldAgeSenseDecayPerSecond: 0.008
+  oldAgeSenseDecayPerSecond: 0.004
   oldAgeDesirabilityDecayPerSecond: 0.012
   oldAgeMinSpeedMultiplier: 0.2
   oldAgeMinSenseMultiplier: 0.2
   oldAgeMinDesirabilityMultiplier: 0.05
   maxEnergy: 200
   herbivoreMaxEnergy: 200
-  predatorMaxEnergy: 500
-  initialEnergyPercentageHerbivore: 0.8
-  initialEnergyPercentagePredator: 0.8
+  predatorMaxEnergy: 1000
+  initialEnergyPercentageHerbivore: 0.5
+  initialEnergyPercentagePredator: 0.5
   eatingEnergyThreshold: 0.5
-  energyConsumptionCoefficient: 0.0004
+  energyConsumptionCoefficient: 0.08
   predatorEnergyGainPerPreyWeight: 25
-  reproductionTime: 1
-  reproductionEnergyThreshold: 0.3
-  blackListDuration: 0.5
-  femaleReproductionCooldown: 45
-  maleReproductionCooldown: 15
-  rejectedMateCooldown: 10
-  minMateAcceptanceChance: 0.7
-  maxMateAcceptanceChance: 0.95
-  reproductionCooldown: 10
-  minOffspringPerReproduction: 1
-  maxOffspringPerReproduction: 5
-  offspringCountMean: 3
-  offspringCountStdDev: 1
+  blackListDuration: 5
+  herbivoreReproductionTime: 1
+  herbivoreReproductionEnergyThreshold: 0.3
+  herbivoreFemaleReproductionCooldown: 45
+  herbivoreMaleReproductionCooldown: 15
+  herbivoreRejectedMateCooldown: 10
+  herbivoreMinMateAcceptanceChance: 0.7
+  herbivoreMaxMateAcceptanceChance: 0.95
+  herbivoreMinOffspringPerReproduction: 1
+  herbivoreMaxOffspringPerReproduction: 5
+  herbivoreOffspringCountMean: 3
+  herbivoreOffspringCountStdDev: 1
+  predatorReproductionTime: 1
+  predatorReproductionEnergyThreshold: 0.3
+  predatorFemaleReproductionCooldown: 45
+  predatorMaleReproductionCooldown: 15
+  predatorRejectedMateCooldown: 10
+  predatorMinMateAcceptanceChance: 0.7
+  predatorMaxMateAcceptanceChance: 0.95
+  predatorMinOffspringPerReproduction: 1
+  predatorMaxOffspringPerReproduction: 3
+  predatorOffspringCountMean: 1
+  predatorOffspringCountStdDev: 1
   mutationRate: 0.5
   mutationChance: 0.5
   sizeDifferentFactor: 1.5
   herbivoreWeightMin: 5
-  herbivoreWeightMax: 30
-  herbivoreSpeedMin: 2
-  herbivoreSpeedMax: 10
+  herbivoreWeightMax: 10
+  herbivoreSpeedMin: 1
+  herbivoreSpeedMax: 2
   herbivoreSprintDurationMin: 0.6
   herbivoreSprintDurationMax: 1.8
   herbivoreSprintFactorMin: 1.15
@@ -66,10 +90,10 @@ MonoBehaviour:
   herbivoreDesirabilityMax: 1
   herbivoreAgilityMin: 0.2
   herbivoreAgilityMax: 1
-  predatorWeightMin: 20
-  predatorWeightMax: 40
-  predatorSpeedMin: 5
-  predatorSpeedMax: 15
+  predatorWeightMin: 3
+  predatorWeightMax: 10
+  predatorSpeedMin: 2
+  predatorSpeedMax: 3
   predatorSprintDurationMin: 0.5
   predatorSprintDurationMax: 1.6
   predatorSprintFactorMin: 1.2

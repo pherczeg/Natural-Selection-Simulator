@@ -48,7 +48,7 @@ public static class CreatureActionExecutor
 {
     public static CreatureActionExecutionResult Execute(BaseCreatureBehaviour creature, CreatureAction action)
     {
-        if (creature == null || creature.stateMachine == null)
+        if (creature == null)
         {
             return CreatureActionExecutionResult.Skipped(
                 action,
@@ -56,35 +56,27 @@ public static class CreatureActionExecutor
                 GetTargetStateType(action));
         }
 
+        GameConfig config = GameConfig.Instance;
+        bool useEcsActionExecution = config != null && config.useEcsActionExecution;
         CreatureStateType previousStateType = creature.CurrentStateType;
         CreatureStateType targetStateType = GetTargetStateType(action);
-        bool wasTransitionApplied = true;
 
-        switch (action)
+        if (!useEcsActionExecution)
         {
-            case CreatureAction.SearchFood:
-            case CreatureAction.Hunt:
-                creature.stateMachine.TransitionToSearchingForFood();
-                break;
-            case CreatureAction.SearchMate:
-                creature.stateMachine.TransitionToSearchingForMate();
-                break;
-            case CreatureAction.Wander:
-                creature.stateMachine.TransitionToWandering();
-                break;
-            case CreatureAction.None:
-            case CreatureAction.Flee:
-            default:
-                wasTransitionApplied = false;
-                break;
+            return CreatureActionExecutionResult.Skipped(
+                action,
+                previousStateType,
+                targetStateType);
         }
+
+        bool wasRequestWritten = ECSMirrorBridge.TryRequestCreatureAction(creature, action);
 
         return new CreatureActionExecutionResult(
             action,
             previousStateType,
             targetStateType,
-            creature.CurrentStateType,
-            wasTransitionApplied);
+            wasRequestWritten ? targetStateType : creature.CurrentStateType,
+            wasRequestWritten);
     }
 
     public static CreatureStateType GetTargetStateType(CreatureAction action)

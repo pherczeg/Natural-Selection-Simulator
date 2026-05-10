@@ -35,9 +35,31 @@ public class AgeManager
         ApplyOldAgeEffects();
     }
 
+    public bool IsMaxAgeReached()
+    {
+        var config = GameConfig.Instance;
+        if (config == null || config.creatureMaxAge <= 0f)
+            return false;
+
+        return Age >= config.creatureMaxAge;
+    }
+
+    public void ApplyECSLifecycle(
+        float age,
+        float maturityFraction,
+        float speedMultiplier,
+        float senseMultiplier,
+        float desirabilityMultiplier)
+    {
+        Age = Mathf.Max(0f, age);
+        MaturityFraction = Mathf.Clamp01(maturityFraction);
+        ApplyGrowth();
+        ApplyOldAgeEffects(speedMultiplier, senseMultiplier, desirabilityMultiplier);
+    }
+
     private void ApplyGrowth()
     {
-        float scale = Mathf.Lerp(StartScale, 1f, Mathf.SmoothStep(0f, 1f, MaturityFraction));
+        float scale = CreatureLifecycleCalculator.CalculateGrowthScale(MaturityFraction);
         creature.transform.localScale = Vector3.one * scale;
     }
 
@@ -47,22 +69,31 @@ public class AgeManager
         if (config == null)
             return;
 
-        float speedMultiplier = CalculateOldAgeMultiplier(config.oldAgeSpeedDecayPerSecond, config.oldAgeStartAge, config.oldAgeMinSpeedMultiplier);
-        float senseMultiplier = CalculateOldAgeMultiplier(config.oldAgeSenseDecayPerSecond, config.oldAgeStartAge, config.oldAgeMinSenseMultiplier);
-        float desirabilityMultiplier = CalculateOldAgeMultiplier(config.oldAgeDesirabilityDecayPerSecond, config.oldAgeStartAge, config.oldAgeMinDesirabilityMultiplier);
+        float speedMultiplier = CreatureLifecycleCalculator.CalculateOldAgeMultiplier(
+            Age,
+            config.oldAgeSpeedDecayPerSecond,
+            config.oldAgeStartAge,
+            config.oldAgeMinSpeedMultiplier);
+        float senseMultiplier = CreatureLifecycleCalculator.CalculateOldAgeMultiplier(
+            Age,
+            config.oldAgeSenseDecayPerSecond,
+            config.oldAgeStartAge,
+            config.oldAgeMinSenseMultiplier);
+        float desirabilityMultiplier = CreatureLifecycleCalculator.CalculateOldAgeMultiplier(
+            Age,
+            config.oldAgeDesirabilityDecayPerSecond,
+            config.oldAgeStartAge,
+            config.oldAgeMinDesirabilityMultiplier);
+        ApplyOldAgeEffects(speedMultiplier, senseMultiplier, desirabilityMultiplier);
+    }
 
+    private void ApplyOldAgeEffects(
+        float speedMultiplier,
+        float senseMultiplier,
+        float desirabilityMultiplier)
+    {
         creature.MovementManager?.SetAgeMultiplier(speedMultiplier);
         creature.ObservationManager?.SetAgeMultiplier(senseMultiplier);
         creature.ReproductionManager?.SetAgeMultiplier(desirabilityMultiplier);
-    }
-
-    private float CalculateOldAgeMultiplier(float decayPerSecond, float oldAgeStart, float minMultiplier)
-    {
-        if (Age <= oldAgeStart)
-            return 1f;
-
-        float elapsedOldAge = Age - oldAgeStart;
-        float unclamped = 1f - elapsedOldAge * Mathf.Max(0f, decayPerSecond);
-        return Mathf.Clamp(unclamped, Mathf.Clamp01(minMultiplier), 1f);
     }
 }

@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
 public class FoodSpawner : MonoBehaviour
@@ -10,10 +11,6 @@ public class FoodSpawner : MonoBehaviour
     public static FoodSpawner Instance { get; private set; }
 
     public GameObject foodPrefab;
-    public int initialFoodCount = 20;
-    public int poolSizeOfFood = 2000;
-    public float spawnRate = 5f;
-    public float spawnNumber = 5f;
     private GameObject ground;
     public List<Food> foods;
 
@@ -34,16 +31,26 @@ public class FoodSpawner : MonoBehaviour
             Instance = this;
         }
 
-        PoolManager.Instance.CreatePool(foodPrefab, poolSizeOfFood);
+        GameConfig config = GameConfig.Instance;
+        if (config == null)
+        {
+            Debug.LogError("GameConfig instance not found.");
+            return;
+        }
+
+        int foodPoolSize = Mathf.Max(1, config.foodPoolSize);
+        int initialFoodCount = Mathf.Max(0, config.initialFoodCount);
+
+        PoolManager.Instance.CreatePool(foodPrefab, foodPoolSize);
         for (int i = 0; i < initialFoodCount; i++)
         {
-            SpawnFood();
+            RequestSpawnFood();
         }
 
         StartCoroutine(SpawnFoodAtRate());
     }
 
-    void SpawnFood()
+    void RequestSpawnFood()
     {
         if (ground == null) return;
         Renderer groundRenderer = ground.GetComponent<Renderer>();
@@ -55,20 +62,44 @@ public class FoodSpawner : MonoBehaviour
         while (IsPlaceOccupied(randomPosition) && attempts++ < 100)
             randomPosition = GetRandomGroundPosition(bounds);
 
+        GameConfig config = GameConfig.Instance;
+        if (config == null)
+            return;
+
+        float targetNutrition = UnityEngine.Random.Range(config.minNutrionValue, config.maxNutrionValue);
+        SpawnFoodRequest request = new SpawnFoodRequest
+        {
+            position = new float3(randomPosition.x, randomPosition.y, randomPosition.z),
+            targetNutrition = targetNutrition
+        };
+
+        if (!ECSMirrorBridge.TryRequestSpawnFood(request))
+        {
+            SpawnFoodFromRequest(request);
+        }
+    }
+
+    public Food SpawnFoodFromRequest(SpawnFoodRequest request)
+    {
+        if (foods == null)
+        {
+            foods = new List<Food>();
+        }
+
         var foodGameObject = PoolManager.Instance.GetObject(foodPrefab);
-        foodGameObject.transform.position = randomPosition;
+        foodGameObject.transform.position = new Vector3(request.position.x, request.position.y, request.position.z);
         foodGameObject.transform.rotation = Quaternion.identity;
         var foodComponent = foodGameObject.GetComponent<Food>();
-        float targetNutrition = Random.Range(GameConfig.Instance.minNutrionValue, GameConfig.Instance.maxNutrionValue);
-        foodComponent.Initialize(targetNutrition);
+        foodComponent.Initialize(request.targetNutrition);
         foods.Add(foodComponent);
         Statistics.Instance?.RecordFoodSpawned();
+        return foodComponent;
     }
 
     Vector3 GetRandomGroundPosition(Bounds bounds)
     {
-        float x = Random.Range(bounds.min.x, bounds.max.x);
-        float z = Random.Range(bounds.min.z, bounds.max.z);
+        float x = UnityEngine.Random.Range(bounds.min.x, bounds.max.x);
+        float z = UnityEngine.Random.Range(bounds.min.z, bounds.max.z);
         float y = GetGroundYForObject(x, z, foodPrefab);
         return new Vector3(x, y, z);
     }
@@ -139,9 +170,13 @@ public class FoodSpawner : MonoBehaviour
     {
         while (true)
         {
-            yield return new WaitForSeconds(spawnRate);
-            for (int i = 0; i < spawnNumber; i++)
-                SpawnFood();
+            GameConfig config = GameConfig.Instance;
+            float spawnInterval = config != null ? Mathf.Max(0.01f, config.foodSpawnInterval) : 5f;
+            int spawnBatchSize = config != null ? Mathf.Max(0, config.foodSpawnBatchSize) : 5;
+
+            yield return new WaitForSeconds(spawnInterval);
+            for (int i = 0; i < spawnBatchSize; i++)
+                RequestSpawnFood();
         }
     }
 }

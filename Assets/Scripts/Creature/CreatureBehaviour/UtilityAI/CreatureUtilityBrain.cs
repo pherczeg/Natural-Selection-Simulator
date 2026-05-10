@@ -12,6 +12,7 @@ public class CreatureUtilityBrain : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float lastSelectedScore;
     [SerializeField] private float lastDecisionTime = -1f;
     [SerializeField, TextArea(2, 4)] private string lastDecisionSummary;
+    [SerializeField] private string lastContextSource = UtilityAIContextFactory.EmptyContextSource;
     [SerializeField] private List<UtilityActionScore> lastActionScores = new List<UtilityActionScore>();
 
     private UtilityDecision lastDecision = UtilityDecision.Empty;
@@ -26,6 +27,7 @@ public class CreatureUtilityBrain : MonoBehaviour
     public float LastSelectedScore => lastSelectedScore;
     public float LastDecisionTime => lastDecisionTime;
     public string LastDecisionSummary => lastDecisionSummary;
+    public string LastContextSource => lastContextSource;
 
     private void Awake()
     {
@@ -84,12 +86,64 @@ public class CreatureUtilityBrain : MonoBehaviour
         if (creature == null)
             creature = GetComponent<BaseCreatureBehaviour>();
 
-        return Evaluate(UtilityAIContextFactory.FromCreature(creature));
+        UtilityAIContextFactory.TryCreateContext(
+            creature,
+            out UtilityAIContext context,
+            out string contextSource);
+        return Evaluate(context, contextSource);
     }
 
     public UtilityDecision Evaluate(UtilityAIContext context)
     {
+        return Evaluate(context, UtilityAIContextFactory.ManualContextSource);
+    }
+
+    public UtilityDecision ApplyExternalDecision(
+        UtilityAIContext context,
+        string contextSource,
+        CreatureUtilityDecisionData decisionData)
+    {
         lastContext = context;
+        lastContextSource = string.IsNullOrWhiteSpace(contextSource)
+            ? UtilityAIContextFactory.EmptyContextSource
+            : contextSource;
+
+        UtilityAction selectedAction = null;
+        lastActionScores.Clear();
+
+        for (int i = 0; i < actions.Count; i++)
+        {
+            UtilityAction action = actions[i];
+            if (action == null)
+                continue;
+
+            float score = UtilityAIDefaultScorer.GetActionScore(decisionData, action.Action);
+            bool isSelected =
+                decisionData.hasDecision &&
+                selectedAction == null &&
+                action.Action == decisionData.selectedAction;
+
+            if (isSelected)
+                selectedAction = action;
+
+            lastActionScores.Add(new UtilityActionScore(action, score, isSelected));
+        }
+
+        lastSelectedActionId = selectedAction != null ? selectedAction.Id : string.Empty;
+        lastSelectedCreatureAction = selectedAction != null ? selectedAction.Action : CreatureAction.None;
+        lastSelectedScore = selectedAction != null ? decisionData.selectedScore : 0f;
+        lastDecisionTime = decisionData.decisionTime;
+        lastDecision = new UtilityDecision(selectedAction, lastSelectedScore, lastActionScores, lastDecisionTime);
+        lastDecisionSummary = BuildLastDecisionSummary();
+        return lastDecision;
+    }
+
+    private UtilityDecision Evaluate(UtilityAIContext context, string contextSource)
+    {
+        lastContext = context;
+        lastContextSource = string.IsNullOrWhiteSpace(contextSource)
+            ? UtilityAIContextFactory.EmptyContextSource
+            : contextSource;
         UtilityAction selectedAction = null;
         float selectedScore = 0f;
 
@@ -148,6 +202,7 @@ public class CreatureUtilityBrain : MonoBehaviour
         lastSelectedScore = 0f;
         lastDecisionTime = -1f;
         lastDecisionSummary = string.Empty;
+        lastContextSource = UtilityAIContextFactory.EmptyContextSource;
         lastActionScores.Clear();
         lastDecision = UtilityDecision.Empty;
     }
@@ -160,6 +215,9 @@ public class CreatureUtilityBrain : MonoBehaviour
         builder.Append("UtilityAI t=");
         builder.Append(lastDecisionTime.ToString("0.00"));
         builder.Append("s");
+
+        builder.Append(" context=");
+        builder.Append(lastContextSource);
 
         builder.Append(" state=");
         builder.Append(lastContext.currentState);

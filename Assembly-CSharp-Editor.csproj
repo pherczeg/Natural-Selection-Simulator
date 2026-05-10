@@ -1121,7 +1121,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="Assembly-CSharp.csproj" />
+    <ProjectReference Include="NaturalSelectionSimulator.Resources.csproj" />
+    <ProjectReference Include="NaturalSelectionSimulator.csproj" />
   </ItemGroup>
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
   <ItemGroup>

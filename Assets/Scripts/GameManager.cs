@@ -7,56 +7,95 @@ using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
+    [Min(0.01f)]
     public float restartTime;
+    [Min(1)]
     public int numberOfSimulations;
+
+    private static GameManager instance;
+
     private float timer;
-    private static int counter;
+    private int completedSimulations;
+    private bool hasFinished;
 
     private void Awake()
     {
-        if (FindObjectsOfType<GameManager>().Length > 1)
+        if (instance != null && instance != this)
         {
             Destroy(gameObject);
-        }
-        else
-        {
-            DontDestroyOnLoad(gameObject);
+            return;
         }
 
+        instance = this;
+        DontDestroyOnLoad(gameObject);
         timer = 0;
+        completedSimulations = 0;
+        hasFinished = false;
+        Debug.Log($"Simulation batch started: {TotalSimulationCount} run(s), {SimulationDuration:0.###}s per run.");
+    }
+
+    private void OnDestroy()
+    {
+        if (instance == this)
+            instance = null;
     }
 
     void Update()
     {
+        if (hasFinished)
+            return;
+
         timer += Time.deltaTime;
-        if (timer >= restartTime)
+        if (timer >= SimulationDuration)
         {
-            RestartGame();
+            FinishCurrentSimulation();
         }
     }
 
-    void RestartGame()
+    void FinishCurrentSimulation()
     {
-        ExportStatisticsToCSV();
+        if (hasFinished)
+            return;
+
+        int simulationNumber = completedSimulations + 1;
+        ExportStatisticsToCSV(simulationNumber);
+        completedSimulations++;
+
+        Debug.Log($"Simulation {completedSimulations}/{TotalSimulationCount} completed after {timer:0.###}s.");
+
         timer = 0;
-        counter++;
-        if (counter >= numberOfSimulations)
+        if (completedSimulations >= TotalSimulationCount)
         {
-            Application.Quit();
+            FinishBatch();
             return;
         }
 
+        Debug.Log($"Starting simulation {completedSimulations + 1}/{TotalSimulationCount}.");
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
-    void ExportStatisticsToCSV()
+    void FinishBatch()
+    {
+        hasFinished = true;
+        Debug.Log($"Simulation batch finished: {completedSimulations}/{TotalSimulationCount} run(s) exported.");
+
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
+
+    void ExportStatisticsToCSV(int simulationNumber)
     {
         Statistics statistics = Statistics.Instance;
         if (statistics == null)
         {
-            Debug.LogWarning("Game statistics export skipped because Statistics instance is not available.");
+            Debug.LogWarning($"Simulation {simulationNumber} statistics export skipped because Statistics instance is not available.");
             return;
         }
+
+        statistics.CaptureSnapshot();
 
         StringBuilder csvContent = new StringBuilder();
         csvContent.AppendLine(
@@ -64,17 +103,18 @@ public class GameManager : MonoBehaviour
             "AliveHerbivores,AlivePredators,FoodCount,AverageEnergyAll,AverageHerbivoreEnergy,AveragePredatorEnergy," +
             "TotalHerbivoresSpawned,TotalPredatorsSpawned,TotalFoodSpawned,TotalReproductionEvents,TotalOffspringBorn," +
             "TotalPredationAttempts,TotalPredationSuccesses,TotalPredationEscapes,TotalHerbivoreDeaths,TotalPredatorDeaths," +
-            "DeathsByEnergy,DeathsByPredation,DeathsUnknown,HerbivoreSurvivalRate,PredatorSurvivalRate,StateDistribution");
+            "DeathsByEnergy,DeathsByPredation,DeathsByOldAge,DeathsUnknown,HerbivoreSurvivalRate,PredatorSurvivalRate,StateDistribution");
 
         for (int i = 0; i < statistics.numberOfCreaturesHistory.Count; i++)
         {
             SimulationDiagnosticsSnapshot diagnostics = statistics.diagnosticsHistory != null && i < statistics.diagnosticsHistory.Count
                 ? statistics.diagnosticsHistory[i]
                 : null;
+            float sampleTime = diagnostics != null ? diagnostics.elapsedTime : i * statistics.updateInterval;
 
             csvContent.AppendLine(string.Join(",", new[]
             {
-                FormatFloat(i * statistics.updateInterval),
+                FormatFloat(sampleTime),
                 statistics.numberOfCreaturesHistory[i].ToString(CultureInfo.InvariantCulture),
                 FormatFloat(statistics.averageWeightHistory[i]),
                 FormatFloat(statistics.averageSpeedHistory[i]),
@@ -99,6 +139,7 @@ public class GameManager : MonoBehaviour
                 FormatDiagnosticInt(diagnostics, d => d.totalPredatorDeaths),
                 FormatDiagnosticInt(diagnostics, d => d.deathsByEnergy),
                 FormatDiagnosticInt(diagnostics, d => d.deathsByPredation),
+                FormatDiagnosticInt(diagnostics, d => d.deathsByOldAge),
                 FormatDiagnosticInt(diagnostics, d => d.deathsUnknown),
                 FormatDiagnosticFloat(diagnostics, d => d.herbivoreSurvivalRate),
                 FormatDiagnosticFloat(diagnostics, d => d.predatorSurvivalRate),
@@ -106,13 +147,16 @@ public class GameManager : MonoBehaviour
             }));
         }
 
-        string filePath = Path.Combine(Application.persistentDataPath, $"game_statistics_{counter}.csv");
+        string filePath = Path.Combine(Application.persistentDataPath, $"game_statistics_{simulationNumber:000}.csv");
         File.WriteAllText(filePath, csvContent.ToString());
 
-        Debug.Log($"Game statistics exported to {filePath}");
+        Debug.Log($"Simulation {simulationNumber}/{TotalSimulationCount} statistics exported to {filePath}");
 
         statistics.Reset();
     }
+
+    private int TotalSimulationCount => Mathf.Max(1, numberOfSimulations);
+    private float SimulationDuration => Mathf.Max(0.01f, restartTime);
 
     private static string FormatDiagnosticInt(
         SimulationDiagnosticsSnapshot snapshot,

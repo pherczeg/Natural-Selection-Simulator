@@ -81,7 +81,8 @@ public enum CreatureDeathReason
 {
     Unknown,
     EnergyDepleted,
-    Predation
+    Predation,
+    OldAge
 }
 
 [Serializable]
@@ -121,6 +122,7 @@ public class SimulationDiagnosticsSnapshot
     public int totalPredatorDeaths;
     public int deathsByEnergy;
     public int deathsByPredation;
+    public int deathsByOldAge;
     public int deathsUnknown;
 
     public float herbivoreSurvivalRate;
@@ -158,6 +160,7 @@ public class Statistics : MonoBehaviour
     public float updateInterval = 60f;
     public bool logDiagnostics = false;
     private float timer = 0f;
+    private float elapsedTime = 0f;
 
     // Legacy herbivore-only histories kept for compatibility with existing exporters/UI.
     public List<int> numberOfCreaturesHistory;
@@ -184,6 +187,7 @@ public class Statistics : MonoBehaviour
     public SpeciesStatisticsSnapshot LastHerbivoreSnapshot { get; private set; }
     public SpeciesStatisticsSnapshot LastPredatorSnapshot { get; private set; }
     public SimulationDiagnosticsSnapshot LastDiagnosticsSnapshot { get; private set; }
+    public float ElapsedTime => elapsedTime;
 
     public int totalHerbivoresSpawned;
     public int totalPredatorsSpawned;
@@ -197,6 +201,7 @@ public class Statistics : MonoBehaviour
     public int totalPredatorDeaths;
     public int deathsByEnergy;
     public int deathsByPredation;
+    public int deathsByOldAge;
     public int deathsUnknown;
 
     private void Awake()
@@ -214,6 +219,7 @@ public class Statistics : MonoBehaviour
     void FixedUpdate()
     {
         timer += Time.fixedDeltaTime;
+        elapsedTime += Time.fixedDeltaTime;
         if (timer >= updateInterval)
         {
             UpdateStatistics();
@@ -258,6 +264,14 @@ public class Statistics : MonoBehaviour
         {
             Debug.Log(FormatDiagnosticsSnapshot(LastDiagnosticsSnapshot));
         }
+    }
+
+    public void CaptureSnapshot()
+    {
+        if (LastDiagnosticsSnapshot != null && Mathf.Abs(LastDiagnosticsSnapshot.elapsedTime - elapsedTime) <= 0.0001f)
+            return;
+
+        UpdateStatistics();
     }
 
     public void RecordCreatureSpawned(BaseCreatureBehaviour creature)
@@ -319,6 +333,9 @@ public class Statistics : MonoBehaviour
             case CreatureDeathReason.Predation:
                 deathsByPredation++;
                 break;
+            case CreatureDeathReason.OldAge:
+                deathsByOldAge++;
+                break;
             default:
                 deathsUnknown++;
                 break;
@@ -340,7 +357,7 @@ public class Statistics : MonoBehaviour
 
         return new SimulationDiagnosticsSnapshot
         {
-            elapsedTime = Time.time,
+            elapsedTime = statistics != null ? statistics.elapsedTime : Time.time,
             aliveHerbivores = herbivores.Length,
             alivePredators = predators.Length,
             foodCount = CountActiveFood(),
@@ -361,6 +378,7 @@ public class Statistics : MonoBehaviour
             totalPredatorDeaths = statistics?.totalPredatorDeaths ?? 0,
             deathsByEnergy = statistics?.deathsByEnergy ?? 0,
             deathsByPredation = statistics?.deathsByPredation ?? 0,
+            deathsByOldAge = statistics?.deathsByOldAge ?? 0,
             deathsUnknown = statistics?.deathsUnknown ?? 0,
             herbivoreSurvivalRate = CalculateSurvivalRate(herbivores.Length, totalHerbivoresSpawned),
             predatorSurvivalRate = CalculateSurvivalRate(predators.Length, totalPredatorsSpawned),
@@ -381,7 +399,7 @@ public class Statistics : MonoBehaviour
             $"spawned H={snapshot.totalHerbivoresSpawned} P={snapshot.totalPredatorsSpawned} food={snapshot.totalFoodSpawned}, " +
             $"repro events={snapshot.totalReproductionEvents} offspring={snapshot.totalOffspringBorn}, " +
             $"predation attempts={snapshot.totalPredationAttempts} success={snapshot.totalPredationSuccesses} escapes={snapshot.totalPredationEscapes}, " +
-            $"deaths energy={snapshot.deathsByEnergy} predation={snapshot.deathsByPredation} unknown={snapshot.deathsUnknown}, " +
+            $"deaths energy={snapshot.deathsByEnergy} predation={snapshot.deathsByPredation} oldAge={snapshot.deathsByOldAge} unknown={snapshot.deathsUnknown}, " +
             $"survival H={snapshot.herbivoreSurvivalRate:P0} P={snapshot.predatorSurvivalRate:P0} | " +
             $"states: {snapshot.GetStateDistributionText()}";
     }
@@ -482,6 +500,7 @@ public class Statistics : MonoBehaviour
             return false;
 
         CreatureStateType currentState = GetCurrentStateType(creature);
+           bool isPredator = creature is PredatorBehaviour;
         return !creature.ReproductionManager.IsOnCooldown() &&
                creature.AgeManager.Age >= config.maturityAge &&
                currentState != CreatureStateType.Reproducting &&
@@ -489,7 +508,7 @@ public class Statistics : MonoBehaviour
                currentState != CreatureStateType.Predation &&
                currentState != CreatureStateType.MovingToFood &&
                currentState != CreatureStateType.SearchingForFood &&
-               creature.EnergyManager.EnergyLevel >= config.reproductionEnergyThreshold * creature.EnergyManager.CurrentMaxEnergy;
+               creature.EnergyManager.EnergyLevel >= config.GetReproductionEnergyThreshold(isPredator) * creature.EnergyManager.CurrentMaxEnergy;
     }
 
     private static List<CreatureStateCount> BuildStateDistribution(
@@ -519,7 +538,7 @@ public class Statistics : MonoBehaviour
 
     private static CreatureStateType GetCurrentStateType(BaseCreatureBehaviour creature)
     {
-        return creature?.stateMachine?.CurrentState?.StateType ?? CreatureStateType.None;
+        return creature != null ? creature.CurrentStateType : CreatureStateType.None;
     }
 
     private static float CalculateSurvivalRate(int aliveCount, int spawnedCount)
@@ -581,7 +600,9 @@ public class Statistics : MonoBehaviour
         totalPredatorDeaths = 0;
         deathsByEnergy = 0;
         deathsByPredation = 0;
+        deathsByOldAge = 0;
         deathsUnknown = 0;
         timer = 0f;
+        elapsedTime = 0f;
     }
 }

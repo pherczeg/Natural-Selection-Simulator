@@ -1,5 +1,3 @@
-using System;
-
 public static class UtilityAIScoreRules
 {
     public static float GetHungerScore(UtilityAIContext context, UtilityAIScoringParameters parameters)
@@ -107,9 +105,14 @@ public static class UtilityAIScoreRules
 
     public static float InverseLerp(float from, float to, float value)
     {
-        if (Math.Abs(to - from) < 0.000001f)
+        if (Abs(to - from) < 0.000001f)
             return value >= to ? 1f : 0f;
 
         return Clamp01((value - from) / (to - from));
+    }
+
+    private static float Abs(float value)
+    {
+        return value < 0f ? -value : value;
     }
 }

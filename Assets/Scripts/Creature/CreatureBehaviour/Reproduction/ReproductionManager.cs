@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
 public class ReproductionManager
@@ -18,7 +19,9 @@ public class ReproductionManager
 
     private static bool IsActiveCreature(BaseCreatureBehaviour creatureBehaviour)
     {
-        return creatureBehaviour != null && creatureBehaviour.gameObject.activeInHierarchy;
+        return creatureBehaviour != null &&
+               !creatureBehaviour.IsDespawnQueued &&
+               creatureBehaviour.gameObject.activeInHierarchy;
     }
 
     public void UpdateReproductionCooldown(float amount)
@@ -43,10 +46,9 @@ public class ReproductionManager
         if (config == null)
             return 0f;
 
-        if (creature.Sex == CreatureSex.Female)
-            return config.femaleReproductionCooldown;
-
-        return config.maleReproductionCooldown;
+        bool isPredator = creature is PredatorBehaviour;
+        bool isFemale = creature != null && creature.Sex == CreatureSex.Female;
+        return Mathf.Max(0f, config.GetReproductionCooldown(isPredator, isFemale));
     }
     public void Reproduct(BaseCreatureBehaviour mate)
     {
@@ -61,8 +63,6 @@ public class ReproductionManager
         int spawnedOffspring = 0;
         for (int i = 0; i < offspringCount; i++)
         {
-            BaseCreatureBehaviour offspringBehavior = CreatureSpawner.Instance.SpawnCreature(mate.transform.position, offspringPrefab);
-            offspringBehavior.SetSex(UnityEngine.Random.value < 0.5f ? CreatureSex.Female : CreatureSex.Male);
             var newWeight = InheritWithMutation(creature.Weight, mate.Weight, 2);
             var newMoveSpeed = InheritWithMutation(creature.MovementManager.BaseMoveSpeed, mate.MovementManager.BaseMoveSpeed, 2);
             var newSprintDuration = GetInheritedSprintDuration(mate, config);
@@ -76,16 +76,30 @@ public class ReproductionManager
                 config.herbivoreDesirabilityMin,
                 config.herbivoreDesirabilityMax);
             float newAgility = GetInheritedAgility(mate, config);
-            offspringBehavior.Initialize(newMoveSpeed,newWeight,newsenseRadius);
-            offspringBehavior.MovementManager?.SetSprintProfile(newSprintDuration, newSprintFactor, newSprintCooldown, newSprintCooldownSpeedFactor);
-            offspringBehavior.ReproductionManager?.SetDesirability(newDesirability);
-            if (offspringBehavior is HerbivoreBehaviour offspringHerbivore)
+            float newStrength = creature is PredatorBehaviour ? GetInheritedStrength(mate, config) : 0f;
+            Vector3 spawnPosition = mate.transform.position;
+            SpawnCreatureRequest request = new SpawnCreatureRequest
             {
-                offspringHerbivore.SetAgility(newAgility);
-            }
-            else if (offspringBehavior is PredatorBehaviour offspringPredator)
+                creatureKind = creature is PredatorBehaviour ? ECSCreatureKind.Predator : ECSCreatureKind.Herbivore,
+                sex = (int)(UnityEngine.Random.value < 0.5f ? CreatureSex.Female : CreatureSex.Male),
+                position = new float3(spawnPosition.x, spawnPosition.y, spawnPosition.z),
+                moveSpeed = newMoveSpeed,
+                weight = newWeight,
+                senseRadius = newsenseRadius,
+                sprintDuration = newSprintDuration,
+                sprintFactor = newSprintFactor,
+                sprintCooldown = newSprintCooldown,
+                sprintCooldownSpeedFactor = newSprintCooldownSpeedFactor,
+                desirability = newDesirability,
+                agility = newAgility,
+                strength = newStrength,
+                initialAge = 0f
+            };
+
+            if (!ECSMirrorBridge.TryRequestSpawnCreature(request))
             {
-                offspringPredator.SetStrength(GetInheritedStrength(mate, config));
+                BaseCreatureBehaviour offspringBehavior = CreatureSpawner.Instance.SpawnCreature(spawnPosition, offspringPrefab);
+                InitializeOffspringFromRequest(offspringBehavior, request);
             }
 
             spawnedOffspring++;
@@ -143,7 +157,8 @@ public class ReproductionManager
         if (config == null)
             return;
 
-        rejectedMateCooldowns[mate.GetInstanceID()] = Mathf.Max(0f, config.rejectedMateCooldown);
+        bool isPredator = creature is PredatorBehaviour;
+        rejectedMateCooldowns[mate.GetInstanceID()] = Mathf.Max(0f, config.GetRejectedMateCooldown(isPredator));
     }
 
     public bool TryMutualAcceptance(BaseCreatureBehaviour mate)
@@ -167,10 +182,17 @@ public class ReproductionManager
         if (config == null)
             return 1;
 
-        int minCount = Math.Min(config.minOffspringPerReproduction, config.maxOffspringPerReproduction);
-        int maxCount = Math.Max(config.minOffspringPerReproduction, config.maxOffspringPerReproduction);
+        bool isPredator = creature is PredatorBehaviour;
+        int minCount = Math.Min(
+            config.GetMinOffspringPerReproduction(isPredator),
+            config.GetMaxOffspringPerReproduction(isPredator));
+        int maxCount = Math.Max(
+            config.GetMinOffspringPerReproduction(isPredator),
+            config.GetMaxOffspringPerReproduction(isPredator));
 
-        float sampled = SampleNormalDistribution(config.offspringCountMean, Math.Max(0.0001f, config.offspringCountStdDev));
+        float sampled = SampleNormalDistribution(
+            config.GetOffspringCountMean(isPredator),
+            Math.Max(0.0001f, config.GetOffspringCountStdDev(isPredator)));
         int rounded = Mathf.RoundToInt(sampled);
         return Mathf.Clamp(rounded, minCount, maxCount);
     }
@@ -207,8 +229,12 @@ public class ReproductionManager
         if (config == null)
             return true;
 
+        bool isPredator = creature is PredatorBehaviour;
         float normalized = Mathf.InverseLerp(config.herbivoreDesirabilityMin, config.herbivoreDesirabilityMax, candidateDesirability);
-        float acceptanceChance = Mathf.Lerp(config.minMateAcceptanceChance, config.maxMateAcceptanceChance, normalized);
+        float acceptanceChance = Mathf.Lerp(
+            config.GetMinMateAcceptanceChance(isPredator),
+            config.GetMaxMateAcceptanceChance(isPredator),
+            normalized);
         return UnityEngine.Random.value <= acceptanceChance;
     }
 
@@ -379,25 +405,56 @@ public class ReproductionManager
 
         return CreatureSpawner.Instance.herbivorPrefab;
     }
+
+    private static void InitializeOffspringFromRequest(
+        BaseCreatureBehaviour offspringBehavior,
+        SpawnCreatureRequest request)
+    {
+        if (offspringBehavior == null)
+            return;
+
+        CreatureSex sex = request.sex == (int)CreatureSex.Male
+            ? CreatureSex.Male
+            : CreatureSex.Female;
+        offspringBehavior.SetSex(sex);
+        offspringBehavior.Initialize(request.moveSpeed, request.weight, request.senseRadius);
+        offspringBehavior.MovementManager?.SetSprintProfile(
+            request.sprintDuration,
+            request.sprintFactor,
+            request.sprintCooldown,
+            request.sprintCooldownSpeedFactor);
+        offspringBehavior.ReproductionManager?.SetDesirability(request.desirability);
+
+        if (offspringBehavior is HerbivoreBehaviour offspringHerbivore)
+        {
+            offspringHerbivore.SetAgility(request.agility);
+        }
+        else if (offspringBehavior is PredatorBehaviour offspringPredator)
+        {
+            offspringPredator.SetStrength(request.strength);
+        }
+    }
   
     public bool IsReadyToReproduction()
     {
         if (!IsActiveCreature(creature) ||
-            creature.stateMachine?.CurrentState == null ||
             creature.AgeManager == null ||
             creature.EnergyManager == null)
         {
             return false;
         }
 
-        CreatureStateType currentState = creature.stateMachine.CurrentState.StateType;
-        return !IsOnCooldown() && 
-                creature.AgeManager.Age >= GameConfig.Instance.maturityAge && 
-                currentState != CreatureStateType.Reproducting &&
-                currentState != CreatureStateType.Eating &&
-                currentState != CreatureStateType.Predation &&
-                currentState != CreatureStateType.MovingToFood &&
-                currentState != CreatureStateType.SearchingForFood &&
-                creature.EnergyManager.EnergyLevel >= GameConfig.Instance.reproductionEnergyThreshold * creature.EnergyManager.CurrentMaxEnergy;
+        GameConfig config = GameConfig.Instance;
+        if (config == null)
+            return false;
+
+        CreatureStateType currentState = creature.CurrentStateType;
+        bool isPredator = creature is PredatorBehaviour;
+        return !IsOnCooldown() &&
+            creature.AgeManager.Age >= config.maturityAge &&
+            currentState != CreatureStateType.Reproducting &&
+            currentState != CreatureStateType.Eating &&
+            currentState != CreatureStateType.Predation &&
+            creature.EnergyManager.EnergyLevel >= config.GetReproductionEnergyThreshold(isPredator) * creature.EnergyManager.CurrentMaxEnergy;
     }
 }

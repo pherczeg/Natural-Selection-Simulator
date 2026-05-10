@@ -70,7 +70,7 @@ public class PredatorBehaviour : BaseCreatureBehaviour
 
     private void CheckLegacyTransitions()
     {
-        CreatureStateType currentState = stateMachine.CurrentState.StateType;
+        CreatureStateType currentState = CurrentStateType;
         if (currentState == CreatureStateType.MovingToFood ||
             currentState == CreatureStateType.Eating ||
             currentState == CreatureStateType.Predation ||
@@ -82,7 +82,7 @@ public class PredatorBehaviour : BaseCreatureBehaviour
 
         if (EnergyManager.EnergyLevel < GameConfig.Instance.eatingEnergyThreshold * EnergyManager.CurrentMaxEnergy)
         {
-            stateMachine.TransitionToSearchingForFood();
+            CreatureActionExecutor.Execute(this, CreatureAction.Hunt);
         }
         else if (currentState == CreatureStateType.SearchingForMate || currentState == CreatureStateType.MovingToMate)
         {
@@ -90,11 +90,11 @@ public class PredatorBehaviour : BaseCreatureBehaviour
         }
         else if (!ReproductionManager.IsOnCooldown() && ReproductionManager.IsReadyToReproduction())
         {
-            stateMachine.TransitionToSearchingForMate();
+            CreatureActionExecutor.Execute(this, CreatureAction.SearchMate);
         }
-        else if (currentState == CreatureStateType.Idle)
+        else if (currentState == CreatureStateType.Idle || currentState == CreatureStateType.None)
         {
-            stateMachine.TransitionToWandering();
+            CreatureActionExecutor.Execute(this, CreatureAction.Wander);
         }
     }
 
@@ -103,7 +103,16 @@ public class PredatorBehaviour : BaseCreatureBehaviour
         if (Time.time < nextUtilityDecisionTime)
             return;
 
-        nextUtilityDecisionTime = Time.time + Mathf.Max(0.01f, config.utilityDecisionInterval);
+        float decisionInterval = Mathf.Max(0.01f, config.utilityDecisionInterval);
+
+        if (config.useEcsUtilityScoring)
+        {
+            EnsureUtilityBrain();
+            nextUtilityDecisionTime = Time.time + (TryExecuteECSUtilityDecision(config) ? decisionInterval : 0.01f);
+            return;
+        }
+
+        nextUtilityDecisionTime = Time.time + decisionInterval;
         EnsureUtilityBrain();
 
         if (utilityBrain == null)
@@ -155,7 +164,7 @@ public class PredatorBehaviour : BaseCreatureBehaviour
                 {
                     new UtilityConsideration("Reproduction Readiness", context => UtilityAIScoreRules.GetReproductionScore(context, GetUtilityAIScoringParameters()) * UtilityAIScoreRules.GetMateSearchAvailabilityScore(context))
                 },
-                0.85f),
+                UtilityAIDefaultScorer.SearchMateBaseScore),
             new UtilityAction(
                 CreatureAction.Wander,
                 "Wander",
@@ -163,7 +172,7 @@ public class PredatorBehaviour : BaseCreatureBehaviour
                 {
                     new UtilityConsideration("Idle Wander", UtilityAIScoreRules.GetIdleWanderScore)
                 },
-                0.3f)
+                UtilityAIDefaultScorer.WanderBaseScore)
         };
     }
 
@@ -175,12 +184,13 @@ public class PredatorBehaviour : BaseCreatureBehaviour
 
         return new UtilityAIScoringParameters(
             config.eatingEnergyThreshold,
-            config.reproductionEnergyThreshold);
+            config.GetReproductionEnergyThreshold(true));
     }
 
     public override void Initialize(float moveSpeed, float weight, float senseRadius)
     {
         var config = GameConfig.Instance;
+        ResetDespawnRequestState();
         ResetUtilityAIDebugState();
         nextUtilityDecisionTime = 0f;
         escapedPreyCooldowns.Clear();
@@ -190,13 +200,12 @@ public class PredatorBehaviour : BaseCreatureBehaviour
         AgeManager = new AgeManager(this);
         ReproductionManager = new ReproductionManager(this);
         MovementManager = new MovementManager(this, moveSpeed);
-        stateMachine = new StateMachine(this);
         EnergyManager = new EnergyManager(this, maxEnergy * config.initialEnergyPercentagePredator, maxEnergy);
         ObservationManager = new ObservationManager(this, senseRadius, numberOfRaycasts, angleBetweenRaycasts);
         EnergyManager.UpdateEnergyBar();
         EatingManager = new EatingManager(this);
         SetStrength(Mathf.Lerp(config.predatorStrengthMin, config.predatorStrengthMax, 0.5f));
-        stateMachine.TransitionToWandering();
+        CreatureActionExecutor.Execute(this, CreatureAction.Wander);
         if (config.useUtilityAI)
         {
             EnsureUtilityBrain();
@@ -247,8 +256,11 @@ public class PredatorBehaviour : BaseCreatureBehaviour
 
     void FixedUpdate()
     {
+        if (IsDespawnQueued)
+            return;
+
         var config = GameConfig.Instance;
-        if (config == null || stateMachine == null) return;
+        if (config == null) return;
 
         MovementManager.UpdateTemporaryEffects(Time.fixedDeltaTime);
 
@@ -258,20 +270,32 @@ public class PredatorBehaviour : BaseCreatureBehaviour
             float simulationDeltaTime = lastObservation;
             lastObservation = 0f;
 
-            var energyConsumption = EnergyManager.CalculateEnergyConsumption();
-            EnergyManager.ConsumeEnergy(energyConsumption);
-            AgeManager.UpdateAge(simulationDeltaTime);
-
-            if (EnergyManager.IsEnergyDepleted())
+            if (config.useEcsCreatureLifecycle)
             {
-                Despawn(CreatureDeathReason.EnergyDepleted);
-                return;
+                ReproductionManager.UpdateReproductionCooldown(simulationDeltaTime);
             }
+            else
+            {
+                var energyConsumption = EnergyManager.CalculateEnergyConsumption();
+                EnergyManager.ConsumeEnergy(energyConsumption);
+                AgeManager.UpdateAge(simulationDeltaTime);
 
-            ReproductionManager.UpdateReproductionCooldown(simulationDeltaTime);
+                if (AgeManager.IsMaxAgeReached())
+                {
+                    Despawn(CreatureDeathReason.OldAge);
+                    return;
+                }
+
+                if (EnergyManager.IsEnergyDepleted())
+                {
+                    Despawn(CreatureDeathReason.EnergyDepleted);
+                    return;
+                }
+
+                ReproductionManager.UpdateReproductionCooldown(simulationDeltaTime);
+            }
         }
 
-        stateMachine.Update();
         CheckTransitions();
     }
 }

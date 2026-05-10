@@ -5,6 +5,7 @@
         "NaturalSelectionSimulator.Resources",
         "Unity.Burst",
         "Unity.Collections",
+        "Unity.Entities",
         "Unity.Mathematics"
     ],
     "includePlatforms": [],

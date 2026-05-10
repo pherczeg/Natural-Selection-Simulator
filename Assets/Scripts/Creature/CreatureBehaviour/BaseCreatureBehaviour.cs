@@ -26,6 +26,7 @@ public abstract class BaseCreatureBehaviour : MonoBehaviour
     private float matingCooldown;
     protected CreatureSpawner creatureSpawner;
     protected float lastObservation = 0f;
+    private bool despawnQueued;
 
     public GameObject energyBarObject;
     public float maxEnergy;
@@ -48,17 +49,12 @@ public abstract class BaseCreatureBehaviour : MonoBehaviour
     public float LastUtilityAISelectedScore => utilityBrain != null ? utilityBrain.LastSelectedScore : 0f;
     public float LastUtilityAIDecisionTime => utilityBrain != null ? utilityBrain.LastDecisionTime : -1f;
     public string UtilityAIDebugString => utilityAIDebugString;
+    public bool IsDespawnQueued => despawnQueued;
 
     public CreatureStateType CurrentStateType
     {
-        get 
-        {
-            if (stateMachine == null)
-                return CreatureStateType.None;
-            return this.stateMachine.CurrentState.StateType; 
-        }
+        get { return CreatureActionStatusAdapter.GetLegacyStateType(this); }
     }
-    public StateMachine stateMachine;
     public CoroutineRunner coroutineRunner;
     void Awake()
     {
@@ -79,9 +75,35 @@ public abstract class BaseCreatureBehaviour : MonoBehaviour
     public abstract void Initialize(float moveSpeed, float weight, float senseRadius);
     public void Despawn(CreatureDeathReason reason = CreatureDeathReason.Unknown)
     {
+        if (!TryBeginDespawn())
+            return;
+
+        if (ECSMirrorBridge.TryRequestDespawnCreature(this, reason))
+            return;
+
+        CompleteDespawnFromBridge(reason);
+    }
+
+    internal void CompleteDespawnFromBridge(CreatureDeathReason reason)
+    {
         Statistics.Instance?.RecordCreatureDeath(this, reason);
         DestroyObject();
     }
+
+    protected void ResetDespawnRequestState()
+    {
+        despawnQueued = false;
+    }
+
+    private bool TryBeginDespawn()
+    {
+        if (despawnQueued || !gameObject.activeInHierarchy)
+            return false;
+
+        despawnQueued = true;
+        return true;
+    }
+
     protected abstract void DestroyObject();    
     protected abstract void CheckTransitions();
 
@@ -134,6 +156,37 @@ public abstract class BaseCreatureBehaviour : MonoBehaviour
         return CreatureActionExecutor.Execute(this, action);
     }
 
+    protected bool TryExecuteECSUtilityDecision(GameConfig config)
+    {
+        if (utilityBrain == null)
+            return false;
+
+        if (!ECSMirrorBridge.TryGetUtilityAIDecision(this, out CreatureUtilityDecisionData ecsDecision) ||
+            !ecsDecision.hasDecision)
+        {
+            return false;
+        }
+
+        UtilityAIContext context = ECSMirrorBridge.TryGetUtilityAIContext(this, out UtilityAIContext ecsContext)
+            ? ecsContext
+            : UtilityAIContextFactory.FromMonoCreature(this);
+
+        UtilityDecision decision = utilityBrain.ApplyExternalDecision(
+            context,
+            UtilityAIDefaultScorer.ECSScoringContextSource,
+            ecsDecision);
+
+        CreatureActionExecutionResult execution = ExecuteUtilityAIAction(decision);
+        RecordUtilityAIExecution(decision, execution);
+
+        if (config != null && config.logUtilityAIScores)
+        {
+            LogUtilityAIScores(decision);
+        }
+
+        return true;
+    }
+
     protected void RecordUtilityAIExecution(UtilityDecision decision, CreatureActionExecutionResult execution)
     {
         if (utilityBrain != null)
@@ -167,5 +220,5 @@ public abstract class BaseCreatureBehaviour : MonoBehaviour
 
         Debug.Log($"{name} {summary}", this);
     }
-    
+
 }
