@@ -171,6 +171,11 @@ public abstract class BaseCreatureBehaviour : MonoBehaviour
             ? ecsContext
             : UtilityAIContextFactory.FromMonoCreature(this);
 
+        if (config == null || !config.logUtilityAIScores)
+        {
+            return TryExecuteECSUtilityDecisionFast(context, ecsDecision);
+        }
+
         UtilityDecision decision = utilityBrain.ApplyExternalDecision(
             context,
             UtilityAIDefaultScorer.ECSScoringContextSource,
@@ -184,6 +189,33 @@ public abstract class BaseCreatureBehaviour : MonoBehaviour
             LogUtilityAIScores(decision);
         }
 
+        return true;
+    }
+
+    private bool TryExecuteECSUtilityDecisionFast(
+        UtilityAIContext context,
+        CreatureUtilityDecisionData ecsDecision)
+    {
+        if (!utilityBrain.ApplyExternalDecisionFast(
+                context,
+                UtilityAIDefaultScorer.ECSScoringContextSource,
+                ecsDecision,
+                out CreatureAction action,
+                out float selectedScore))
+        {
+            return false;
+        }
+
+        CreatureStateType currentState = CurrentStateType;
+        CreatureStateType targetState = CreatureActionExecutor.GetTargetStateType(action);
+        CreatureActionExecutionResult execution = selectedScore > 0f
+            ? CreatureActionExecutor.Execute(this, action)
+            : CreatureActionExecutionResult.Skipped(action, currentState, targetState);
+
+        lastUtilityAISelectedAction = execution.Action;
+        lastUtilityAITransitionStateType = execution.TargetStateType;
+        lastUtilityAIResultStateType = execution.ResultStateType;
+        utilityAIDebugString = string.Empty;
         return true;
     }
 

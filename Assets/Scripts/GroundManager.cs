@@ -5,6 +5,8 @@ public class GroundManager : MonoBehaviour
     public static GroundManager Instance { get; private set; }
 
     public Bounds GroundBounds { get; private set; }
+    public float GroundSurfaceY { get; private set; }
+    public bool HasGroundBounds { get; private set; }
 
     private void Awake()
     {
@@ -28,6 +30,8 @@ public class GroundManager : MonoBehaviour
             if (groundRenderer != null)
             {
                 GroundBounds = groundRenderer.bounds;
+                GroundSurfaceY = GroundBounds.max.y;
+                HasGroundBounds = true;
             }
             else
             {

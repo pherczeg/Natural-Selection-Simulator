@@ -18,6 +18,20 @@ public static class GroundSnapUtils
 
     public static bool TryGetGroundY(float x, float z, out float y, float surfaceOffset = 0f)
     {
+        GroundManager groundManager = GroundManager.Instance;
+        if (groundManager != null && groundManager.HasGroundBounds)
+        {
+            Bounds bounds = groundManager.GroundBounds;
+            if (x >= bounds.min.x &&
+                x <= bounds.max.x &&
+                z >= bounds.min.z &&
+                z <= bounds.max.z)
+            {
+                y = groundManager.GroundSurfaceY + surfaceOffset;
+                return true;
+            }
+        }
+
         Vector3 origin = new Vector3(x, RaycastOriginHeight, z);
         int hitCount = Physics.RaycastNonAlloc(origin, Vector3.down, GroundHitBuffer, RaycastDistance);
 

@@ -9,6 +9,8 @@ public partial class ECSObservationSystem : SystemBase
 {
     private EntityQuery creatureQuery;
     private EntityQuery foodQuery;
+    private float observationTimer;
+    private bool hasObserved;
 
     protected override void OnCreate()
     {
@@ -28,7 +30,18 @@ public partial class ECSObservationSystem : SystemBase
     {
         GameConfig config = GameConfig.Instance;
         if (config == null || !config.useEcsObservation)
+        {
+            observationTimer = 0f;
+            hasObserved = false;
             return;
+        }
+
+        observationTimer += (float)World.Time.DeltaTime;
+        if (hasObserved && observationTimer < math.max(0.0001f, config.updateInterval))
+            return;
+
+        observationTimer = 0f;
+        hasObserved = true;
 
         int creatureCount = creatureQuery.CalculateEntityCount();
         if (creatureCount == 0)

@@ -25,10 +25,6 @@ public partial class ECSMateSearchExecutionSystem : SystemBase
 
     protected override void OnUpdate()
     {
-        GameConfig config = GameConfig.Instance;
-        if (config == null || !config.useEcsActionExecution)
-            return;
-
         float deltaTime = (float)World.Time.DeltaTime;
         EntityManager entityManager = EntityManager;
 
@@ -225,6 +221,9 @@ public partial class ECSMateSearchExecutionSystem : SystemBase
         CreatureObservationResultData observation)
     {
         int mateId = observation.closestMateInstanceId;
+        if (mateId == 0)
+            mateId = SelectObservedMateTarget(creature);
+
         if (mateId == 0 || mateId == identity.gameObjectInstanceId)
             return 0;
 
@@ -239,6 +238,34 @@ public partial class ECSMateSearchExecutionSystem : SystemBase
         return creature.ReproductionManager != null && creature.ReproductionManager.CanMateWith(mate)
             ? mateId
             : 0;
+    }
+
+    private static int SelectObservedMateTarget(BaseCreatureBehaviour creature)
+    {
+        var observations = creature?.ObservationManager?.Observations;
+        if (observations == null || creature.ReproductionManager == null)
+            return 0;
+
+        for (int i = 0; i < observations.Count; i++)
+        {
+            ObservationData observation = observations[i];
+            if (observation.type != ObservationType.MatingCreature || observation.observedObject == null)
+                continue;
+
+            BaseCreatureBehaviour mate = observation.observedObject.GetComponent<BaseCreatureBehaviour>();
+            if (mate == null ||
+                mate == creature ||
+                !mate.gameObject.activeInHierarchy ||
+                mate.IsDespawnQueued ||
+                !creature.ReproductionManager.CanMateWith(mate))
+            {
+                continue;
+            }
+
+            return mate.GetInstanceID();
+        }
+
+        return 0;
     }
 
     private static bool TryGetMateTarget(

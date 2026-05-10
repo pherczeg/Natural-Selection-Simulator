@@ -8,10 +8,6 @@ public static class CreatureActionStatusAdapter
         if (creature == null)
             return false;
 
-        GameConfig config = GameConfig.Instance;
-        if (config == null || !config.useEcsActionExecution)
-            return false;
-
         return ECSMirrorBridge.TryGetCreatureActionState(creature, out actionState);
     }
 

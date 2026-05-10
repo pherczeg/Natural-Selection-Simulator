@@ -138,6 +138,43 @@ public class CreatureUtilityBrain : MonoBehaviour
         return lastDecision;
     }
 
+    public bool ApplyExternalDecisionFast(
+        UtilityAIContext context,
+        string contextSource,
+        CreatureUtilityDecisionData decisionData,
+        out CreatureAction selectedCreatureAction,
+        out float selectedScore)
+    {
+        lastContext = context;
+        lastContextSource = string.IsNullOrWhiteSpace(contextSource)
+            ? UtilityAIContextFactory.EmptyContextSource
+            : contextSource;
+
+        UtilityAction selectedAction = null;
+        for (int i = 0; i < actions.Count; i++)
+        {
+            UtilityAction action = actions[i];
+            if (action != null && action.Action == decisionData.selectedAction)
+            {
+                selectedAction = action;
+                break;
+            }
+        }
+
+        lastActionScores.Clear();
+        lastSelectedActionId = selectedAction != null ? selectedAction.Id : string.Empty;
+        lastSelectedCreatureAction = selectedAction != null ? selectedAction.Action : CreatureAction.None;
+        lastSelectedScore = selectedAction != null ? decisionData.selectedScore : 0f;
+        lastDecisionTime = decisionData.decisionTime;
+        lastDecision = UtilityDecision.Empty;
+        lastDecisionSummary = string.Empty;
+
+        selectedCreatureAction = lastSelectedCreatureAction;
+        selectedScore = lastSelectedScore;
+        return selectedAction != null;
+    }
+
+
     private UtilityDecision Evaluate(UtilityAIContext context, string contextSource)
     {
         lastContext = context;

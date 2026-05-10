@@ -13,24 +13,23 @@ MonoBehaviour:
   m_Name: GameConfig
   m_EditorClassIdentifier: 
   updateInterval: 0.2
-  initialHerbivoreCount: 100
-  initialPredatorCount: 0
-  creaturePoolSize: 1000
-  initialFoodCount: 1
+  initialHerbivoreCount: 500
+  initialPredatorCount: 10
+  creaturePoolSize: 2000
+  initialFoodCount: 2
   foodPoolSize: 100
   foodSpawnInterval: 5
-  foodSpawnBatchSize: 1
+  foodSpawnBatchSize: 2
   useUtilityAI: 1
   useEcsObservation: 1
   useEcsAIContext: 1
   useEcsUtilityScoring: 1
-  useEcsActionExecution: 1
   useEcsFoodLifecycle: 1
   useEcsCreatureLifecycle: 1
   logUtilityAIScores: 0
   utilityDecisionInterval: 0.2
-  oldAgeStartAge: 120
-  creatureMaxAge: 200
+  oldAgeStartAge: 180
+  creatureMaxAge: 300
   maturityAge: 20
   oldAgeSpeedDecayPerSecond: 0.01
   oldAgeSenseDecayPerSecond: 0.004
@@ -45,18 +44,18 @@ MonoBehaviour:
   initialEnergyPercentagePredator: 0.5
   eatingEnergyThreshold: 0.5
   energyConsumptionCoefficient: 0.08
-  predatorEnergyGainPerPreyWeight: 25
+  predatorEnergyGainPerPreyWeight: 50
   blackListDuration: 5
   herbivoreReproductionTime: 1
   herbivoreReproductionEnergyThreshold: 0.3
-  herbivoreFemaleReproductionCooldown: 45
-  herbivoreMaleReproductionCooldown: 15
-  herbivoreRejectedMateCooldown: 10
+  herbivoreFemaleReproductionCooldown: 20
+  herbivoreMaleReproductionCooldown: 2
+  herbivoreRejectedMateCooldown: 5
   herbivoreMinMateAcceptanceChance: 0.7
   herbivoreMaxMateAcceptanceChance: 0.95
   herbivoreMinOffspringPerReproduction: 1
-  herbivoreMaxOffspringPerReproduction: 5
-  herbivoreOffspringCountMean: 3
+  herbivoreMaxOffspringPerReproduction: 8
+  herbivoreOffspringCountMean: 5
   herbivoreOffspringCountStdDev: 1
   predatorReproductionTime: 1
   predatorReproductionEnergyThreshold: 0.3
@@ -126,8 +125,8 @@ MonoBehaviour:
   herbivoreMaleColor: {r: 0.35, g: 0.65, b: 1, a: 1}
   predatorFemaleColor: {r: 1, g: 0.35, b: 0.35, a: 1}
   predatorMaleColor: {r: 0.45, g: 0.45, b: 0.45, a: 1}
-  nutritionConsumptionRatePerSecond: 100
-  minNutrionValue: 100
-  maxNutrionValue: 300
-  foodMaturityAge: 5
-  foodMaxAge: 120
+  nutritionConsumptionRatePerSecond: 150
+  minNutrionValue: 50
+  maxNutrionValue: 200
+  foodMaturityAge: 3
+  foodMaxAge: 60

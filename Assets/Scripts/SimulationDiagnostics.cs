@@ -34,6 +34,15 @@ public class SimulationDiagnostics : MonoBehaviour
     public void LogSnapshot()
     {
         SimulationDiagnosticsSnapshot snapshot = Statistics.BuildDiagnosticsSnapshot(Statistics.Instance);
-        Debug.Log(Statistics.FormatDiagnosticsSnapshot(snapshot));
+        StackTraceLogType previousStackTraceLogType = Application.GetStackTraceLogType(LogType.Log);
+        try
+        {
+            Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
+            Debug.Log(Statistics.FormatDiagnosticsSnapshot(snapshot));
+        }
+        finally
+        {
+            Application.SetStackTraceLogType(LogType.Log, previousStackTraceLogType);
+        }
     }
 }

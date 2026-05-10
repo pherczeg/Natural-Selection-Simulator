@@ -1,11 +1,14 @@
 using Unity.Burst;
 using Unity.Entities;
+using Unity.Mathematics;
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateAfter(typeof(ECSObservationSystem))]
 public partial class ECSUtilityScoringSystem : SystemBase
 {
     private EntityQuery scoringQuery;
+    private float scoringTimer;
+    private bool hasScored;
 
     protected override void OnCreate()
     {
@@ -22,7 +25,18 @@ public partial class ECSUtilityScoringSystem : SystemBase
     {
         GameConfig config = GameConfig.Instance;
         if (config == null || !config.useUtilityAI || !config.useEcsUtilityScoring)
+        {
+            scoringTimer = 0f;
+            hasScored = false;
             return;
+        }
+
+        scoringTimer += (float)World.Time.DeltaTime;
+        if (hasScored && scoringTimer < math.max(0.01f, config.utilityDecisionInterval))
+            return;
+
+        scoringTimer = 0f;
+        hasScored = true;
 
         Dependency = new ECSUtilityScoringJob
         {

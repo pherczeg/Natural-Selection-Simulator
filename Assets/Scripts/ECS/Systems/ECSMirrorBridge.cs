@@ -25,6 +25,8 @@ public sealed class ECSMirrorBridge : MonoBehaviour
 
     private World mirroredWorld;
     private float lastEcsObservation;
+    private float slowMirrorSyncTimer;
+    private bool hasRunSlowMirrorSync;
 
     [Header("Mirror Debug")]
     [SerializeField] private int lastActiveCreatureCount;
@@ -165,12 +167,36 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         if (!TryGetEntityManager(out EntityManager entityManager))
             return;
 
+        bool shouldRunSlowMirrorSync = ShouldRunSlowMirrorSync(config);
+
         ProcessECSSpawnDespawnRequests(entityManager);
-        SyncCreatures(entityManager, config);
-        SyncFood(entityManager, config);
+        if (shouldRunSlowMirrorSync)
+        {
+            SyncCreatures(entityManager, config);
+            SyncFood(entityManager, config);
+        }
+
         ProcessECSActionExecutionBridge(entityManager, config);
         UpdateECSObservationBridge(entityManager, config);
         ProcessECSSpawnDespawnRequests(entityManager);
+    }
+
+    private bool ShouldRunSlowMirrorSync(GameConfig config)
+    {
+        if (config == null)
+        {
+            slowMirrorSyncTimer = 0f;
+            hasRunSlowMirrorSync = false;
+            return true;
+        }
+
+        slowMirrorSyncTimer += Time.deltaTime;
+        if (hasRunSlowMirrorSync && slowMirrorSyncTimer < Mathf.Max(0.0001f, config.updateInterval))
+            return false;
+
+        slowMirrorSyncTimer = 0f;
+        hasRunSlowMirrorSync = true;
+        return true;
     }
 
     private void OnDisable()
@@ -324,16 +350,22 @@ public sealed class ECSMirrorBridge : MonoBehaviour
 
     private void ProcessECSActionExecutionBridge(EntityManager entityManager, GameConfig config)
     {
-        if (config == null || !config.useEcsActionExecution)
-            return;
-
         foreach (var pair in creatureEntities)
         {
             Entity entity = pair.Value;
             if (!entityManager.Exists(entity) ||
-                !entityManager.HasComponent<CreatureIdentity>(entity) ||
                 !entityManager.HasComponent<CreatureActionRequestData>(entity) ||
-                !entityManager.HasComponent<CreatureActionStateData>(entity) ||
+                !entityManager.HasComponent<CreatureActionStateData>(entity))
+            {
+                continue;
+            }
+
+            CreatureActionRequestData request = entityManager.GetComponentData<CreatureActionRequestData>(entity);
+            CreatureActionStateData actionState = entityManager.GetComponentData<CreatureActionStateData>(entity);
+            if (!NeedsActionExecutionBridge(request, actionState))
+                continue;
+
+            if (!entityManager.HasComponent<CreatureIdentity>(entity) ||
                 !entityManager.HasComponent<CreatureActionTargetData>(entity) ||
                 !entityManager.HasComponent<CreatureActionTimerData>(entity))
             {
@@ -347,8 +379,6 @@ public sealed class ECSMirrorBridge : MonoBehaviour
                 continue;
             }
 
-            CreatureActionRequestData request = entityManager.GetComponentData<CreatureActionRequestData>(entity);
-            CreatureActionStateData actionState = entityManager.GetComponentData<CreatureActionStateData>(entity);
             CreatureActionTargetData actionTarget = entityManager.GetComponentData<CreatureActionTargetData>(entity);
             CreatureActionTimerData actionTimer = entityManager.GetComponentData<CreatureActionTimerData>(entity);
 
@@ -370,6 +400,32 @@ public sealed class ECSMirrorBridge : MonoBehaviour
                 ref actionTarget,
                 ref actionTimer);
         }
+    }
+
+    private static bool NeedsActionExecutionBridge(
+        CreatureActionRequestData request,
+        CreatureActionStateData actionState)
+    {
+        bool hasMateExecutionRequest =
+            request.hasRequest &&
+            request.requestedAction == CreatureAction.SearchMate &&
+            request.requestedPhase == CreatureActionPhase.Executing;
+        bool isMateExecuting =
+            actionState.currentAction == CreatureAction.SearchMate &&
+            actionState.phase == CreatureActionPhase.Executing;
+
+        bool hasPredationExecutionRequest =
+            request.hasRequest &&
+            request.requestedAction == CreatureAction.Hunt &&
+            request.requestedPhase == CreatureActionPhase.Executing;
+        bool isPredationExecuting =
+            actionState.currentAction == CreatureAction.Hunt &&
+            actionState.phase == CreatureActionPhase.Executing;
+
+        return hasMateExecutionRequest ||
+               isMateExecuting ||
+               hasPredationExecutionRequest ||
+               isPredationExecuting;
     }
 
     private static void ProcessECSPredationExecutionRequest(
@@ -1391,7 +1447,7 @@ public sealed class ECSMirrorBridge : MonoBehaviour
                 continue;
 
             activeCreaturesByInstanceId[instanceId] = creature;
-            Entity entity = GetOrCreateCreatureEntity(entityManager, creature, instanceId);
+            Entity entity = GetOrCreateCreatureEntity(entityManager, creature, instanceId, out bool createdEntity);
 
             if (config == null || !config.useEcsCreatureLifecycle)
             {
@@ -1414,14 +1470,19 @@ public sealed class ECSMirrorBridge : MonoBehaviour
                 continue;
             }
 
-            entityManager.SetComponentData(entity, CreateCreatureIdentity(creature, instanceId));
             entityManager.SetComponentData(entity, CreateCreatureTransformMirror(creature.transform));
+
+            entityManager.SetComponentData(entity, CreateCreatureIdentity(creature, instanceId));
             entityManager.SetComponentData(entity, CreateCreatureLifecycleData(entityManager, entity, creature, instanceId));
             entityManager.SetComponentData(entity, CreateCreatureAIContextData(UtilityAIContextFactory.FromMonoCreature(creature)));
             entityManager.SetComponentData(entity, CreateCreatureObservationSensorData(creature));
-            entityManager.SetComponentData(entity, CreateCreatureActionStateData(entityManager, entity, creature, config));
-            entityManager.SetComponentData(entity, CreateCreatureActionTargetData(entityManager, entity, creature, config));
-            entityManager.SetComponentData(entity, CreateCreatureActionTimerData(entityManager, entity, creature, config));
+
+            if (createdEntity)
+            {
+                entityManager.SetComponentData(entity, CreateCreatureActionStateData(entityManager, entity, creature, config));
+                entityManager.SetComponentData(entity, CreateCreatureActionTargetData(entityManager, entity, creature, config));
+                entityManager.SetComponentData(entity, CreateCreatureActionTimerData(entityManager, entity, creature, config));
+            }
 
             if (config == null || !config.useUtilityAI || !config.useEcsUtilityScoring)
             {
@@ -1430,11 +1491,16 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         }
     }
 
-    private Entity GetOrCreateCreatureEntity(EntityManager entityManager, BaseCreatureBehaviour creature, int instanceId)
+    private Entity GetOrCreateCreatureEntity(
+        EntityManager entityManager,
+        BaseCreatureBehaviour creature,
+        int instanceId,
+        out bool createdEntity)
     {
         if (creatureEntities.TryGetValue(instanceId, out Entity entity) && entityManager.Exists(entity))
         {
             EnsureCreatureComponents(entityManager, entity, creature);
+            createdEntity = false;
             return entity;
         }
 
@@ -1442,6 +1508,7 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         EnsureCreatureComponents(entityManager, entity, creature);
 
         creatureEntities[instanceId] = entity;
+        createdEntity = true;
         return entity;
     }
 
@@ -1585,7 +1652,7 @@ public sealed class ECSMirrorBridge : MonoBehaviour
             return true;
         }
 
-        if (config != null && config.useEcsActionExecution)
+        if (config != null)
         {
             if (lifecycleData.isBeingEaten)
             {

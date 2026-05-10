@@ -24,10 +24,6 @@ public partial class ECSWanderExecutionSystem : SystemBase
 
     protected override void OnUpdate()
     {
-        GameConfig config = GameConfig.Instance;
-        if (config == null || !config.useEcsActionExecution)
-            return;
-
         float deltaTime = (float)World.Time.DeltaTime;
         EntityManager entityManager = EntityManager;
 

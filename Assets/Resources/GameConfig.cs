@@ -40,7 +40,6 @@ public class GameConfig : ScriptableObject
     public bool useEcsObservation = false;
     public bool useEcsAIContext = false;
     public bool useEcsUtilityScoring = false;
-    public bool useEcsActionExecution = false;
     public bool useEcsFoodLifecycle = false;
     public bool useEcsCreatureLifecycle = false;
     public bool logUtilityAIScores = false;

@@ -28,7 +28,7 @@ public partial class ECSEatingExecutionSystem : SystemBase
     protected override void OnUpdate()
     {
         GameConfig config = GameConfig.Instance;
-        if (config == null || !config.useEcsActionExecution)
+        if (config == null)
             return;
 
         float deltaTime = (float)World.Time.DeltaTime;

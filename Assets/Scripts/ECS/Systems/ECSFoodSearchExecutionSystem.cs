@@ -25,10 +25,6 @@ public partial class ECSFoodSearchExecutionSystem : SystemBase
 
     protected override void OnUpdate()
     {
-        GameConfig config = GameConfig.Instance;
-        if (config == null || !config.useEcsActionExecution)
-            return;
-
         float deltaTime = (float)World.Time.DeltaTime;
         EntityManager entityManager = EntityManager;
 
@@ -259,6 +255,9 @@ public partial class ECSFoodSearchExecutionSystem : SystemBase
         if (action == CreatureAction.Hunt)
         {
             int preyId = observation.closestPreyInstanceId;
+            if (preyId == 0)
+                preyId = SelectObservedCreatureTarget(creature, ObservationType.FoodCreature);
+
             if (preyId == 0 || preyId == identity.gameObjectInstanceId)
                 return 0;
 
@@ -281,6 +280,9 @@ public partial class ECSFoodSearchExecutionSystem : SystemBase
 
         int foodId = observation.closestFoodInstanceId;
         if (foodId == 0)
+            foodId = SelectObservedFoodTarget(creature);
+
+        if (foodId == 0)
             return 0;
 
         if (!ECSMirrorBridge.TryGetFoodByInstanceId(foodId, out Food food) ||
@@ -294,6 +296,66 @@ public partial class ECSFoodSearchExecutionSystem : SystemBase
             return 0;
 
         return foodId;
+    }
+
+    private static int SelectObservedFoodTarget(BaseCreatureBehaviour creature)
+    {
+        var observations = creature?.ObservationManager?.Observations;
+        if (observations == null)
+            return 0;
+
+        for (int i = 0; i < observations.Count; i++)
+        {
+            ObservationData observation = observations[i];
+            if (observation.type != ObservationType.Food || observation.observedObject == null)
+                continue;
+
+            Food food = observation.observedObject.GetComponent<Food>();
+            if (food == null ||
+                !food.gameObject.activeInHierarchy ||
+                food.IsDespawnQueued ||
+                (creature.EatingManager != null && creature.EatingManager.IsFoodBlacklisted(food)))
+            {
+                continue;
+            }
+
+            return food.GetInstanceID();
+        }
+
+        return 0;
+    }
+
+    private static int SelectObservedCreatureTarget(BaseCreatureBehaviour creature, ObservationType observationType)
+    {
+        var observations = creature?.ObservationManager?.Observations;
+        if (observations == null)
+            return 0;
+
+        for (int i = 0; i < observations.Count; i++)
+        {
+            ObservationData observation = observations[i];
+            if (observation.type != observationType || observation.observedObject == null)
+                continue;
+
+            BaseCreatureBehaviour target = observation.observedObject.GetComponent<BaseCreatureBehaviour>();
+            if (target == null ||
+                target == creature ||
+                !target.gameObject.activeInHierarchy ||
+                target.IsDespawnQueued)
+            {
+                continue;
+            }
+
+            if (target is HerbivoreBehaviour herbivore && herbivore.IsCaptured && !herbivore.IsCapturedBy(creature))
+                continue;
+
+            if (creature is PredatorBehaviour predator && predator.IsPreyBlacklisted(target))
+                continue;
+
+            return target.GetInstanceID();
+        }
+
+        return 0;
     }
 
     private static bool TryGetTargetPosition(

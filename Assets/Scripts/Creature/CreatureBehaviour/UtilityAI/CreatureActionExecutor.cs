@@ -56,18 +56,8 @@ public static class CreatureActionExecutor
                 GetTargetStateType(action));
         }
 
-        GameConfig config = GameConfig.Instance;
-        bool useEcsActionExecution = config != null && config.useEcsActionExecution;
         CreatureStateType previousStateType = creature.CurrentStateType;
         CreatureStateType targetStateType = GetTargetStateType(action);
-
-        if (!useEcsActionExecution)
-        {
-            return CreatureActionExecutionResult.Skipped(
-                action,
-                previousStateType,
-                targetStateType);
-        }
 
         bool wasRequestWritten = ECSMirrorBridge.TryRequestCreatureAction(creature, action);
 
