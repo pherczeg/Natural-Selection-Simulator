@@ -35,7 +35,6 @@ public class MovingToMateState : MoveToTargetBase, ICreatureState
 
         if (ReachedTarget())
         {
-            Debug.Log($"{creature.name} reached mate: {targetCreature.name}");
             if (creature.ReproductionManager.TryMutualAcceptance(targetCreature))
             {
                 if (creature.Sex == CreatureSex.Female)

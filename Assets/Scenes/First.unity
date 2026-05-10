@@ -373,7 +373,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 8, y: 4, z: 8}
+  m_LocalScale: {x: 20, y: 10, z: 20}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 1059404836}
@@ -692,7 +692,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e2b73598cc588434da1d09855d66d518, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  restartTime: 20
+  restartTime: 3600
   numberOfSimulations: 2
 --- !u!1 &705507993
 GameObject:
@@ -1317,8 +1317,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   herbivorPrefab: {fileID: 8674103884923863129, guid: d6cf4cca45a317a48a8fa4e0039d3133, type: 3}
   predatorPrefab: {fileID: 8674103884923863129, guid: b72a8aa173a9b214ca354fbeed05f01c, type: 3}
-  numberOfHerbivores: 15
-  numberOfPredators: 2
+  numberOfHerbivores: 300
+  numberOfPredators: 20
   herbivorCreatures: []
   predatorCreatures: []
 --- !u!1660057539 &9223372036854775807

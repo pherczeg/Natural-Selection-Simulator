@@ -13,6 +13,9 @@ MonoBehaviour:
   m_Name: GameConfig
   m_EditorClassIdentifier: 
   updateInterval: 0.2
+  useUtilityAI: 0
+  logUtilityAIScores: 0
+  utilityDecisionInterval: 0.2
   oldAgeStartAge: 120
   maturityAge: 24
   oldAgeSpeedDecayPerSecond: 0.01
@@ -23,7 +26,7 @@ MonoBehaviour:
   oldAgeMinDesirabilityMultiplier: 0.05
   maxEnergy: 200
   herbivoreMaxEnergy: 200
-  predatorMaxEnergy: 1000
+  predatorMaxEnergy: 500
   initialEnergyPercentageHerbivore: 0.8
   initialEnergyPercentagePredator: 0.8
   eatingEnergyThreshold: 0.5

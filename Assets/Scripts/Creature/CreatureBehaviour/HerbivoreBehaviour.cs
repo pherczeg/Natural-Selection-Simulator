@@ -13,11 +13,13 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
     private float forcedFleeUntilTime;
     private float activeFleeUntilTime;
     private float nextThreatScanTime;
+    private float nextUtilityDecisionTime;
     private Vector3 lastFleeDirection;
     private BaseCreatureBehaviour capturePredator;
 
     public float Agility { get; private set; }
     public bool IsCaptured => capturePredator != null;
+    public bool IsThreatened => forcedThreat != null || cachedThreat != null || Time.time < activeFleeUntilTime;
 
     protected override void OnSexChanged()
     {
@@ -66,6 +68,18 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
     }
     protected override void CheckTransitions()
     {
+        var config = GameConfig.Instance;
+        if (config != null && config.useUtilityAI)
+        {
+            UpdateUtilityAI(config);
+            return;
+        }
+
+        CheckLegacyTransitions();
+    }
+
+    private void CheckLegacyTransitions()
+    {
         if (stateMachine.CurrentState.StateType == CreatureStateType.MovingToFood || stateMachine.CurrentState.StateType == CreatureStateType.Eating || stateMachine.CurrentState.StateType == CreatureStateType.SearchingForFood || stateMachine.CurrentState.StateType == CreatureStateType.Reproducting)
         {
             return;
@@ -87,9 +101,92 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
             stateMachine.TransitionToWandering();
         }
     }
+
+    private void UpdateUtilityAI(GameConfig config)
+    {
+        if (Time.time < nextUtilityDecisionTime)
+            return;
+
+        nextUtilityDecisionTime = Time.time + Mathf.Max(0.01f, config.utilityDecisionInterval);
+        EnsureUtilityBrain();
+
+        if (utilityBrain == null)
+            return;
+
+        UtilityDecision decision = utilityBrain.Evaluate();
+        CreatureActionExecutionResult execution = ExecuteUtilityAIAction(decision);
+        RecordUtilityAIExecution(decision, execution);
+
+        if (config.logUtilityAIScores)
+        {
+            LogUtilityAIScores(decision);
+        }
+    }
+
+    private void EnsureUtilityBrain()
+    {
+        CreatureUtilityBrain utilityBrain = EnsureUtilityBrainComponent();
+
+        if (utilityBrain.Creature != this || utilityBrain.Actions.Count == 0)
+        {
+            utilityBrain.Initialize(this);
+            utilityBrain.SetActions(CreateHerbivoreUtilityActions());
+        }
+    }
+
+    private IEnumerable<UtilityAction> CreateHerbivoreUtilityActions()
+    {
+        return new[]
+        {
+            new UtilityAction(
+                CreatureAction.None,
+                "Keep Current State",
+                new[]
+                {
+                    new UtilityConsideration("Current State Lockout", context => UtilityAIScoreRules.GetKeepCurrentStateScore(context, GetUtilityAIScoringParameters()))
+                }),
+            new UtilityAction(
+                CreatureAction.SearchFood,
+                "Search Food",
+                new[]
+                {
+                    new UtilityConsideration("Hunger", context => UtilityAIScoreRules.GetHungerScore(context, GetUtilityAIScoringParameters()) * UtilityAIScoreRules.GetFoodSearchAvailabilityScore(context))
+                }),
+            new UtilityAction(
+                CreatureAction.SearchMate,
+                "Search Mate",
+                new[]
+                {
+                    new UtilityConsideration("Reproduction Readiness", context => UtilityAIScoreRules.GetReproductionScore(context, GetUtilityAIScoringParameters()) * UtilityAIScoreRules.GetMateSearchAvailabilityScore(context))
+                },
+                0.85f),
+            new UtilityAction(
+                CreatureAction.Wander,
+                "Wander",
+                new[]
+                {
+                    new UtilityConsideration("Idle Wander", UtilityAIScoreRules.GetIdleWanderScore)
+                },
+                0.3f)
+        };
+    }
+
+    private static UtilityAIScoringParameters GetUtilityAIScoringParameters()
+    {
+        var config = GameConfig.Instance;
+        if (config == null)
+            return UtilityAIScoringParameters.Default;
+
+        return new UtilityAIScoringParameters(
+            config.eatingEnergyThreshold,
+            config.reproductionEnergyThreshold);
+    }
+
     public override void Initialize(float moveSpeed, float weight, float senseRadius)
     {
         var config = GameConfig.Instance;
+        ResetUtilityAIDebugState();
+        nextUtilityDecisionTime = 0f;
         forcedThreat = null;
         cachedThreat = null;
         forcedFleeUntilTime = 0f;
@@ -109,6 +206,10 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
         EnergyManager.UpdateEnergyBar();
         EatingManager = new EatingManager(this);
         SetAgility(Mathf.Lerp(config.herbivoreAgilityMin, config.herbivoreAgilityMax, 0.5f));
+        if (config.useUtilityAI)
+        {
+            EnsureUtilityBrain();
+        }
     }
     // void FixedUpdate()
     // {

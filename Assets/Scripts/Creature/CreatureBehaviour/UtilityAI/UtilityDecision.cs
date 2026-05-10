@@ -7,21 +7,21 @@ public struct UtilityActionScore
 {
     [SerializeField] private string actionId;
     [SerializeField] private string displayName;
-    [SerializeField] private CreatureStateType targetStateType;
+    [SerializeField] private CreatureAction action;
     [SerializeField] private float score;
     [SerializeField] private bool isSelected;
 
     public string ActionId => actionId;
     public string DisplayName => displayName;
-    public CreatureStateType TargetStateType => targetStateType;
+    public CreatureAction Action => action;
     public float Score => score;
     public bool IsSelected => isSelected;
 
-    public UtilityActionScore(UtilityAction action, float score, bool isSelected)
+    public UtilityActionScore(UtilityAction utilityAction, float score, bool isSelected)
     {
-        actionId = action != null ? action.Id : string.Empty;
-        displayName = action != null ? action.DisplayName : string.Empty;
-        targetStateType = action != null ? action.TargetStateType : CreatureStateType.None;
+        actionId = utilityAction != null ? utilityAction.Id : string.Empty;
+        displayName = utilityAction != null ? utilityAction.DisplayName : string.Empty;
+        action = utilityAction != null ? utilityAction.Action : CreatureAction.None;
         this.score = Mathf.Clamp01(score);
         this.isSelected = isSelected;
     }
@@ -34,18 +34,22 @@ public class UtilityDecision
 
     public UtilityAction SelectedAction { get; }
     public float SelectedScore { get; }
+    public float DecisionTime { get; }
     public IReadOnlyList<UtilityActionScore> ActionScores => actionScores;
     public bool HasSelection => SelectedAction != null;
+    public CreatureAction SelectedCreatureAction => SelectedAction != null ? SelectedAction.Action : CreatureAction.None;
 
-    public static UtilityDecision Empty { get; } = new UtilityDecision(null, 0f, null);
+    public static UtilityDecision Empty { get; } = new UtilityDecision(null, 0f, null, -1f);
 
     public UtilityDecision(
         UtilityAction selectedAction,
         float selectedScore,
-        IEnumerable<UtilityActionScore> actionScores)
+        IEnumerable<UtilityActionScore> actionScores,
+        float decisionTime = -1f)
     {
         SelectedAction = selectedAction;
         SelectedScore = Mathf.Clamp01(selectedScore);
+        DecisionTime = decisionTime;
         this.actionScores = actionScores != null
             ? new List<UtilityActionScore>(actionScores)
             : new List<UtilityActionScore>();

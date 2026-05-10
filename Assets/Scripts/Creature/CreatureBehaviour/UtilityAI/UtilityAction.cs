@@ -7,14 +7,14 @@ public class UtilityAction
 {
     [SerializeField] private string id = "Action";
     [SerializeField] private string displayName = "Action";
-    [SerializeField] private CreatureStateType targetStateType = CreatureStateType.None;
+    [SerializeField] private CreatureAction action = CreatureAction.None;
     [SerializeField] private bool isEnabled = true;
     [SerializeField, Range(0f, 1f)] private float baseScore = 1f;
     [SerializeField] private List<UtilityConsideration> considerations = new List<UtilityConsideration>();
 
-    public string Id => string.IsNullOrWhiteSpace(id) ? DisplayName : id;
+    public string Id => string.IsNullOrWhiteSpace(id) ? action.ToString() : id;
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? Id : displayName;
-    public CreatureStateType TargetStateType => targetStateType;
+    public CreatureAction Action => action;
     public bool IsEnabled => isEnabled;
     public float BaseScore => baseScore;
     public IReadOnlyList<UtilityConsideration> Considerations => considerations;
@@ -25,16 +25,16 @@ public class UtilityAction
     }
 
     public UtilityAction(
-        string id,
+        CreatureAction action,
         string displayName,
-        CreatureStateType targetStateType,
         IEnumerable<UtilityConsideration> considerations = null,
-        float baseScore = 1f)
+        float baseScore = 1f,
+        string id = null)
     {
-        this.id = id;
+        this.action = action;
+        this.id = string.IsNullOrWhiteSpace(id) ? action.ToString() : id;
         this.displayName = displayName;
-        this.targetStateType = targetStateType;
-        this.baseScore = Mathf.Clamp01(baseScore);
+        this.baseScore = UtilityAIScoreRules.Clamp01(baseScore);
 
         if (considerations == null)
             return;
@@ -52,7 +52,7 @@ public class UtilityAction
 
     public void SetBaseScore(float baseScore)
     {
-        this.baseScore = Mathf.Clamp01(baseScore);
+        this.baseScore = UtilityAIScoreRules.Clamp01(baseScore);
     }
 
     public void AddConsideration(UtilityConsideration consideration)
@@ -69,7 +69,7 @@ public class UtilityAction
         LastScore = 0f;
     }
 
-    public float Evaluate(BaseCreatureBehaviour creature)
+    public float Evaluate(UtilityAIContext context)
     {
         if (!isEnabled)
         {
@@ -89,12 +89,12 @@ public class UtilityAction
             if (weight <= 0f)
                 continue;
 
-            scoreSum += consideration.Evaluate(creature) * weight;
+            scoreSum += consideration.Evaluate(context) * weight;
             weightSum += weight;
         }
 
         float considerationScore = weightSum > 0f ? scoreSum / weightSum : 1f;
-        LastScore = Mathf.Clamp01(baseScore) * Mathf.Clamp01(considerationScore);
+        LastScore = UtilityAIScoreRules.Clamp01(baseScore) * UtilityAIScoreRules.Clamp01(considerationScore);
         return LastScore;
     }
 }

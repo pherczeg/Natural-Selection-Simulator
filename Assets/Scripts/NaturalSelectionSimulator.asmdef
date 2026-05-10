@@ -1,0 +1,19 @@
+{
+    "name": "NaturalSelectionSimulator",
+    "rootNamespace": "",
+    "references": [
+        "NaturalSelectionSimulator.Resources",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Mathematics"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

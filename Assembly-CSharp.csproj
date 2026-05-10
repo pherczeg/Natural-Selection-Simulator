@@ -73,6 +73,7 @@
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\ReproductionState.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\Movement\MovementManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\Reproduction\ReproductionManager.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\UtilityAI\UtilityAIContext.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\BaseClasses\ICreatureState.cs" />
     <Compile Include="Assets\Scripts\Spawners\FoodSpawner.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\UtilityAI\CreatureUtilityBrain.cs" />
@@ -80,6 +81,8 @@
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\EatingState.cs" />
     <Compile Include="Assets\Scripts\Jobs\FindClosestFoodCreatureJob.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\AgeManagement\AgeManager.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\UtilityAI\UtilityAIContextFactory.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\UtilityAI\CreatureAction.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\SearchingForMateState.cs" />
     <Compile Include="Assets\Scripts\Creature\InfoBars\EnergyBar.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\BaseCreatureBehaviour.cs" />
@@ -87,6 +90,7 @@
     <Compile Include="Assets\Scripts\PoolManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\MovingToMateState.cs" />
     <Compile Include="Assets\Resources\GameConfig.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\UtilityAI\UtilityAIScoringParameters.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\UtilityAI\UtilityConsideration.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\EnergyManagement\EnergyManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\WanderingState.cs" />
@@ -94,6 +98,7 @@
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\Observation\ObservationManager.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\UtilityAI\UtilityDecision.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\MovingToFoodState.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\UtilityAI\CreatureActionExecutor.cs" />
     <Compile Include="Assets\Scripts\Jobs\Scheduler.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\SearchingForFoodState.cs" />
     <Compile Include="Assets\Scripts\Jobs\FindClosestFoodJob.cs" />
@@ -104,6 +109,7 @@
     <Compile Include="Assets\Scripts\Statistics.cs" />
     <Compile Include="Assets\Scripts\CameraController.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\HerbivoreBehaviour.cs" />
+    <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\UtilityAI\UtilityAIScoreRules.cs" />
     <Compile Include="Assets\Scripts\Creature\CreatureBehaviour\States\BaseClasses\CreatureSearchingStateBase.cs" />
   </ItemGroup>
   <ItemGroup>

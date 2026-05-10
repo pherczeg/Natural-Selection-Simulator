@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -7,19 +8,24 @@ public class CreatureUtilityBrain : MonoBehaviour
     [SerializeField] private BaseCreatureBehaviour creature;
     [SerializeField] private List<UtilityAction> actions = new List<UtilityAction>();
     [SerializeField] private string lastSelectedActionId;
-    [SerializeField] private CreatureStateType lastSelectedStateType = CreatureStateType.None;
+    [SerializeField] private CreatureAction lastSelectedCreatureAction = CreatureAction.None;
     [SerializeField, Range(0f, 1f)] private float lastSelectedScore;
+    [SerializeField] private float lastDecisionTime = -1f;
+    [SerializeField, TextArea(2, 4)] private string lastDecisionSummary;
     [SerializeField] private List<UtilityActionScore> lastActionScores = new List<UtilityActionScore>();
 
     private UtilityDecision lastDecision = UtilityDecision.Empty;
+    private UtilityAIContext lastContext = UtilityAIContext.Empty;
 
     public BaseCreatureBehaviour Creature => creature;
     public IReadOnlyList<UtilityAction> Actions => actions;
     public UtilityDecision LastDecision => lastDecision;
     public IReadOnlyList<UtilityActionScore> LastActionScores => lastActionScores;
     public string LastSelectedActionId => lastSelectedActionId;
-    public CreatureStateType LastSelectedStateType => lastSelectedStateType;
+    public CreatureAction LastSelectedCreatureAction => lastSelectedCreatureAction;
     public float LastSelectedScore => lastSelectedScore;
+    public float LastDecisionTime => lastDecisionTime;
+    public string LastDecisionSummary => lastDecisionSummary;
 
     private void Awake()
     {
@@ -78,6 +84,12 @@ public class CreatureUtilityBrain : MonoBehaviour
         if (creature == null)
             creature = GetComponent<BaseCreatureBehaviour>();
 
+        return Evaluate(UtilityAIContextFactory.FromCreature(creature));
+    }
+
+    public UtilityDecision Evaluate(UtilityAIContext context)
+    {
+        lastContext = context;
         UtilityAction selectedAction = null;
         float selectedScore = 0f;
 
@@ -87,7 +99,7 @@ public class CreatureUtilityBrain : MonoBehaviour
             if (action == null)
                 continue;
 
-            float score = action.Evaluate(creature);
+            float score = action.Evaluate(context);
             if (action.IsEnabled && (selectedAction == null || score > selectedScore))
             {
                 selectedAction = action;
@@ -106,9 +118,11 @@ public class CreatureUtilityBrain : MonoBehaviour
         }
 
         lastSelectedActionId = selectedAction != null ? selectedAction.Id : string.Empty;
-        lastSelectedStateType = selectedAction != null ? selectedAction.TargetStateType : CreatureStateType.None;
+        lastSelectedCreatureAction = selectedAction != null ? selectedAction.Action : CreatureAction.None;
         lastSelectedScore = selectedAction != null ? selectedScore : 0f;
-        lastDecision = new UtilityDecision(selectedAction, lastSelectedScore, lastActionScores);
+        lastDecisionTime = Application.isPlaying ? Time.time : Time.realtimeSinceStartup;
+        lastDecision = new UtilityDecision(selectedAction, lastSelectedScore, lastActionScores, lastDecisionTime);
+        lastDecisionSummary = BuildLastDecisionSummary();
         return lastDecision;
     }
 
@@ -127,12 +141,55 @@ public class CreatureUtilityBrain : MonoBehaviour
         return false;
     }
 
-    private void ClearLastDecision()
+    public void ClearLastDecision()
     {
         lastSelectedActionId = string.Empty;
-        lastSelectedStateType = CreatureStateType.None;
+        lastSelectedCreatureAction = CreatureAction.None;
         lastSelectedScore = 0f;
+        lastDecisionTime = -1f;
+        lastDecisionSummary = string.Empty;
         lastActionScores.Clear();
         lastDecision = UtilityDecision.Empty;
+    }
+
+    private string BuildLastDecisionSummary()
+    {
+        var builder = new StringBuilder(160);
+        string selectedAction = string.IsNullOrEmpty(lastSelectedActionId) ? "None" : lastSelectedActionId;
+
+        builder.Append("UtilityAI t=");
+        builder.Append(lastDecisionTime.ToString("0.00"));
+        builder.Append("s");
+
+        builder.Append(" state=");
+        builder.Append(lastContext.currentState);
+
+        builder.Append(" action=");
+        builder.Append(lastSelectedCreatureAction);
+
+        builder.Append(" selected=");
+        builder.Append(selectedAction);
+        builder.Append(" score=");
+        builder.Append(lastSelectedScore.ToString("0.000"));
+
+        if (lastActionScores.Count > 0)
+        {
+            builder.Append(" | ");
+            for (int i = 0; i < lastActionScores.Count; i++)
+            {
+                if (i > 0)
+                    builder.Append(", ");
+
+                UtilityActionScore actionScore = lastActionScores[i];
+                if (actionScore.IsSelected)
+                    builder.Append("*");
+
+                builder.Append(actionScore.ActionId);
+                builder.Append("=");
+                builder.Append(actionScore.Score.ToString("0.000"));
+            }
+        }
+
+        return builder.ToString();
     }
 }

@@ -6,6 +6,7 @@ public class PredatorBehaviour : BaseCreatureBehaviour
     private static readonly int BaseColorPropertyId = Shader.PropertyToID("_BaseColor");
     private static readonly int ColorPropertyId = Shader.PropertyToID("_Color");
     private readonly Dictionary<int, float> escapedPreyCooldowns = new Dictionary<int, float>();
+    private float nextUtilityDecisionTime;
 
     public float Strength { get; private set; }
 
@@ -57,6 +58,18 @@ public class PredatorBehaviour : BaseCreatureBehaviour
 
     protected override void CheckTransitions()
     {
+        var config = GameConfig.Instance;
+        if (config != null && config.useUtilityAI)
+        {
+            UpdateUtilityAI(config);
+            return;
+        }
+
+        CheckLegacyTransitions();
+    }
+
+    private void CheckLegacyTransitions()
+    {
         CreatureStateType currentState = stateMachine.CurrentState.StateType;
         if (currentState == CreatureStateType.MovingToFood ||
             currentState == CreatureStateType.Eating ||
@@ -85,9 +98,91 @@ public class PredatorBehaviour : BaseCreatureBehaviour
         }
     }
 
+    private void UpdateUtilityAI(GameConfig config)
+    {
+        if (Time.time < nextUtilityDecisionTime)
+            return;
+
+        nextUtilityDecisionTime = Time.time + Mathf.Max(0.01f, config.utilityDecisionInterval);
+        EnsureUtilityBrain();
+
+        if (utilityBrain == null)
+            return;
+
+        UtilityDecision decision = utilityBrain.Evaluate();
+        CreatureActionExecutionResult execution = ExecuteUtilityAIAction(decision);
+        RecordUtilityAIExecution(decision, execution);
+
+        if (config.logUtilityAIScores)
+        {
+            LogUtilityAIScores(decision);
+        }
+    }
+
+    private void EnsureUtilityBrain()
+    {
+        CreatureUtilityBrain utilityBrain = EnsureUtilityBrainComponent();
+
+        if (utilityBrain.Creature != this || utilityBrain.Actions.Count == 0)
+        {
+            utilityBrain.Initialize(this);
+            utilityBrain.SetActions(CreatePredatorUtilityActions());
+        }
+    }
+
+    private IEnumerable<UtilityAction> CreatePredatorUtilityActions()
+    {
+        return new[]
+        {
+            new UtilityAction(
+                CreatureAction.None,
+                "Keep Current State",
+                new[]
+                {
+                    new UtilityConsideration("Current State Lockout", context => UtilityAIScoreRules.GetKeepCurrentStateScore(context, GetUtilityAIScoringParameters()))
+                }),
+            new UtilityAction(
+                CreatureAction.Hunt,
+                "Hunt / Search Food",
+                new[]
+                {
+                    new UtilityConsideration("Hunger", context => UtilityAIScoreRules.GetHungerScore(context, GetUtilityAIScoringParameters()) * UtilityAIScoreRules.GetFoodSearchAvailabilityScore(context))
+                }),
+            new UtilityAction(
+                CreatureAction.SearchMate,
+                "Search Mate",
+                new[]
+                {
+                    new UtilityConsideration("Reproduction Readiness", context => UtilityAIScoreRules.GetReproductionScore(context, GetUtilityAIScoringParameters()) * UtilityAIScoreRules.GetMateSearchAvailabilityScore(context))
+                },
+                0.85f),
+            new UtilityAction(
+                CreatureAction.Wander,
+                "Wander",
+                new[]
+                {
+                    new UtilityConsideration("Idle Wander", UtilityAIScoreRules.GetIdleWanderScore)
+                },
+                0.3f)
+        };
+    }
+
+    private static UtilityAIScoringParameters GetUtilityAIScoringParameters()
+    {
+        var config = GameConfig.Instance;
+        if (config == null)
+            return UtilityAIScoringParameters.Default;
+
+        return new UtilityAIScoringParameters(
+            config.eatingEnergyThreshold,
+            config.reproductionEnergyThreshold);
+    }
+
     public override void Initialize(float moveSpeed, float weight, float senseRadius)
     {
         var config = GameConfig.Instance;
+        ResetUtilityAIDebugState();
+        nextUtilityDecisionTime = 0f;
         escapedPreyCooldowns.Clear();
         maxEnergy = config.predatorMaxEnergy > 0f ? config.predatorMaxEnergy : config.maxEnergy;
         this.weight = weight;
@@ -102,6 +197,10 @@ public class PredatorBehaviour : BaseCreatureBehaviour
         EatingManager = new EatingManager(this);
         SetStrength(Mathf.Lerp(config.predatorStrengthMin, config.predatorStrengthMax, 0.5f));
         stateMachine.TransitionToWandering();
+        if (config.useUtilityAI)
+        {
+            EnsureUtilityBrain();
+        }
     }
 
     public void SetStrength(float strength)
