@@ -6,9 +6,8 @@
 # Ignore auto-generated Visual Studio Code files
 .vscode/
 
-# Markdown files
-*.md
-*.MD
+# Keep docs versioned
+!README.md
 
 # Temporarily ignore Unity test folders
 Assets/Test/
@@ -238,6 +237,7 @@ PublishScripts/
 *.snupkg
 # The packages folder can be ignored because of Package Restore
 **/[Pp]ackages/*
+!Packages/manifest.json
 # except build/, which is used as an MSBuild target.
 !**/[Pp]ackages/build/
 # Uncomment if necessary however generally it will be regenerated when needed
