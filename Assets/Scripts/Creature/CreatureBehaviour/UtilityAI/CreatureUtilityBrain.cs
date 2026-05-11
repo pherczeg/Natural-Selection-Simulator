@@ -181,6 +181,7 @@ public class CreatureUtilityBrain : MonoBehaviour
         lastContextSource = string.IsNullOrWhiteSpace(contextSource)
             ? UtilityAIContextFactory.EmptyContextSource
             : contextSource;
+        CreatureUtilityBehaviorData behaviorProfile = ResolveBehaviorProfile();
         UtilityAction selectedAction = null;
         float selectedScore = 0f;
 
@@ -190,7 +191,10 @@ public class CreatureUtilityBrain : MonoBehaviour
             if (action == null)
                 continue;
 
-            float score = action.Evaluate(context);
+            float score = UtilityBehaviorScoring.ApplyActionWeight(
+                action.Action,
+                action.Evaluate(context),
+                behaviorProfile);
             if (action.IsEnabled && (selectedAction == null || score > selectedScore))
             {
                 selectedAction = action;
@@ -205,7 +209,11 @@ public class CreatureUtilityBrain : MonoBehaviour
             if (action == null)
                 continue;
 
-            lastActionScores.Add(new UtilityActionScore(action, action.LastScore, action == selectedAction));
+            float adjustedScore = UtilityBehaviorScoring.ApplyActionWeight(
+                action.Action,
+                action.LastScore,
+                behaviorProfile);
+            lastActionScores.Add(new UtilityActionScore(action, adjustedScore, action == selectedAction));
         }
 
         lastSelectedActionId = selectedAction != null ? selectedAction.Id : string.Empty;
@@ -215,6 +223,13 @@ public class CreatureUtilityBrain : MonoBehaviour
         lastDecision = new UtilityDecision(selectedAction, lastSelectedScore, lastActionScores, lastDecisionTime);
         lastDecisionSummary = BuildLastDecisionSummary();
         return lastDecision;
+    }
+
+    private CreatureUtilityBehaviorData ResolveBehaviorProfile()
+    {
+        return creature != null
+            ? UtilityBehaviorScoring.Sanitize(creature.UtilityBehaviorProfile)
+            : UtilityBehaviorScoring.DefaultProfile;
     }
 
     [ContextMenu("Evaluate Utility Scores")]

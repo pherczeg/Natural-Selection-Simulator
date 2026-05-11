@@ -6,6 +6,9 @@ using UnityEngine;
 
 public class ReproductionManager
 {
+    private const float SocialStrategyFatherInheritanceChance = 0.475f;
+    private const float SocialStrategyMotherInheritanceChance = 0.475f;
+
     BaseCreatureBehaviour creature;
     private readonly Dictionary<int, float> rejectedMateCooldowns = new Dictionary<int, float>();
     public Coroutine reproductionCoroutine { get; set; }
@@ -54,8 +57,24 @@ public class ReproductionManager
     {
         if (!IsActiveCreature(creature) || !IsActiveCreature(mate) || !IsOppositeSex(mate) || !IsSameSpecies(mate)) { return; }
 
-        int offspringCount = GetOffspringCount();
         var config = GameConfig.Instance;
+        if (config == null)
+            return;
+
+        CreatureSpawner spawner = CreatureSpawner.Instance;
+        if (spawner == null)
+            return;
+
+        int offspringCount = GetOffspringCount();
+        int availableSlots = spawner.GetRemainingCreatureSlots();
+        if (availableSlots <= 0)
+            return;
+
+        if (availableSlots != int.MaxValue)
+        {
+            offspringCount = Mathf.Min(offspringCount, availableSlots);
+        }
+
         GameObject offspringPrefab = GetOffspringPrefab();
         if (offspringPrefab == null)
             return;
@@ -63,6 +82,9 @@ public class ReproductionManager
         int spawnedOffspring = 0;
         for (int i = 0; i < offspringCount; i++)
         {
+            if (!spawner.CanSpawnCreature())
+                break;
+
             var newWeight = InheritWithMutation(creature.Weight, mate.Weight, 2);
             var newMoveSpeed = InheritWithMutation(creature.MovementManager.BaseMoveSpeed, mate.MovementManager.BaseMoveSpeed, 2);
             var newSprintDuration = GetInheritedSprintDuration(mate, config);
@@ -78,6 +100,7 @@ public class ReproductionManager
             float newAgility = GetInheritedAgility(mate, config);
             HerbivoreSocialStrategy offspringSocialStrategy = GetInheritedHerbivoreSocialStrategy(mate);
             float newStrength = creature is PredatorBehaviour ? GetInheritedStrength(mate, config) : 0f;
+            CreatureUtilityBehaviorData offspringUtilityBehavior = GetInheritedUtilityBehaviorProfile(mate, config);
             Vector3 spawnPosition = mate.transform.position;
             SpawnCreatureRequest request = new SpawnCreatureRequest
             {
@@ -95,16 +118,28 @@ public class ReproductionManager
                 agility = newAgility,
                 herbivoreSocialStrategy = (int)offspringSocialStrategy,
                 strength = newStrength,
+                utilityKeepCurrentStateWeight = offspringUtilityBehavior.keepCurrentStateWeight,
+                utilityFoodActionWeight = offspringUtilityBehavior.foodActionWeight,
+                utilitySearchMateWeight = offspringUtilityBehavior.searchMateWeight,
+                utilityWanderWeight = offspringUtilityBehavior.wanderWeight,
                 initialAge = 0f
             };
 
-            if (!ECSMirrorBridge.TryRequestSpawnCreature(request))
+            bool spawnAccepted = ECSMirrorBridge.TryRequestSpawnCreature(request);
+            if (!spawnAccepted)
             {
-                BaseCreatureBehaviour offspringBehavior = CreatureSpawner.Instance.SpawnCreature(spawnPosition, offspringPrefab);
+                BaseCreatureBehaviour offspringBehavior = spawner.SpawnCreature(spawnPosition, offspringPrefab);
+                if (offspringBehavior == null)
+                    break;
+
                 InitializeOffspringFromRequest(offspringBehavior, request);
+                spawnAccepted = true;
             }
 
-            spawnedOffspring++;
+            if (spawnAccepted)
+            {
+                spawnedOffspring++;
+            }
         }
 
         if (spawnedOffspring > 0)
@@ -426,6 +461,13 @@ public class ReproductionManager
             request.sprintCooldown,
             request.sprintCooldownSpeedFactor);
         offspringBehavior.ReproductionManager?.SetDesirability(request.desirability);
+        offspringBehavior.SetUtilityBehaviorProfile(new CreatureUtilityBehaviorData
+        {
+            keepCurrentStateWeight = request.utilityKeepCurrentStateWeight,
+            foodActionWeight = request.utilityFoodActionWeight,
+            searchMateWeight = request.utilitySearchMateWeight,
+            wanderWeight = request.utilityWanderWeight
+        });
 
         if (offspringBehavior is HerbivoreBehaviour offspringHerbivore)
         {
@@ -446,15 +488,92 @@ public class ReproductionManager
             return HerbivoreSocialStrategy.Dove;
         }
 
-        bool parentIsHawk = parentHerbivore.IsHawk;
-        bool mateIsHawk = mateHerbivore.IsHawk;
+        HerbivoreSocialStrategy fatherStrategy = GetParentSocialStrategyBySex(
+            parentHerbivore,
+            mateHerbivore,
+            CreatureSex.Male);
+        HerbivoreSocialStrategy motherStrategy = GetParentSocialStrategyBySex(
+            parentHerbivore,
+            mateHerbivore,
+            CreatureSex.Female);
 
-        if (parentIsHawk == mateIsHawk)
-            return parentIsHawk ? HerbivoreSocialStrategy.Hawk : HerbivoreSocialStrategy.Dove;
+        float roll = UnityEngine.Random.value;
+        if (roll < SocialStrategyFatherInheritanceChance)
+            return fatherStrategy;
+
+        if (roll < SocialStrategyFatherInheritanceChance + SocialStrategyMotherInheritanceChance)
+            return motherStrategy;
 
         return UnityEngine.Random.value < 0.5f
             ? HerbivoreSocialStrategy.Hawk
             : HerbivoreSocialStrategy.Dove;
+    }
+
+    private CreatureUtilityBehaviorData GetInheritedUtilityBehaviorProfile(BaseCreatureBehaviour mate, GameConfig config)
+    {
+        CreatureUtilityBehaviorData thisProfile = creature != null
+            ? UtilityBehaviorScoring.Sanitize(creature.UtilityBehaviorProfile)
+            : UtilityBehaviorScoring.DefaultProfile;
+        CreatureUtilityBehaviorData mateProfile = mate != null
+            ? UtilityBehaviorScoring.Sanitize(mate.UtilityBehaviorProfile)
+            : UtilityBehaviorScoring.DefaultProfile;
+
+        CreatureUtilityBehaviorData fatherProfile = GetParentUtilityBehaviorProfileBySex(
+            thisProfile,
+            mateProfile,
+            creature,
+            mate,
+            CreatureSex.Male);
+        CreatureUtilityBehaviorData motherProfile = GetParentUtilityBehaviorProfileBySex(
+            thisProfile,
+            mateProfile,
+            creature,
+            mate,
+            CreatureSex.Female);
+
+        return UtilityBehaviorGenetics.InheritProfile(fatherProfile, motherProfile, config);
+    }
+
+    private static CreatureUtilityBehaviorData GetParentUtilityBehaviorProfileBySex(
+        CreatureUtilityBehaviorData firstParentProfile,
+        CreatureUtilityBehaviorData secondParentProfile,
+        BaseCreatureBehaviour firstParent,
+        BaseCreatureBehaviour secondParent,
+        CreatureSex sex)
+    {
+        if (firstParent != null && firstParent.Sex == sex)
+            return firstParentProfile;
+
+        if (secondParent != null && secondParent.Sex == sex)
+            return secondParentProfile;
+
+        if (firstParent != null)
+            return firstParentProfile;
+
+        if (secondParent != null)
+            return secondParentProfile;
+
+        return UtilityBehaviorScoring.DefaultProfile;
+    }
+
+    private static HerbivoreSocialStrategy GetParentSocialStrategyBySex(
+        HerbivoreBehaviour firstParent,
+        HerbivoreBehaviour secondParent,
+        CreatureSex sex)
+    {
+        if (firstParent != null && firstParent.Sex == sex)
+            return firstParent.SocialStrategy;
+
+        if (secondParent != null && secondParent.Sex == sex)
+            return secondParent.SocialStrategy;
+
+        if (firstParent != null)
+            return firstParent.SocialStrategy;
+
+        if (secondParent != null)
+            return secondParent.SocialStrategy;
+
+        return HerbivoreSocialStrategy.Dove;
     }
   
     public bool IsReadyToReproduction()

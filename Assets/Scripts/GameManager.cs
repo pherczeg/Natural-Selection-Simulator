@@ -100,7 +100,10 @@ public class GameManager : MonoBehaviour
         StringBuilder csvContent = new StringBuilder();
         csvContent.AppendLine(
             "Time,NumberOfCreatures,AverageWeight,AverageSpeed,AverageEnergy,AverageAge,AverageSenseRadius," +
-            "AliveHerbivores,AlivePredators,FoodCount,AverageEnergyAll,AverageHerbivoreEnergy,AveragePredatorEnergy," +
+            "AliveHerbivores,AliveDoves,AliveHawks,DoveRatio,HawkRatio,AlivePredators,FoodCount," +
+            "AverageEnergyAll,AverageHerbivoreEnergy,AveragePredatorEnergy," +
+            "HerbivoreUtilityKeepWeight,HerbivoreUtilityFoodWeight,HerbivoreUtilityMateWeight,HerbivoreUtilityWanderWeight," +
+            "PredatorUtilityKeepWeight,PredatorUtilityFoodWeight,PredatorUtilityMateWeight,PredatorUtilityWanderWeight," +
             "TotalHerbivoresSpawned,TotalPredatorsSpawned,TotalFoodSpawned,TotalReproductionEvents,TotalOffspringBorn," +
             "TotalPredationAttempts,TotalPredationSuccesses,TotalPredationEscapes,TotalHerbivoreDeaths,TotalPredatorDeaths," +
             "DeathsByEnergy,DeathsByPredation,DeathsByOldAge,DeathsUnknown,HerbivoreSurvivalRate,PredatorSurvivalRate,StateDistribution");
@@ -122,11 +125,23 @@ public class GameManager : MonoBehaviour
                 FormatFloat(statistics.averageAgeHistory[i]),
                 FormatFloat(statistics.averageSenseRadiusHistory[i]),
                 FormatDiagnosticInt(diagnostics, d => d.aliveHerbivores),
+                FormatDiagnosticInt(diagnostics, d => d.aliveDoves),
+                FormatDiagnosticInt(diagnostics, d => d.aliveHawks),
+                FormatDiagnosticFloat(diagnostics, d => d.doveRatio),
+                FormatDiagnosticFloat(diagnostics, d => d.hawkRatio),
                 FormatDiagnosticInt(diagnostics, d => d.alivePredators),
                 FormatDiagnosticInt(diagnostics, d => d.foodCount),
                 FormatDiagnosticFloat(diagnostics, d => d.averageEnergy),
                 FormatDiagnosticFloat(diagnostics, d => d.averageHerbivoreEnergy),
                 FormatDiagnosticFloat(diagnostics, d => d.averagePredatorEnergy),
+                FormatDiagnosticFloat(diagnostics, d => d.herbivoreUtilityKeepCurrentStateWeight),
+                FormatDiagnosticFloat(diagnostics, d => d.herbivoreUtilityFoodActionWeight),
+                FormatDiagnosticFloat(diagnostics, d => d.herbivoreUtilitySearchMateWeight),
+                FormatDiagnosticFloat(diagnostics, d => d.herbivoreUtilityWanderWeight),
+                FormatDiagnosticFloat(diagnostics, d => d.predatorUtilityKeepCurrentStateWeight),
+                FormatDiagnosticFloat(diagnostics, d => d.predatorUtilityFoodActionWeight),
+                FormatDiagnosticFloat(diagnostics, d => d.predatorUtilitySearchMateWeight),
+                FormatDiagnosticFloat(diagnostics, d => d.predatorUtilityWanderWeight),
                 FormatDiagnosticInt(diagnostics, d => d.totalHerbivoresSpawned),
                 FormatDiagnosticInt(diagnostics, d => d.totalPredatorsSpawned),
                 FormatDiagnosticInt(diagnostics, d => d.totalFoodSpawned),

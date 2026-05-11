@@ -1,12 +1,15 @@
 public static class UtilityAIScoreRules
 {
+    private const float ThreatenedStarvingHerbivoreKeepScoreNearThreshold = 0.9f;
+    private const float ThreatenedStarvingHerbivoreKeepScoreAtCritical = 0.35f;
+    private const float ThreatenedStarvingHerbivoreFoodAvailabilityNearThreshold = 0.45f;
+
     public static float GetHungerScore(UtilityAIContext context, UtilityAIScoringParameters parameters)
     {
-        float hungerThreshold = Clamp01(parameters.eatingEnergyThreshold);
-        if (hungerThreshold <= 0f || context.energyPercent >= hungerThreshold)
+        float hungerDepth = GetHungerDepth(context, parameters);
+        if (hungerDepth <= 0f)
             return 0f;
 
-        float hungerDepth = 1f - Clamp01(context.energyPercent / hungerThreshold);
         return Lerp(0.9f, 1f, hungerDepth);
     }
 
@@ -31,6 +34,27 @@ public static class UtilityAIScoreRules
         return IsHardTransitionLocked(context.currentState) || context.isThreatened ? 0f : 1f;
     }
 
+    public static float GetFoodSearchAvailabilityScore(
+        UtilityAIContext context,
+        UtilityAIScoringParameters parameters,
+        int creatureKind)
+    {
+        if (IsHardTransitionLocked(context.currentState))
+            return 0f;
+
+        if (!context.isThreatened)
+            return 1f;
+
+        // Herbivores can become progressively more risk-taking when starving.
+        if (creatureKind == ECSCreatureKind.Herbivore && IsBelowEatingEnergyThreshold(context, parameters))
+            return Lerp(
+                ThreatenedStarvingHerbivoreFoodAvailabilityNearThreshold,
+                1f,
+                GetHungerDepth(context, parameters));
+
+        return 0f;
+    }
+
     public static float GetMateSearchAvailabilityScore(UtilityAIContext context)
     {
         return IsHardTransitionLocked(context.currentState) ||
@@ -42,8 +66,26 @@ public static class UtilityAIScoreRules
 
     public static float GetKeepCurrentStateScore(UtilityAIContext context, UtilityAIScoringParameters parameters)
     {
+        return GetKeepCurrentStateScore(context, parameters, ECSCreatureKind.Unknown);
+    }
+
+    public static float GetKeepCurrentStateScore(
+        UtilityAIContext context,
+        UtilityAIScoringParameters parameters,
+        int creatureKind)
+    {
         if (context.isThreatened)
+        {
+            if (creatureKind == ECSCreatureKind.Herbivore && IsBelowEatingEnergyThreshold(context, parameters))
+            {
+                return Lerp(
+                    ThreatenedStarvingHerbivoreKeepScoreNearThreshold,
+                    ThreatenedStarvingHerbivoreKeepScoreAtCritical,
+                    GetHungerDepth(context, parameters));
+            }
+
             return 1f;
+        }
 
         if (IsHardTransitionLocked(context.currentState))
             return 1f;
@@ -85,6 +127,15 @@ public static class UtilityAIScoreRules
     public static bool IsBelowEatingEnergyThreshold(UtilityAIContext context, UtilityAIScoringParameters parameters)
     {
         return context.energyPercent < Clamp01(parameters.eatingEnergyThreshold);
+    }
+
+    private static float GetHungerDepth(UtilityAIContext context, UtilityAIScoringParameters parameters)
+    {
+        float hungerThreshold = Clamp01(parameters.eatingEnergyThreshold);
+        if (hungerThreshold <= 0f || context.energyPercent >= hungerThreshold)
+            return 0f;
+
+        return 1f - Clamp01(context.energyPercent / hungerThreshold);
     }
 
     public static float Clamp01(float score)

@@ -27,10 +27,12 @@ public class GameConfig : ScriptableObject
     [Header("Creature Spawner")]
     [Min(0)] public int initialHerbivoreCount = 5;
     [Min(0)] public int initialPredatorCount = 5;
+    [Min(0)] public int maxCreatureCount = 0;
     [Min(1)] public int creaturePoolSize = 100;
 
     [Header("Food Spawner")]
     [Min(0)] public int initialFoodCount = 20;
+    [Min(0)] public int maxFoodCount = 0;
     [Min(1)] public int foodPoolSize = 2000;
     [Min(0.01f)] public float foodSpawnInterval = 5f;
     [Min(0)] public int foodSpawnBatchSize = 5;
@@ -44,6 +46,10 @@ public class GameConfig : ScriptableObject
     public bool useEcsCreatureLifecycle = false;
     public bool logUtilityAIScores = false;
     [Min(0.01f)] public float utilityDecisionInterval = .2f;
+
+    [Header("Utility Behavior Genetics")]
+    [Range(0f, 2f)] public float utilityBehaviorWeightMin = 0.75f;
+    [Range(0f, 2f)] public float utilityBehaviorWeightMax = 1.25f;
 
     [Header("Creature Lifecycle")]
     public float oldAgeStartAge = 120f;

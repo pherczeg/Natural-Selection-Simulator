@@ -58,6 +58,9 @@ public class CreatureSpawner : MonoBehaviour
         {
             Vector3 spawnPosition = GetSpawnPosition(bounds, herbivorPrefab);
             BaseCreatureBehaviour newCreatureBehaviour = SpawnCreature(spawnPosition, herbivorPrefab);
+            if (newCreatureBehaviour == null)
+                break;
+
             newCreatureBehaviour.SetSex(GetInitialSex(i));
             var weight = Random.Range(config.herbivoreWeightMin, config.herbivoreWeightMax);
             var moveSpeed = Random.Range(config.herbivoreSpeedMin, config.herbivoreSpeedMax);
@@ -69,6 +72,7 @@ public class CreatureSpawner : MonoBehaviour
             var desirability = Random.Range(config.herbivoreDesirabilityMin, config.herbivoreDesirabilityMax);
             var agility = Random.Range(config.herbivoreAgilityMin, config.herbivoreAgilityMax);
             newCreatureBehaviour.Initialize(moveSpeed, weight, senseRange);
+            newCreatureBehaviour.RandomizeUtilityBehaviorProfile(config);
             newCreatureBehaviour.MovementManager?.SetSprintProfile(sprintDuration, sprintFactor, sprintCooldown, sprintCooldownSpeedFactor);
             newCreatureBehaviour.AgeManager.SetInitialAge(Random.Range(0f, config.oldAgeStartAge));
             newCreatureBehaviour.ReproductionManager?.SetDesirability(desirability);
@@ -83,6 +87,9 @@ public class CreatureSpawner : MonoBehaviour
         {
             Vector3 spawnPosition = GetSpawnPosition(bounds, predatorPrefab);
             BaseCreatureBehaviour newCreatureBehaviour = SpawnCreature(spawnPosition, predatorPrefab);
+            if (newCreatureBehaviour == null)
+                break;
+
             newCreatureBehaviour.SetSex(GetInitialSex(i));
             var weight = Random.Range(config.predatorWeightMin, config.predatorWeightMax);
             var moveSpeed = Random.Range(config.predatorSpeedMin, config.predatorSpeedMax);
@@ -93,6 +100,7 @@ public class CreatureSpawner : MonoBehaviour
             var senseRange = Random.Range(config.predatorSenseMin, config.predatorSenseMax);
             var strength = Random.Range(config.predatorStrengthMin, config.predatorStrengthMax);
             newCreatureBehaviour.Initialize(moveSpeed, weight, senseRange);
+            newCreatureBehaviour.RandomizeUtilityBehaviorProfile(config);
             newCreatureBehaviour.MovementManager?.SetSprintProfile(sprintDuration, sprintFactor, sprintCooldown, sprintCooldownSpeedFactor);
             newCreatureBehaviour.AgeManager.SetInitialAge(Random.Range(0f, config.oldAgeStartAge));
             if (newCreatureBehaviour is PredatorBehaviour predator)
@@ -115,6 +123,49 @@ public class CreatureSpawner : MonoBehaviour
         }
 
         return false;
+    }
+
+    public bool CanSpawnCreature()
+    {
+        return GetRemainingCreatureSlots() > 0;
+    }
+
+    public int GetRemainingCreatureSlots()
+    {
+        GameConfig config = GameConfig.Instance;
+        if (config == null)
+            return int.MaxValue;
+
+        int maxCreatureCount = Mathf.Max(0, config.maxCreatureCount);
+        if (maxCreatureCount <= 0)
+            return int.MaxValue;
+
+        return Mathf.Max(0, maxCreatureCount - GetActiveCreatureCount());
+    }
+
+    public int GetActiveCreatureCount()
+    {
+        return CountActiveCreatures(herbivorCreatures) + CountActiveCreatures(predatorCreatures);
+    }
+
+    private static int CountActiveCreatures(List<BaseCreatureBehaviour> creatures)
+    {
+        if (creatures == null)
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < creatures.Count; i++)
+        {
+            BaseCreatureBehaviour creature = creatures[i];
+            if (creature != null &&
+                creature.gameObject.activeInHierarchy &&
+                !creature.IsDespawnQueued)
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     private CreatureSex GetInitialSex(int index)
@@ -193,6 +244,9 @@ public class CreatureSpawner : MonoBehaviour
         {
             predatorCreatures = new List<BaseCreatureBehaviour>();
         }
+
+        if (!CanSpawnCreature())
+            return null;
 
         GameObject newCreature = PoolManager.Instance.GetObject(prefab);
         newCreature.transform.position = spawnPosition;

@@ -148,14 +148,14 @@ public class PredatorBehaviour : BaseCreatureBehaviour
                 "Keep Current State",
                 new[]
                 {
-                    new UtilityConsideration("Current State Lockout", context => UtilityAIScoreRules.GetKeepCurrentStateScore(context, GetUtilityAIScoringParameters()))
+                    new UtilityConsideration("Current State Lockout", context => UtilityAIScoreRules.GetKeepCurrentStateScore(context, GetUtilityAIScoringParameters(), ECSCreatureKind.Predator))
                 }),
             new UtilityAction(
                 CreatureAction.Hunt,
                 "Hunt / Search Food",
                 new[]
                 {
-                    new UtilityConsideration("Hunger", context => UtilityAIScoreRules.GetHungerScore(context, GetUtilityAIScoringParameters()) * UtilityAIScoreRules.GetFoodSearchAvailabilityScore(context))
+                    new UtilityConsideration("Hunger", context => UtilityAIScoreRules.GetHungerScore(context, GetUtilityAIScoringParameters()) * UtilityAIScoreRules.GetFoodSearchAvailabilityScore(context, GetUtilityAIScoringParameters(), ECSCreatureKind.Predator))
                 }),
             new UtilityAction(
                 CreatureAction.SearchMate,
@@ -190,6 +190,7 @@ public class PredatorBehaviour : BaseCreatureBehaviour
     public override void Initialize(float moveSpeed, float weight, float senseRadius)
     {
         var config = GameConfig.Instance;
+        EnsureUtilityBehaviorProfileInitialized();
         ResetDespawnRequestState();
         ResetUtilityAIDebugState();
         nextUtilityDecisionTime = 0f;

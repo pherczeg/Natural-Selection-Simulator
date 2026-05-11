@@ -40,6 +40,10 @@ public struct SpawnCreatureRequest : IComponentData
     public float agility;
     public int herbivoreSocialStrategy;
     public float strength;
+    public float utilityKeepCurrentStateWeight;
+    public float utilityFoodActionWeight;
+    public float utilitySearchMateWeight;
+    public float utilityWanderWeight;
     public float initialAge;
 }
 
@@ -85,6 +89,15 @@ public struct CreatureAIContextData : IComponentData
     public bool hasKnownMate;
     public bool hasKnownPrey;
     public bool isThreatened;
+}
+
+[System.Serializable]
+public struct CreatureUtilityBehaviorData : IComponentData
+{
+    public float keepCurrentStateWeight;
+    public float foodActionWeight;
+    public float searchMateWeight;
+    public float wanderWeight;
 }
 
 public struct CreatureObservationSensorData : IComponentData

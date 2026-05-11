@@ -1344,6 +1344,13 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         }
 
         creature.ReproductionManager?.SetDesirability(request.desirability);
+        creature.SetUtilityBehaviorProfile(new CreatureUtilityBehaviorData
+        {
+            keepCurrentStateWeight = request.utilityKeepCurrentStateWeight,
+            foodActionWeight = request.utilityFoodActionWeight,
+            searchMateWeight = request.utilitySearchMateWeight,
+            wanderWeight = request.utilityWanderWeight
+        });
         if (creature is HerbivoreBehaviour herbivore)
         {
             herbivore.SetAgility(request.agility);
@@ -1476,6 +1483,7 @@ public sealed class ECSMirrorBridge : MonoBehaviour
             entityManager.SetComponentData(entity, CreateCreatureIdentity(creature, instanceId));
             entityManager.SetComponentData(entity, CreateCreatureLifecycleData(entityManager, entity, creature, instanceId));
             entityManager.SetComponentData(entity, CreateCreatureAIContextData(UtilityAIContextFactory.FromMonoCreature(creature)));
+            entityManager.SetComponentData(entity, CreateCreatureUtilityBehaviorData(creature));
             entityManager.SetComponentData(entity, CreateCreatureObservationSensorData(creature));
 
             if (createdEntity)
@@ -1739,6 +1747,7 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         AddComponentIfMissing<CreatureIdentity>(entityManager, entity);
         AddComponentIfMissing<CreatureTransformMirror>(entityManager, entity);
         AddComponentIfMissing<CreatureAIContextData>(entityManager, entity);
+        AddComponentIfMissing<CreatureUtilityBehaviorData>(entityManager, entity);
         AddComponentIfMissing<CreatureLifecycleData>(entityManager, entity);
         AddComponentIfMissing<CreatureObservationSensorData>(entityManager, entity);
         AddComponentIfMissing<CreatureObservationResultData>(entityManager, entity);
@@ -1995,6 +2004,14 @@ public sealed class ECSMirrorBridge : MonoBehaviour
             hasKnownPrey = context.hasKnownPrey,
             isThreatened = context.isThreatened
         };
+    }
+
+    private static CreatureUtilityBehaviorData CreateCreatureUtilityBehaviorData(BaseCreatureBehaviour creature)
+    {
+        if (creature == null)
+            return UtilityBehaviorScoring.DefaultProfile;
+
+        return UtilityBehaviorScoring.Sanitize(creature.UtilityBehaviorProfile);
     }
 
     private static CreatureLifecycleData CreateCreatureLifecycleData(

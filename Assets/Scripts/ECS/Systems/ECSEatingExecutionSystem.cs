@@ -61,6 +61,29 @@ public partial class ECSEatingExecutionSystem : SystemBase
                 creatureIndexByInstanceId[creatureIdentities[i].gameObjectInstanceId] = i;
             }
 
+            var activeFoodConsumerInstanceIds = new HashSet<int>();
+            for (int i = 0; i < creatureIdentities.Length; i++)
+            {
+                if (!IsFoodConsumingAction(actionRequests[i], actionStates[i]))
+                    continue;
+
+                int creatureInstanceId = creatureIdentities[i].gameObjectInstanceId;
+                if (creatureInstanceId == 0)
+                    continue;
+
+                if (!ECSMirrorBridge.TryGetCreatureByInstanceId(creatureInstanceId, out BaseCreatureBehaviour consumer) ||
+                    consumer == null ||
+                    consumer.IsDespawnQueued ||
+                    !consumer.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                activeFoodConsumerInstanceIds.Add(creatureInstanceId);
+            }
+
+            ReleaseStaleFoodLocks(foodEntities, foodMirrors, activeFoodConsumerInstanceIds, entityManager);
+
             for (int creatureIndex = 0; creatureIndex < creatureEntities.Length; creatureIndex++)
             {
                 Entity creatureEntity = creatureEntities[creatureIndex];
@@ -97,6 +120,12 @@ public partial class ECSEatingExecutionSystem : SystemBase
 
                 if (request.cancelRequested)
                 {
+                    ReleaseFoodLockIfOwnedByCreature(
+                        targetFoodId,
+                        identity.gameObjectInstanceId,
+                        foodEntities,
+                        foodMirrors,
+                        entityManager);
                     FinalizeActionCancelled(ref request, ref actionState, ref actionTarget, ref actionTimer);
                     WriteCreatureAction(entityManager, creatureEntity, request, actionState, actionTarget, actionTimer);
                     continue;
@@ -111,6 +140,12 @@ public partial class ECSEatingExecutionSystem : SystemBase
 
                 if (!TryFindFoodByInstanceId(foodEntities, foodMirrors, targetFoodId, out int foodIndex))
                 {
+                    ReleaseFoodLockIfOwnedByCreature(
+                        targetFoodId,
+                        identity.gameObjectInstanceId,
+                        foodEntities,
+                        foodMirrors,
+                        entityManager);
                     FinalizeActionCancelled(ref request, ref actionState, ref actionTarget, ref actionTimer);
                     WriteCreatureAction(entityManager, creatureEntity, request, actionState, actionTarget, actionTimer);
                     continue;
@@ -253,6 +288,77 @@ public partial class ECSEatingExecutionSystem : SystemBase
         }
 
         return false;
+    }
+
+    private static bool IsFoodConsumingAction(
+        CreatureActionRequestData request,
+        CreatureActionStateData actionState)
+    {
+        bool isEatingAction =
+            actionState.currentAction == CreatureAction.SearchFood &&
+            actionState.phase == CreatureActionPhase.Executing;
+        bool hasEatingExecuteRequest =
+            request.hasRequest &&
+            request.requestedAction == CreatureAction.SearchFood &&
+            request.requestedPhase == CreatureActionPhase.Executing;
+
+        return isEatingAction || hasEatingExecuteRequest;
+    }
+
+    private static void ReleaseStaleFoodLocks(
+        NativeArray<Entity> foodEntities,
+        NativeArray<FoodMirrorData> foodMirrors,
+        HashSet<int> activeFoodConsumerInstanceIds,
+        EntityManager entityManager)
+    {
+        for (int i = 0; i < foodMirrors.Length; i++)
+        {
+            FoodMirrorData foodData = foodMirrors[i];
+            if (!foodData.isBeingEaten)
+                continue;
+
+            int ownerId = foodData.eatingCreatureInstanceId;
+            if (ownerId != 0 && activeFoodConsumerInstanceIds.Contains(ownerId))
+                continue;
+
+            foodData.isBeingEaten = false;
+            foodData.eatingCreatureInstanceId = 0;
+            foodMirrors[i] = foodData;
+
+            Entity foodEntity = foodEntities[i];
+            if (entityManager.Exists(foodEntity))
+            {
+                entityManager.SetComponentData(foodEntity, foodData);
+            }
+        }
+    }
+
+    private static void ReleaseFoodLockIfOwnedByCreature(
+        int targetFoodId,
+        int creatureInstanceId,
+        NativeArray<Entity> foodEntities,
+        NativeArray<FoodMirrorData> foodMirrors,
+        EntityManager entityManager)
+    {
+        if (targetFoodId == 0 || creatureInstanceId == 0)
+            return;
+
+        if (!TryFindFoodByInstanceId(foodEntities, foodMirrors, targetFoodId, out int foodIndex))
+            return;
+
+        FoodMirrorData foodData = foodMirrors[foodIndex];
+        if (!foodData.isBeingEaten || foodData.eatingCreatureInstanceId != creatureInstanceId)
+            return;
+
+        foodData.isBeingEaten = false;
+        foodData.eatingCreatureInstanceId = 0;
+        foodMirrors[foodIndex] = foodData;
+
+        Entity foodEntity = foodEntities[foodIndex];
+        if (entityManager.Exists(foodEntity))
+        {
+            entityManager.SetComponentData(foodEntity, foodData);
+        }
     }
 
     private static bool TryAcquireFoodLock(

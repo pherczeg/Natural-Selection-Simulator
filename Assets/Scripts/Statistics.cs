@@ -11,6 +11,10 @@ public class SpeciesStatisticsSnapshot
     public int count;
     public int femaleCount;
     public int maleCount;
+    public int doveCount;
+    public int hawkCount;
+    public float doveRatio;
+    public float hawkRatio;
 
     public float averageWeight;
     public float minWeight;
@@ -75,6 +79,11 @@ public class SpeciesStatisticsSnapshot
     public float averageStrength;
     public float minStrength;
     public float maxStrength;
+
+    public float averageUtilityKeepCurrentStateWeight;
+    public float averageUtilityFoodActionWeight;
+    public float averageUtilitySearchMateWeight;
+    public float averageUtilityWanderWeight;
 }
 
 public enum CreatureDeathReason
@@ -102,11 +111,21 @@ public class SimulationDiagnosticsSnapshot
 
     public int aliveHerbivores;
     public int alivePredators;
+    public int aliveDoves;
+    public int aliveHawks;
     public int foodCount;
 
     public float averageEnergy;
     public float averageHerbivoreEnergy;
     public float averagePredatorEnergy;
+    public float herbivoreUtilityKeepCurrentStateWeight;
+    public float herbivoreUtilityFoodActionWeight;
+    public float herbivoreUtilitySearchMateWeight;
+    public float herbivoreUtilityWanderWeight;
+    public float predatorUtilityKeepCurrentStateWeight;
+    public float predatorUtilityFoodActionWeight;
+    public float predatorUtilitySearchMateWeight;
+    public float predatorUtilityWanderWeight;
     public int reproductionReadyHerbivores;
     public int reproductionReadyPredators;
 
@@ -127,6 +146,8 @@ public class SimulationDiagnosticsSnapshot
 
     public float herbivoreSurvivalRate;
     public float predatorSurvivalRate;
+    public float doveRatio;
+    public float hawkRatio;
 
     public List<CreatureStateCount> stateDistribution = new List<CreatureStateCount>();
 
@@ -360,10 +381,20 @@ public class Statistics : MonoBehaviour
             elapsedTime = statistics != null ? statistics.elapsedTime : Time.time,
             aliveHerbivores = herbivores.Length,
             alivePredators = predators.Length,
+            aliveDoves = CountHerbivoreStrategy(herbivores, HerbivoreSocialStrategy.Dove),
+            aliveHawks = CountHerbivoreStrategy(herbivores, HerbivoreSocialStrategy.Hawk),
             foodCount = CountActiveFood(),
             averageEnergy = CalculateAverageEnergy(allCreatures),
             averageHerbivoreEnergy = CalculateAverageEnergy(herbivores),
             averagePredatorEnergy = CalculateAverageEnergy(predators),
+            herbivoreUtilityKeepCurrentStateWeight = CalculateAverageUtilityActionWeight(herbivores, p => p.keepCurrentStateWeight),
+            herbivoreUtilityFoodActionWeight = CalculateAverageUtilityActionWeight(herbivores, p => p.foodActionWeight),
+            herbivoreUtilitySearchMateWeight = CalculateAverageUtilityActionWeight(herbivores, p => p.searchMateWeight),
+            herbivoreUtilityWanderWeight = CalculateAverageUtilityActionWeight(herbivores, p => p.wanderWeight),
+            predatorUtilityKeepCurrentStateWeight = CalculateAverageUtilityActionWeight(predators, p => p.keepCurrentStateWeight),
+            predatorUtilityFoodActionWeight = CalculateAverageUtilityActionWeight(predators, p => p.foodActionWeight),
+            predatorUtilitySearchMateWeight = CalculateAverageUtilityActionWeight(predators, p => p.searchMateWeight),
+            predatorUtilityWanderWeight = CalculateAverageUtilityActionWeight(predators, p => p.wanderWeight),
             reproductionReadyHerbivores = CountReproductionReady(herbivores),
             reproductionReadyPredators = CountReproductionReady(predators),
             totalHerbivoresSpawned = totalHerbivoresSpawned,
@@ -382,6 +413,8 @@ public class Statistics : MonoBehaviour
             deathsUnknown = statistics?.deathsUnknown ?? 0,
             herbivoreSurvivalRate = CalculateSurvivalRate(herbivores.Length, totalHerbivoresSpawned),
             predatorSurvivalRate = CalculateSurvivalRate(predators.Length, totalPredatorsSpawned),
+            doveRatio = CalculateRatio(CountHerbivoreStrategy(herbivores, HerbivoreSocialStrategy.Dove), herbivores.Length),
+            hawkRatio = CalculateRatio(CountHerbivoreStrategy(herbivores, HerbivoreSocialStrategy.Hawk), herbivores.Length),
             stateDistribution = BuildStateDistribution(herbivores, predators)
         };
     }
@@ -394,7 +427,10 @@ public class Statistics : MonoBehaviour
         return
             $"SimulationDiagnostics t={snapshot.elapsedTime:F1}s | " +
             $"alive H={snapshot.aliveHerbivores} P={snapshot.alivePredators}, food={snapshot.foodCount}, " +
+            $"social doves={snapshot.aliveDoves} hawks={snapshot.aliveHawks} hawkRatio={snapshot.hawkRatio:P0}, " +
             $"avgEnergy all={snapshot.averageEnergy:F1} H={snapshot.averageHerbivoreEnergy:F1} P={snapshot.averagePredatorEnergy:F1} | " +
+            $"utility H(k/f/m/w)={snapshot.herbivoreUtilityKeepCurrentStateWeight:F2}/{snapshot.herbivoreUtilityFoodActionWeight:F2}/{snapshot.herbivoreUtilitySearchMateWeight:F2}/{snapshot.herbivoreUtilityWanderWeight:F2} " +
+            $"P(k/f/m/w)={snapshot.predatorUtilityKeepCurrentStateWeight:F2}/{snapshot.predatorUtilityFoodActionWeight:F2}/{snapshot.predatorUtilitySearchMateWeight:F2}/{snapshot.predatorUtilityWanderWeight:F2} | " +
             $"reproReady H={snapshot.reproductionReadyHerbivores} P={snapshot.reproductionReadyPredators} | " +
             $"spawned H={snapshot.totalHerbivoresSpawned} P={snapshot.totalPredatorsSpawned} food={snapshot.totalFoodSpawned}, " +
             $"repro events={snapshot.totalReproductionEvents} offspring={snapshot.totalOffspringBorn}, " +
@@ -420,6 +456,10 @@ public class Statistics : MonoBehaviour
 
         s.femaleCount = creatures.Count(c => c.Sex == CreatureSex.Female);
         s.maleCount = creatures.Count(c => c.Sex == CreatureSex.Male);
+        s.doveCount = creatures.Count(c => c is HerbivoreBehaviour h && h.SocialStrategy == HerbivoreSocialStrategy.Dove);
+        s.hawkCount = creatures.Count(c => c is HerbivoreBehaviour h && h.SocialStrategy == HerbivoreSocialStrategy.Hawk);
+        s.doveRatio = CalculateRatio(s.doveCount, creatures.Length);
+        s.hawkRatio = CalculateRatio(s.hawkCount, creatures.Length);
 
         FillTriplet(creatures.Select(c => c.Weight), out s.averageWeight, out s.minWeight, out s.maxWeight);
         FillTriplet(creatures.Select(c => c.MovementManager.MoveSpeed), out s.averageSpeed, out s.minSpeed, out s.maxSpeed);
@@ -447,6 +487,11 @@ public class Statistics : MonoBehaviour
             out s.averageStrength,
             out s.minStrength,
             out s.maxStrength);
+
+        s.averageUtilityKeepCurrentStateWeight = creatures.Average(c => c.UtilityBehaviorProfile.keepCurrentStateWeight);
+        s.averageUtilityFoodActionWeight = creatures.Average(c => c.UtilityBehaviorProfile.foodActionWeight);
+        s.averageUtilitySearchMateWeight = creatures.Average(c => c.UtilityBehaviorProfile.searchMateWeight);
+        s.averageUtilityWanderWeight = creatures.Average(c => c.UtilityBehaviorProfile.wanderWeight);
 
         return s;
     }
@@ -482,6 +527,13 @@ public class Statistics : MonoBehaviour
     private static int CountReproductionReady(BaseCreatureBehaviour[] creatures)
     {
         return creatures.Count(IsReproductionReadyForDiagnostics);
+    }
+
+    private static int CountHerbivoreStrategy(
+        BaseCreatureBehaviour[] creatures,
+        HerbivoreSocialStrategy strategy)
+    {
+        return creatures.Count(c => c is HerbivoreBehaviour herbivore && herbivore.SocialStrategy == strategy);
     }
 
     private static bool IsReproductionReadyForDiagnostics(BaseCreatureBehaviour creature)
@@ -547,6 +599,38 @@ public class Statistics : MonoBehaviour
             return 0f;
 
         return (float)aliveCount / spawnedCount;
+    }
+
+    private static float CalculateRatio(int count, int total)
+    {
+        if (total <= 0)
+            return 0f;
+
+        return (float)count / total;
+    }
+
+    private static float CalculateAverageUtilityActionWeight(
+        BaseCreatureBehaviour[] creatures,
+        Func<CreatureUtilityBehaviorData, float> selector)
+    {
+        if (creatures == null || creatures.Length == 0 || selector == null)
+            return 0f;
+
+        float sum = 0f;
+        int count = 0;
+
+        for (int i = 0; i < creatures.Length; i++)
+        {
+            BaseCreatureBehaviour creature = creatures[i];
+            if (creature == null)
+                continue;
+
+            CreatureUtilityBehaviorData profile = UtilityBehaviorScoring.Sanitize(creature.UtilityBehaviorProfile);
+            sum += selector(profile);
+            count++;
+        }
+
+        return count > 0 ? sum / count : 0f;
     }
 
     private static void FillTriplet(IEnumerable<float> source, out float avg, out float min, out float max)

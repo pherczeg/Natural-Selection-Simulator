@@ -13,12 +13,14 @@ MonoBehaviour:
   m_Name: GameConfig
   m_EditorClassIdentifier: 
   updateInterval: 0.2
-  initialHerbivoreCount: 500
-  initialPredatorCount: 10
-  creaturePoolSize: 2000
-  initialFoodCount: 2
+  initialHerbivoreCount: 20
+  initialPredatorCount: 5
+  maxCreatureCount: 500
+  creaturePoolSize: 2
+  initialFoodCount: 50
+  maxFoodCount: 0
   foodPoolSize: 100
-  foodSpawnInterval: 5
+  foodSpawnInterval: 1
   foodSpawnBatchSize: 2
   useUtilityAI: 1
   useEcsObservation: 1
@@ -28,6 +30,8 @@ MonoBehaviour:
   useEcsCreatureLifecycle: 1
   logUtilityAIScores: 0
   utilityDecisionInterval: 0.2
+  utilityBehaviorWeightMin: 0.75
+  utilityBehaviorWeightMax: 1.25
   oldAgeStartAge: 180
   creatureMaxAge: 300
   maturityAge: 20
@@ -43,7 +47,7 @@ MonoBehaviour:
   initialEnergyPercentageHerbivore: 0.5
   initialEnergyPercentagePredator: 0.5
   eatingEnergyThreshold: 0.5
-  energyConsumptionCoefficient: 0.08
+  energyConsumptionCoefficient: 0.01
   predatorEnergyGainPerPreyWeight: 50
   blackListDuration: 5
   herbivoreReproductionTime: 1
@@ -73,8 +77,8 @@ MonoBehaviour:
   sizeDifferentFactor: 1.5
   herbivoreWeightMin: 5
   herbivoreWeightMax: 10
-  herbivoreSpeedMin: 1
-  herbivoreSpeedMax: 2
+  herbivoreSpeedMin: 4
+  herbivoreSpeedMax: 8
   herbivoreSprintDurationMin: 0.6
   herbivoreSprintDurationMax: 1.8
   herbivoreSprintFactorMin: 1.15
@@ -83,8 +87,8 @@ MonoBehaviour:
   herbivoreSprintCooldownMax: 4
   herbivoreSprintCooldownSpeedFactorMin: 0.7
   herbivoreSprintCooldownSpeedFactorMax: 0.95
-  herbivoreSenseMin: 5
-  herbivoreSenseMax: 15
+  herbivoreSenseMin: 10
+  herbivoreSenseMax: 20
   herbivoreDesirabilityMin: 0.2
   herbivoreDesirabilityMax: 1
   herbivoreAgilityMin: 0.2
@@ -125,8 +129,8 @@ MonoBehaviour:
   herbivoreMaleColor: {r: 0.35, g: 0.65, b: 1, a: 1}
   predatorFemaleColor: {r: 1, g: 0.35, b: 0.35, a: 1}
   predatorMaleColor: {r: 0.45, g: 0.45, b: 0.45, a: 1}
-  nutritionConsumptionRatePerSecond: 150
+  nutritionConsumptionRatePerSecond: 100
   minNutrionValue: 50
   maxNutrionValue: 200
-  foodMaturityAge: 3
+  foodMaturityAge: 0.1
   foodMaxAge: 60

@@ -15,6 +15,13 @@ public abstract class BaseCreatureBehaviour : MonoBehaviour
     [SerializeField,TextArea]
     public string DEBUG_string;
     [SerializeField] protected CreatureUtilityBrain utilityBrain;
+    [SerializeField] private CreatureUtilityBehaviorData utilityBehaviorProfile = new CreatureUtilityBehaviorData
+    {
+        keepCurrentStateWeight = UtilityBehaviorScoring.DefaultWeight,
+        foodActionWeight = UtilityBehaviorScoring.DefaultWeight,
+        searchMateWeight = UtilityBehaviorScoring.DefaultWeight,
+        wanderWeight = UtilityBehaviorScoring.DefaultWeight
+    };
     [SerializeField, TextArea(2, 4)] private string utilityAIDebugString;
     [SerializeField] private CreatureAction lastUtilityAISelectedAction = CreatureAction.None;
     [SerializeField] private CreatureStateType lastUtilityAITransitionStateType = CreatureStateType.None;
@@ -43,6 +50,7 @@ public abstract class BaseCreatureBehaviour : MonoBehaviour
     public IReadOnlyList<UtilityActionScore> LastUtilityAIActionScores => utilityBrain != null ? utilityBrain.LastActionScores : EmptyUtilityAIActionScores;
     public string LastUtilityAISelectedActionId => utilityBrain != null ? utilityBrain.LastSelectedActionId : string.Empty;
     public CreatureAction LastUtilityAISelectedAction => utilityBrain != null ? utilityBrain.LastSelectedCreatureAction : lastUtilityAISelectedAction;
+    public CreatureUtilityBehaviorData UtilityBehaviorProfile => utilityBehaviorProfile;
     public CreatureStateType LastUtilityAISelectedStateType => lastUtilityAITransitionStateType;
     public CreatureStateType LastUtilityAITransitionStateType => lastUtilityAITransitionStateType;
     public CreatureStateType LastUtilityAIResultStateType => lastUtilityAIResultStateType;
@@ -65,6 +73,21 @@ public abstract class BaseCreatureBehaviour : MonoBehaviour
     {
         Sex = sex;
         OnSexChanged();
+    }
+
+    public void SetUtilityBehaviorProfile(CreatureUtilityBehaviorData profile)
+    {
+        utilityBehaviorProfile = UtilityBehaviorScoring.Sanitize(profile);
+    }
+
+    public void RandomizeUtilityBehaviorProfile(GameConfig config)
+    {
+        utilityBehaviorProfile = UtilityBehaviorGenetics.CreateRandomProfile(config);
+    }
+
+    protected void EnsureUtilityBehaviorProfileInitialized()
+    {
+        utilityBehaviorProfile = UtilityBehaviorScoring.Sanitize(utilityBehaviorProfile);
     }
 
     protected virtual void OnSexChanged()

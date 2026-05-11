@@ -44,6 +44,9 @@ public class FoodSpawner : MonoBehaviour
         PoolManager.Instance.CreatePool(foodPrefab, foodPoolSize);
         for (int i = 0; i < initialFoodCount; i++)
         {
+            if (!CanSpawnFood())
+                break;
+
             RequestSpawnFood();
         }
 
@@ -52,7 +55,7 @@ public class FoodSpawner : MonoBehaviour
 
     void RequestSpawnFood()
     {
-        if (ground == null) return;
+        if (ground == null || !CanSpawnFood()) return;
         Renderer groundRenderer = ground.GetComponent<Renderer>();
         if (groundRenderer == null) return;
 
@@ -85,6 +88,9 @@ public class FoodSpawner : MonoBehaviour
         {
             foods = new List<Food>();
         }
+
+        if (!CanSpawnFood())
+            return null;
 
         var foodGameObject = PoolManager.Instance.GetObject(foodPrefab);
         foodGameObject.transform.position = new Vector3(request.position.x, request.position.y, request.position.z);
@@ -152,6 +158,49 @@ public class FoodSpawner : MonoBehaviour
         foods.Remove(food);
     }
 
+    public bool CanSpawnFood()
+    {
+        return GetRemainingFoodSlots() > 0;
+    }
+
+    public int GetRemainingFoodSlots()
+    {
+        GameConfig config = GameConfig.Instance;
+        if (config == null)
+            return int.MaxValue;
+
+        int maxFoodCount = Mathf.Max(0, config.maxFoodCount);
+        if (maxFoodCount <= 0)
+            return int.MaxValue;
+
+        return Mathf.Max(0, maxFoodCount - GetActiveFoodCount());
+    }
+
+    public int GetActiveFoodCount()
+    {
+        return CountActiveFoods(foods);
+    }
+
+    private static int CountActiveFoods(List<Food> foodList)
+    {
+        if (foodList == null)
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < foodList.Count; i++)
+        {
+            Food food = foodList[i];
+            if (food != null &&
+                food.gameObject.activeInHierarchy &&
+                !food.IsDespawnQueued)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
     bool IsPlaceOccupied(Vector3 position)
     {
         float checkRadius = 1.5f;
@@ -176,7 +225,12 @@ public class FoodSpawner : MonoBehaviour
 
             yield return new WaitForSeconds(spawnInterval);
             for (int i = 0; i < spawnBatchSize; i++)
+            {
+                if (!CanSpawnFood())
+                    break;
+
                 RequestSpawnFood();
+            }
         }
     }
 }

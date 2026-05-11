@@ -15,6 +15,7 @@ public partial class ECSUtilityScoringSystem : SystemBase
         scoringQuery = GetEntityQuery(
             ComponentType.ReadOnly<CreatureIdentity>(),
             ComponentType.ReadOnly<CreatureAIContextData>(),
+            ComponentType.ReadOnly<CreatureUtilityBehaviorData>(),
             ComponentType.ReadOnly<CreatureObservationResultData>(),
             ComponentType.ReadWrite<CreatureUtilityDecisionData>());
 
@@ -61,6 +62,7 @@ public partial struct ECSUtilityScoringJob : IJobEntity
     public void Execute(
         in CreatureIdentity identity,
         in CreatureAIContextData contextData,
+        in CreatureUtilityBehaviorData behaviorData,
         in CreatureObservationResultData observationResult,
         ref CreatureUtilityDecisionData decisionData)
     {
@@ -75,6 +77,7 @@ public partial struct ECSUtilityScoringJob : IJobEntity
         decisionData = UtilityAIDefaultScorer.Score(
             identity,
             contextData,
+            behaviorData,
             observationResult,
             parameters,
             decisionTime);

@@ -106,13 +106,11 @@ public class Food : MonoBehaviour
     {
         age = data.age;
         GrowthFraction = data.growthFraction;
-
-        if (!applyGrowthVisuals)
-            return;
-
         maxNutritionValue = data.maxNutritionValue;
         nutritionValue = Mathf.Max(0f, data.nutritionValue);
-        transform.localScale = ToVector3(data.scale);
+
+        if (applyGrowthVisuals)
+            transform.localScale = ToVector3(data.scale);
 
         if (IsBeingEaten)
             FoodColor = Color.red;
