@@ -164,7 +164,6 @@ public class GameManager : MonoBehaviour
 
         string filePath = Path.Combine(Application.persistentDataPath, $"game_statistics_{simulationNumber:000}.csv");
         File.WriteAllText(filePath, csvContent.ToString());
-
         Debug.Log($"Simulation {simulationNumber}/{TotalSimulationCount} statistics exported to {filePath}");
 
         statistics.Reset();

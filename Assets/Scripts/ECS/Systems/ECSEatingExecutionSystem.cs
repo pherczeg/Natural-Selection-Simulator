@@ -9,6 +9,9 @@ public partial class ECSEatingExecutionSystem : SystemBase
 {
     private EntityQuery creatureQuery;
     private EntityQuery foodQuery;
+    private readonly Dictionary<int, int> creatureIndexByInstanceId = new Dictionary<int, int>();
+    private readonly Dictionary<int, int> foodIndexByInstanceId = new Dictionary<int, int>();
+    private readonly HashSet<int> activeFoodConsumerInstanceIds = new HashSet<int>();
 
     protected override void OnCreate()
     {
@@ -55,13 +58,19 @@ public partial class ECSEatingExecutionSystem : SystemBase
             foodEntities = foodQuery.ToEntityArray(Allocator.Temp);
             foodMirrors = foodQuery.ToComponentDataArray<FoodMirrorData>(Allocator.Temp);
 
-            var creatureIndexByInstanceId = new Dictionary<int, int>(creatureIdentities.Length);
+            creatureIndexByInstanceId.Clear();
             for (int i = 0; i < creatureIdentities.Length; i++)
             {
                 creatureIndexByInstanceId[creatureIdentities[i].gameObjectInstanceId] = i;
             }
 
-            var activeFoodConsumerInstanceIds = new HashSet<int>();
+            foodIndexByInstanceId.Clear();
+            for (int i = 0; i < foodMirrors.Length; i++)
+            {
+                foodIndexByInstanceId[foodMirrors[i].gameObjectInstanceId] = i;
+            }
+
+            activeFoodConsumerInstanceIds.Clear();
             for (int i = 0; i < creatureIdentities.Length; i++)
             {
                 if (!IsFoodConsumingAction(actionRequests[i], actionStates[i]))
@@ -123,6 +132,7 @@ public partial class ECSEatingExecutionSystem : SystemBase
                     ReleaseFoodLockIfOwnedByCreature(
                         targetFoodId,
                         identity.gameObjectInstanceId,
+                        foodIndexByInstanceId,
                         foodEntities,
                         foodMirrors,
                         entityManager);
@@ -138,11 +148,12 @@ public partial class ECSEatingExecutionSystem : SystemBase
                     continue;
                 }
 
-                if (!TryFindFoodByInstanceId(foodEntities, foodMirrors, targetFoodId, out int foodIndex))
+                if (!TryFindFoodIndexByInstanceId(foodIndexByInstanceId, targetFoodId, out int foodIndex))
                 {
                     ReleaseFoodLockIfOwnedByCreature(
                         targetFoodId,
                         identity.gameObjectInstanceId,
+                        foodIndexByInstanceId,
                         foodEntities,
                         foodMirrors,
                         entityManager);
@@ -268,26 +279,16 @@ public partial class ECSEatingExecutionSystem : SystemBase
         }
     }
 
-    private static bool TryFindFoodByInstanceId(
-        NativeArray<Entity> foodEntities,
-        NativeArray<FoodMirrorData> foodMirrors,
+    private static bool TryFindFoodIndexByInstanceId(
+        Dictionary<int, int> foodIndexByInstanceId,
         int targetFoodId,
         out int foodIndex)
     {
-        foodIndex = -1;
+        foodIndex = default;
         if (targetFoodId == 0)
             return false;
 
-        for (int i = 0; i < foodMirrors.Length; i++)
-        {
-            if (foodMirrors[i].gameObjectInstanceId == targetFoodId)
-            {
-                foodIndex = i;
-                return true;
-            }
-        }
-
-        return false;
+        return foodIndexByInstanceId.TryGetValue(targetFoodId, out foodIndex);
     }
 
     private static bool IsFoodConsumingAction(
@@ -336,6 +337,7 @@ public partial class ECSEatingExecutionSystem : SystemBase
     private static void ReleaseFoodLockIfOwnedByCreature(
         int targetFoodId,
         int creatureInstanceId,
+        Dictionary<int, int> foodIndexByInstanceId,
         NativeArray<Entity> foodEntities,
         NativeArray<FoodMirrorData> foodMirrors,
         EntityManager entityManager)
@@ -343,7 +345,7 @@ public partial class ECSEatingExecutionSystem : SystemBase
         if (targetFoodId == 0 || creatureInstanceId == 0)
             return;
 
-        if (!TryFindFoodByInstanceId(foodEntities, foodMirrors, targetFoodId, out int foodIndex))
+        if (!TryFindFoodIndexByInstanceId(foodIndexByInstanceId, targetFoodId, out int foodIndex))
             return;
 
         FoodMirrorData foodData = foodMirrors[foodIndex];

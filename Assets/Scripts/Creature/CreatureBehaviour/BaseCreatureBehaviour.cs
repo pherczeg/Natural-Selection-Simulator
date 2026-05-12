@@ -11,6 +11,7 @@ public enum CreatureSex
 public abstract class BaseCreatureBehaviour : MonoBehaviour
 {
     private static readonly IReadOnlyList<UtilityActionScore> EmptyUtilityAIActionScores = new List<UtilityActionScore>(0);
+    private static CreatureSpawner cachedCreatureSpawner;
 
     [SerializeField,TextArea]
     public string DEBUG_string;
@@ -66,7 +67,15 @@ public abstract class BaseCreatureBehaviour : MonoBehaviour
     public CoroutineRunner coroutineRunner;
     void Awake()
     {
-        creatureSpawner = FindObjectOfType<CreatureSpawner>();
+        creatureSpawner = CreatureSpawner.Instance != null
+            ? CreatureSpawner.Instance
+            : cachedCreatureSpawner;
+
+        if (creatureSpawner == null)
+        {
+            creatureSpawner = FindObjectOfType<CreatureSpawner>();
+            cachedCreatureSpawner = creatureSpawner;
+        }
     }
 
     public void SetSex(CreatureSex sex)

@@ -16,6 +16,8 @@ public sealed class ECSMirrorBridge : MonoBehaviour
     private readonly Dictionary<int, Entity> foodEntities = new Dictionary<int, Entity>();
     private readonly Dictionary<int, BaseCreatureBehaviour> activeCreaturesByInstanceId = new Dictionary<int, BaseCreatureBehaviour>();
     private readonly Dictionary<int, Food> activeFoodByInstanceId = new Dictionary<int, Food>();
+    private readonly HashSet<int> unresolvedCreatureIds = new HashSet<int>();
+    private readonly HashSet<int> unresolvedFoodIds = new HashSet<int>();
     private readonly HashSet<int> seenCreatureIds = new HashSet<int>();
     private readonly HashSet<int> seenFoodIds = new HashSet<int>();
     private readonly List<int> staleIds = new List<int>();
@@ -82,12 +84,8 @@ public sealed class ECSMirrorBridge : MonoBehaviour
 
     public static bool TryGetCreatureByInstanceId(int instanceId, out BaseCreatureBehaviour creature)
     {
-        if (instance != null &&
-            instance.activeCreaturesByInstanceId.TryGetValue(instanceId, out creature) &&
-            creature != null)
-        {
-            return creature.gameObject.activeInHierarchy;
-        }
+        if (instance != null)
+            return instance.TryResolveCreatureByInstanceId(instanceId, out creature);
 
         creature = FindCreatureByInstanceId(instanceId);
         return creature != null && creature.gameObject.activeInHierarchy;
@@ -95,15 +93,87 @@ public sealed class ECSMirrorBridge : MonoBehaviour
 
     public static bool TryGetFoodByInstanceId(int instanceId, out Food food)
     {
-        if (instance != null &&
-            instance.activeFoodByInstanceId.TryGetValue(instanceId, out food) &&
-            food != null)
-        {
-            return food.gameObject.activeInHierarchy;
-        }
+        if (instance != null)
+            return instance.TryResolveFoodByInstanceId(instanceId, out food);
 
         food = FindFoodByInstanceId(instanceId);
         return food != null && food.gameObject.activeInHierarchy;
+    }
+
+    private bool TryResolveCreatureByInstanceId(int instanceId, out BaseCreatureBehaviour creature)
+    {
+        if (instanceId == 0)
+        {
+            creature = null;
+            return false;
+        }
+
+        if (activeCreaturesByInstanceId.TryGetValue(instanceId, out creature))
+        {
+            if (creature != null && creature.gameObject.activeInHierarchy)
+            {
+                unresolvedCreatureIds.Remove(instanceId);
+                return true;
+            }
+
+            activeCreaturesByInstanceId.Remove(instanceId);
+        }
+
+        if (unresolvedCreatureIds.Contains(instanceId))
+        {
+            creature = null;
+            return false;
+        }
+
+        creature = FindCreatureByInstanceId(instanceId);
+        if (creature == null || !creature.gameObject.activeInHierarchy)
+        {
+            unresolvedCreatureIds.Add(instanceId);
+            creature = null;
+            return false;
+        }
+
+        activeCreaturesByInstanceId[instanceId] = creature;
+        unresolvedCreatureIds.Remove(instanceId);
+        return true;
+    }
+
+    private bool TryResolveFoodByInstanceId(int instanceId, out Food food)
+    {
+        if (instanceId == 0)
+        {
+            food = null;
+            return false;
+        }
+
+        if (activeFoodByInstanceId.TryGetValue(instanceId, out food))
+        {
+            if (food != null && food.gameObject.activeInHierarchy)
+            {
+                unresolvedFoodIds.Remove(instanceId);
+                return true;
+            }
+
+            activeFoodByInstanceId.Remove(instanceId);
+        }
+
+        if (unresolvedFoodIds.Contains(instanceId))
+        {
+            food = null;
+            return false;
+        }
+
+        food = FindFoodByInstanceId(instanceId);
+        if (food == null || !food.gameObject.activeInHierarchy)
+        {
+            unresolvedFoodIds.Add(instanceId);
+            food = null;
+            return false;
+        }
+
+        activeFoodByInstanceId[instanceId] = food;
+        unresolvedFoodIds.Remove(instanceId);
+        return true;
     }
 
     public static bool TryRequestSpawnCreature(SpawnCreatureRequest request)
@@ -174,6 +244,7 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         {
             SyncCreatures(entityManager, config);
             SyncFood(entityManager, config);
+            RefreshMirrorDebugStatus();
         }
 
         ProcessECSActionExecutionBridge(entityManager, config);
@@ -246,6 +317,8 @@ public sealed class ECSMirrorBridge : MonoBehaviour
             foodEntities.Clear();
             activeCreaturesByInstanceId.Clear();
             activeFoodByInstanceId.Clear();
+            unresolvedCreatureIds.Clear();
+            unresolvedFoodIds.Clear();
             mirroredWorld = world;
         }
 
@@ -1248,8 +1321,8 @@ public sealed class ECSMirrorBridge : MonoBehaviour
                 continue;
 
             DespawnCreatureRequest request = entityManager.GetComponentData<DespawnCreatureRequest>(requestEntity);
-            BaseCreatureBehaviour creature = FindCreatureByInstanceId(request.gameObjectInstanceId);
-            if (creature != null && creature.gameObject.activeInHierarchy)
+            if (TryGetCreatureByInstanceId(request.gameObjectInstanceId, out BaseCreatureBehaviour creature) &&
+                creature != null)
             {
                 creature.CompleteDespawnFromBridge((CreatureDeathReason)request.reason);
             }
@@ -1270,8 +1343,8 @@ public sealed class ECSMirrorBridge : MonoBehaviour
                 continue;
 
             DespawnFoodRequest request = entityManager.GetComponentData<DespawnFoodRequest>(requestEntity);
-            Food food = FindFoodByInstanceId(request.gameObjectInstanceId);
-            if (food != null && food.gameObject.activeInHierarchy)
+            if (TryGetFoodByInstanceId(request.gameObjectInstanceId, out Food food) &&
+                food != null)
             {
                 food.CompleteDespawnFromBridge((FoodDespawnReason)request.reason);
             }
@@ -1421,25 +1494,49 @@ public sealed class ECSMirrorBridge : MonoBehaviour
     private void SyncCreatures(EntityManager entityManager, GameConfig config)
     {
         seenCreatureIds.Clear();
-        activeCreaturesByInstanceId.Clear();
+        unresolvedCreatureIds.Clear();
         lastEcsCreatureLifecycleDespawnRequestCount = 0;
+
+        bool syncObservationData = config != null && config.useEcsObservation;
+        bool syncLifecycleData = config != null && config.useEcsCreatureLifecycle;
+        bool syncUtilityScoringData = config != null && config.useUtilityAI && config.useEcsUtilityScoring;
+        bool syncEcsContextData = config != null && config.useUtilityAI && config.useEcsAIContext;
+        bool syncAIContextData = syncObservationData || syncUtilityScoringData || syncEcsContextData;
 
         CreatureSpawner spawner = CreatureSpawner.Instance;
         if (spawner != null)
         {
-            SyncCreatureList(entityManager, spawner.herbivorCreatures, config);
-            SyncCreatureList(entityManager, spawner.predatorCreatures, config);
+            SyncCreatureList(
+                entityManager,
+                spawner.herbivorCreatures,
+                config,
+                syncObservationData,
+                syncLifecycleData,
+                syncAIContextData,
+                syncUtilityScoringData);
+            SyncCreatureList(
+                entityManager,
+                spawner.predatorCreatures,
+                config,
+                syncObservationData,
+                syncLifecycleData,
+                syncAIContextData,
+                syncUtilityScoringData);
         }
 
         RemoveStaleEntities(entityManager, creatureEntities, seenCreatureIds);
+        RemoveStaleObjects(activeCreaturesByInstanceId, seenCreatureIds);
         lastActiveCreatureCount = seenCreatureIds.Count;
-        RefreshMirrorDebugStatus();
     }
 
     private void SyncCreatureList(
         EntityManager entityManager,
         List<BaseCreatureBehaviour> creatures,
-        GameConfig config)
+        GameConfig config,
+        bool syncObservationData,
+        bool syncLifecycleData,
+        bool syncAIContextData,
+        bool syncUtilityScoringData)
     {
         if (creatures == null)
             return;
@@ -1454,16 +1551,21 @@ public sealed class ECSMirrorBridge : MonoBehaviour
             if (!seenCreatureIds.Add(instanceId))
                 continue;
 
-            activeCreaturesByInstanceId[instanceId] = creature;
+            if (!activeCreaturesByInstanceId.TryGetValue(instanceId, out BaseCreatureBehaviour cachedCreature) ||
+                cachedCreature != creature)
+            {
+                activeCreaturesByInstanceId[instanceId] = creature;
+            }
+
+            unresolvedCreatureIds.Remove(instanceId);
             Entity entity = GetOrCreateCreatureEntity(entityManager, creature, instanceId, out bool createdEntity);
 
-            if (config == null || !config.useEcsCreatureLifecycle)
+            if (!syncLifecycleData)
             {
                 creature.EnergyManager?.ConsumePendingECSExternalEnergyDelta();
             }
 
-            if (config != null &&
-                config.useEcsCreatureLifecycle &&
+            if (syncLifecycleData &&
                 TryApplyECSCreatureLifecycleResult(entityManager, entity, creature, instanceId))
             {
                 if (entityManager.Exists(entity))
@@ -1473,18 +1575,37 @@ public sealed class ECSMirrorBridge : MonoBehaviour
 
                 creatureEntities.Remove(instanceId);
                 activeCreaturesByInstanceId.Remove(instanceId);
+                unresolvedCreatureIds.Remove(instanceId);
                 seenCreatureIds.Remove(instanceId);
                 i--;
                 continue;
             }
 
-            entityManager.SetComponentData(entity, CreateCreatureTransformMirror(creature.transform));
+            if (syncObservationData)
+            {
+                entityManager.SetComponentData(entity, CreateCreatureTransformMirror(creature.transform));
+                entityManager.SetComponentData(entity, CreateCreatureObservationSensorData(creature));
+            }
 
-            entityManager.SetComponentData(entity, CreateCreatureIdentity(creature, instanceId));
-            entityManager.SetComponentData(entity, CreateCreatureLifecycleData(entityManager, entity, creature, instanceId));
-            entityManager.SetComponentData(entity, CreateCreatureAIContextData(UtilityAIContextFactory.FromMonoCreature(creature)));
-            entityManager.SetComponentData(entity, CreateCreatureUtilityBehaviorData(creature));
-            entityManager.SetComponentData(entity, CreateCreatureObservationSensorData(creature));
+            if (createdEntity)
+            {
+                entityManager.SetComponentData(entity, CreateCreatureIdentity(creature, instanceId));
+            }
+
+            if (syncLifecycleData)
+            {
+                entityManager.SetComponentData(entity, CreateCreatureLifecycleData(entityManager, entity, creature, instanceId));
+            }
+
+            if (syncAIContextData)
+            {
+                entityManager.SetComponentData(entity, CreateCreatureAIContextData(UtilityAIContextFactory.FromMonoCreature(creature)));
+            }
+
+            if (syncUtilityScoringData)
+            {
+                entityManager.SetComponentData(entity, CreateCreatureUtilityBehaviorData(creature));
+            }
 
             if (createdEntity)
             {
@@ -1580,7 +1701,7 @@ public sealed class ECSMirrorBridge : MonoBehaviour
     private void SyncFood(EntityManager entityManager, GameConfig config)
     {
         seenFoodIds.Clear();
-        activeFoodByInstanceId.Clear();
+        unresolvedFoodIds.Clear();
         lastEcsFoodLifecycleDespawnRequestCount = 0;
 
         FoodSpawner spawner = FoodSpawner.Instance;
@@ -1596,7 +1717,13 @@ public sealed class ECSMirrorBridge : MonoBehaviour
                 if (!seenFoodIds.Add(instanceId))
                     continue;
 
-                activeFoodByInstanceId[instanceId] = food;
+                if (!activeFoodByInstanceId.TryGetValue(instanceId, out Food cachedFood) ||
+                    cachedFood != food)
+                {
+                    activeFoodByInstanceId[instanceId] = food;
+                }
+
+                unresolvedFoodIds.Remove(instanceId);
                 Entity entity = GetOrCreateFoodEntity(entityManager, instanceId);
 
                 if (config != null &&
@@ -1610,6 +1737,7 @@ public sealed class ECSMirrorBridge : MonoBehaviour
 
                     foodEntities.Remove(instanceId);
                     activeFoodByInstanceId.Remove(instanceId);
+                    unresolvedFoodIds.Remove(instanceId);
                     seenFoodIds.Remove(instanceId);
                     i--;
                     continue;
@@ -1620,8 +1748,8 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         }
 
         RemoveStaleEntities(entityManager, foodEntities, seenFoodIds);
+        RemoveStaleObjects(activeFoodByInstanceId, seenFoodIds);
         lastActiveFoodCount = seenFoodIds.Count;
-        RefreshMirrorDebugStatus();
     }
 
     private Entity GetOrCreateFoodEntity(EntityManager entityManager, int instanceId)
@@ -1704,12 +1832,33 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         }
     }
 
+    private void RemoveStaleObjects<TObject>(
+        Dictionary<int, TObject> objectByInstanceId,
+        HashSet<int> activeInstanceIds)
+        where TObject : class
+    {
+        staleIds.Clear();
+
+        foreach (var pair in objectByInstanceId)
+        {
+            if (!activeInstanceIds.Contains(pair.Key))
+                staleIds.Add(pair.Key);
+        }
+
+        for (int i = 0; i < staleIds.Count; i++)
+        {
+            objectByInstanceId.Remove(staleIds[i]);
+        }
+    }
+
     private void DestroyAllMirroredEntities(EntityManager entityManager)
     {
         DestroyAllEntitiesIn(entityManager, creatureEntities);
         DestroyAllEntitiesIn(entityManager, foodEntities);
         activeCreaturesByInstanceId.Clear();
         activeFoodByInstanceId.Clear();
+        unresolvedCreatureIds.Clear();
+        unresolvedFoodIds.Clear();
         lastActiveCreatureCount = 0;
         lastActiveFoodCount = 0;
         RefreshMirrorDebugStatus();
