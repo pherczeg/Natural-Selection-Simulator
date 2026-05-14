@@ -105,11 +105,11 @@ public class SelectedCreatureStatsUI : MonoBehaviour
         Rect headerRect = new Rect(contentRect.x, contentRect.y, contentRect.width, 24f);
         Rect bodyRect = new Rect(contentRect.x, contentRect.y + 26f, contentRect.width, contentRect.height - 26f);
 
-        GUI.Label(headerRect, "Kivalasztott egyed", headerStyle);
+        GUI.Label(headerRect, "Selected creature", headerStyle);
 
         if (selectedCreature == null)
         {
-            GUI.Label(bodyRect, "Nincs kivalasztott egyed.\nBal klikk egy egyedre a kijeloleshez.", bodyStyle);
+            GUI.Label(bodyRect, "No creature selected.\nLeft click on a creature to select it.", bodyStyle);
             return;
         }
 

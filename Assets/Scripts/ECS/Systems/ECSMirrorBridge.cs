@@ -24,6 +24,8 @@ public sealed class ECSMirrorBridge : MonoBehaviour
     private readonly Dictionary<int, int> reproductionPartnerByCreatureId = new Dictionary<int, int>();
     private readonly Dictionary<int, Coroutine> reproductionCoroutineByBirthOwnerId = new Dictionary<int, Coroutine>();
     private readonly Dictionary<int, int> predationPreyByPredatorId = new Dictionary<int, int>();
+    private readonly Dictionary<int, CreatureUtilityDecisionData> utilityDecisionByCreatureId = new Dictionary<int, CreatureUtilityDecisionData>();
+    private readonly Dictionary<int, UtilityAIContext> utilityContextByCreatureId = new Dictionary<int, UtilityAIContext>();
 
     private World mirroredWorld;
     private float lastEcsObservation;
@@ -319,6 +321,8 @@ public sealed class ECSMirrorBridge : MonoBehaviour
             activeFoodByInstanceId.Clear();
             unresolvedCreatureIds.Clear();
             unresolvedFoodIds.Clear();
+            utilityDecisionByCreatureId.Clear();
+            utilityContextByCreatureId.Clear();
             mirroredWorld = world;
         }
 
@@ -423,11 +427,30 @@ public sealed class ECSMirrorBridge : MonoBehaviour
 
     private void ProcessECSActionExecutionBridge(EntityManager entityManager, GameConfig config)
     {
+        bool syncUtilityScoringData = config != null && config.useUtilityAI && config.useEcsUtilityScoring;
+        bool syncEcsContextData = config != null && config.useUtilityAI && config.useEcsAIContext;
+        bool includeObservationInContext = config != null && config.useEcsObservation;
+
         foreach (var pair in creatureEntities)
         {
+            int instanceId = pair.Key;
             Entity entity = pair.Value;
-            if (!entityManager.Exists(entity) ||
-                !entityManager.HasComponent<CreatureActionRequestData>(entity) ||
+            if (!entityManager.Exists(entity))
+            {
+                utilityDecisionByCreatureId.Remove(instanceId);
+                utilityContextByCreatureId.Remove(instanceId);
+                continue;
+            }
+
+            RefreshUtilityMirrorCacheForEntity(
+                entityManager,
+                entity,
+                instanceId,
+                syncUtilityScoringData,
+                syncEcsContextData,
+                includeObservationInContext);
+
+            if (!entityManager.HasComponent<CreatureActionRequestData>(entity) ||
                 !entityManager.HasComponent<CreatureActionStateData>(entity))
             {
                 continue;
@@ -472,6 +495,38 @@ public sealed class ECSMirrorBridge : MonoBehaviour
                 ref actionState,
                 ref actionTarget,
                 ref actionTimer);
+        }
+    }
+
+    private void RefreshUtilityMirrorCacheForEntity(
+        EntityManager entityManager,
+        Entity entity,
+        int instanceId,
+        bool syncUtilityScoringData,
+        bool syncEcsContextData,
+        bool includeObservationInContext)
+    {
+        if (syncUtilityScoringData && entityManager.HasComponent<CreatureUtilityDecisionData>(entity))
+        {
+            utilityDecisionByCreatureId[instanceId] = entityManager.GetComponentData<CreatureUtilityDecisionData>(entity);
+        }
+        else
+        {
+            utilityDecisionByCreatureId.Remove(instanceId);
+        }
+
+        if (syncEcsContextData && entityManager.HasComponent<CreatureAIContextData>(entity))
+        {
+            CreatureAIContextData contextData = entityManager.GetComponentData<CreatureAIContextData>(entity);
+            CreatureObservationResultData observationResult =
+                includeObservationInContext && entityManager.HasComponent<CreatureObservationResultData>(entity)
+                    ? entityManager.GetComponentData<CreatureObservationResultData>(entity)
+                    : default;
+            utilityContextByCreatureId[instanceId] = UtilityAIContextFactory.FromECSMirrorData(contextData, observationResult);
+        }
+        else
+        {
+            utilityContextByCreatureId.Remove(instanceId);
         }
     }
 
@@ -1526,6 +1581,8 @@ public sealed class ECSMirrorBridge : MonoBehaviour
 
         RemoveStaleEntities(entityManager, creatureEntities, seenCreatureIds);
         RemoveStaleObjects(activeCreaturesByInstanceId, seenCreatureIds);
+        RemoveStaleData(utilityDecisionByCreatureId, seenCreatureIds);
+        RemoveStaleData(utilityContextByCreatureId, seenCreatureIds);
         lastActiveCreatureCount = seenCreatureIds.Count;
     }
 
@@ -1851,6 +1908,24 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         }
     }
 
+    private void RemoveStaleData<TData>(
+        Dictionary<int, TData> dataByInstanceId,
+        HashSet<int> activeInstanceIds)
+    {
+        staleIds.Clear();
+
+        foreach (var pair in dataByInstanceId)
+        {
+            if (!activeInstanceIds.Contains(pair.Key))
+                staleIds.Add(pair.Key);
+        }
+
+        for (int i = 0; i < staleIds.Count; i++)
+        {
+            dataByInstanceId.Remove(staleIds[i]);
+        }
+    }
+
     private void DestroyAllMirroredEntities(EntityManager entityManager)
     {
         DestroyAllEntitiesIn(entityManager, creatureEntities);
@@ -1859,6 +1934,8 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         activeFoodByInstanceId.Clear();
         unresolvedCreatureIds.Clear();
         unresolvedFoodIds.Clear();
+        utilityDecisionByCreatureId.Clear();
+        utilityContextByCreatureId.Clear();
         lastActiveCreatureCount = 0;
         lastActiveFoodCount = 0;
         RefreshMirrorDebugStatus();
@@ -1930,10 +2007,13 @@ public sealed class ECSMirrorBridge : MonoBehaviour
     {
         context = UtilityAIContext.Empty;
 
+        int instanceId = creature.GetInstanceID();
+        if (utilityContextByCreatureId.TryGetValue(instanceId, out context))
+            return true;
+
         if (!TryGetEntityManager(out EntityManager entityManager))
             return false;
 
-        int instanceId = creature.GetInstanceID();
         if (!creatureEntities.TryGetValue(instanceId, out Entity entity) ||
             !entityManager.Exists(entity) ||
             !entityManager.HasComponent<CreatureAIContextData>(entity))
@@ -1948,6 +2028,7 @@ public sealed class ECSMirrorBridge : MonoBehaviour
                 : default;
 
         context = UtilityAIContextFactory.FromECSMirrorData(contextData, observationResult);
+        utilityContextByCreatureId[instanceId] = context;
         return true;
     }
 
@@ -1957,10 +2038,13 @@ public sealed class ECSMirrorBridge : MonoBehaviour
     {
         decisionData = default;
 
+        int instanceId = creature.GetInstanceID();
+        if (utilityDecisionByCreatureId.TryGetValue(instanceId, out decisionData))
+            return true;
+
         if (!TryGetEntityManager(out EntityManager entityManager))
             return false;
 
-        int instanceId = creature.GetInstanceID();
         if (!creatureEntities.TryGetValue(instanceId, out Entity entity) ||
             !entityManager.Exists(entity) ||
             !entityManager.HasComponent<CreatureUtilityDecisionData>(entity))
@@ -1969,6 +2053,7 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         }
 
         decisionData = entityManager.GetComponentData<CreatureUtilityDecisionData>(entity);
+        utilityDecisionByCreatureId[instanceId] = decisionData;
         return true;
     }
 

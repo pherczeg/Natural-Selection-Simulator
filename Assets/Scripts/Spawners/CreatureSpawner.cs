@@ -127,20 +127,42 @@ public class CreatureSpawner : MonoBehaviour
 
     public bool CanSpawnCreature()
     {
-        return GetRemainingCreatureSlots() > 0;
+        return CanSpawnCreature(false) || CanSpawnCreature(true);
+    }
+
+    public bool CanSpawnCreature(bool isPredator)
+    {
+        return GetRemainingCreatureSlots(isPredator) > 0;
     }
 
     public int GetRemainingCreatureSlots()
+    {
+        int herbivoreSlots = GetRemainingCreatureSlots(false);
+        int predatorSlots = GetRemainingCreatureSlots(true);
+
+        if (herbivoreSlots == int.MaxValue || predatorSlots == int.MaxValue)
+            return int.MaxValue;
+
+        long combinedSlots = (long)herbivoreSlots + predatorSlots;
+        return combinedSlots > int.MaxValue
+            ? int.MaxValue
+            : (int)combinedSlots;
+    }
+
+    public int GetRemainingCreatureSlots(bool isPredator)
     {
         GameConfig config = GameConfig.Instance;
         if (config == null)
             return int.MaxValue;
 
-        int maxCreatureCount = Mathf.Max(0, config.maxCreatureCount);
+        int maxCreatureCount = config.GetMaxCreatureCountForSpecies(isPredator);
         if (maxCreatureCount <= 0)
             return int.MaxValue;
 
-        return Mathf.Max(0, maxCreatureCount - GetActiveCreatureCount());
+        int activeCount = isPredator
+            ? CountActiveCreatures(predatorCreatures)
+            : CountActiveCreatures(herbivorCreatures);
+        return Mathf.Max(0, maxCreatureCount - activeCount);
     }
 
     public int GetActiveCreatureCount()
@@ -245,8 +267,23 @@ public class CreatureSpawner : MonoBehaviour
             predatorCreatures = new List<BaseCreatureBehaviour>();
         }
 
-        if (!CanSpawnCreature())
+        bool isPredatorPrefab = prefab == predatorPrefab;
+        bool isHerbivorePrefab = prefab == herbivorPrefab;
+
+        if (isPredatorPrefab)
+        {
+            if (!CanSpawnCreature(true))
+                return null;
+        }
+        else if (isHerbivorePrefab)
+        {
+            if (!CanSpawnCreature(false))
+                return null;
+        }
+        else if (!CanSpawnCreature())
+        {
             return null;
+        }
 
         GameObject newCreature = PoolManager.Instance.GetObject(prefab);
         newCreature.transform.position = spawnPosition;

@@ -27,6 +27,9 @@ public class GameConfig : ScriptableObject
     [Header("Creature Spawner")]
     [Min(0)] public int initialHerbivoreCount = 5;
     [Min(0)] public int initialPredatorCount = 5;
+    [Min(0)] public int maxHerbivoreCount = 0;
+    [Min(0)] public int maxPredatorCount = 0;
+    [Tooltip("Legacy combined cap used only when both species-specific caps are 0.")]
     [Min(0)] public int maxCreatureCount = 0;
     [Min(1)] public int creaturePoolSize = 100;
 
@@ -246,5 +249,27 @@ public class GameConfig : ScriptableObject
         return isPredator
             ? predatorOffspringCountStdDev
             : herbivoreOffspringCountStdDev;
+    }
+
+    public int GetMaxCreatureCountForSpecies(bool isPredator)
+    {
+        int herbivoreCap = Mathf.Max(0, maxHerbivoreCount);
+        int predatorCap = Mathf.Max(0, maxPredatorCount);
+
+        if (isPredator)
+        {
+            if (predatorCap > 0)
+                return predatorCap;
+        }
+        else
+        {
+            if (herbivoreCap > 0)
+                return herbivoreCap;
+        }
+
+        if (herbivoreCap <= 0 && predatorCap <= 0)
+            return Mathf.Max(0, maxCreatureCount);
+
+        return 0;
     }
 }

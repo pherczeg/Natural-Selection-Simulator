@@ -1,4 +1,3 @@
-using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
@@ -26,30 +25,24 @@ public partial class ECSMateSearchExecutionSystem : SystemBase
     protected override void OnUpdate()
     {
         float deltaTime = (float)World.Time.DeltaTime;
-        EntityManager entityManager = EntityManager;
 
-        using NativeArray<Entity> entities = executionQuery.ToEntityArray(Allocator.Temp);
-        using NativeArray<CreatureIdentity> identities = executionQuery.ToComponentDataArray<CreatureIdentity>(Allocator.Temp);
-        using NativeArray<CreatureObservationResultData> observations = executionQuery.ToComponentDataArray<CreatureObservationResultData>(Allocator.Temp);
-        using NativeArray<CreatureActionRequestData> requests = executionQuery.ToComponentDataArray<CreatureActionRequestData>(Allocator.Temp);
-        using NativeArray<CreatureActionStateData> actionStates = executionQuery.ToComponentDataArray<CreatureActionStateData>(Allocator.Temp);
-        using NativeArray<CreatureActionTargetData> actionTargets = executionQuery.ToComponentDataArray<CreatureActionTargetData>(Allocator.Temp);
-        using NativeArray<CreatureActionTimerData> actionTimers = executionQuery.ToComponentDataArray<CreatureActionTimerData>(Allocator.Temp);
-        using NativeArray<CreatureWanderExecutionData> wanderStates = executionQuery.ToComponentDataArray<CreatureWanderExecutionData>(Allocator.Temp);
-
-        for (int i = 0; i < entities.Length; i++)
+        foreach (var (identityRef, observationRef, requestRef, actionStateRef, actionTargetRef, actionTimerRef, wanderStateRef)
+                 in SystemAPI.Query<
+                     RefRO<CreatureIdentity>,
+                     RefRO<CreatureObservationResultData>,
+                     RefRW<CreatureActionRequestData>,
+                     RefRW<CreatureActionStateData>,
+                     RefRW<CreatureActionTargetData>,
+                     RefRW<CreatureActionTimerData>,
+                     RefRW<CreatureWanderExecutionData>>())
         {
-            Entity entity = entities[i];
-            if (!entityManager.Exists(entity))
-                continue;
-
-            CreatureIdentity identity = identities[i];
-            CreatureObservationResultData observation = observations[i];
-            CreatureActionRequestData request = requests[i];
-            CreatureActionStateData actionState = actionStates[i];
-            CreatureActionTargetData actionTarget = actionTargets[i];
-            CreatureActionTimerData actionTimer = actionTimers[i];
-            CreatureWanderExecutionData wanderState = wanderStates[i];
+            CreatureIdentity identity = identityRef.ValueRO;
+            CreatureObservationResultData observation = observationRef.ValueRO;
+            ref CreatureActionRequestData request = ref requestRef.ValueRW;
+            ref CreatureActionStateData actionState = ref actionStateRef.ValueRW;
+            ref CreatureActionTargetData actionTarget = ref actionTargetRef.ValueRW;
+            ref CreatureActionTimerData actionTimer = ref actionTimerRef.ValueRW;
+            ref CreatureWanderExecutionData wanderState = ref wanderStateRef.ValueRW;
 
             bool hasSearchRequest =
                 request.hasRequest &&
@@ -75,10 +68,6 @@ public partial class ECSMateSearchExecutionSystem : SystemBase
                     wanderState.targetPosition = float3.zero;
                 }
 
-                entityManager.SetComponentData(entity, actionState);
-                entityManager.SetComponentData(entity, actionTarget);
-                entityManager.SetComponentData(entity, actionTimer);
-                entityManager.SetComponentData(entity, wanderState);
                 continue;
             }
 
@@ -87,7 +76,6 @@ public partial class ECSMateSearchExecutionSystem : SystemBase
                 request.hasRequest = false;
                 request.cancelRequested = false;
                 request.completeRequested = false;
-                entityManager.SetComponentData(entity, request);
 
                 actionState.currentAction = CreatureAction.SearchMate;
                 actionState.phase = CreatureActionPhase.Searching;
@@ -116,10 +104,6 @@ public partial class ECSMateSearchExecutionSystem : SystemBase
                 creature.ReproductionManager == null)
             {
                 actionState.status = CreatureActionStatus.Blocked;
-                entityManager.SetComponentData(entity, actionState);
-                entityManager.SetComponentData(entity, actionTarget);
-                entityManager.SetComponentData(entity, actionTimer);
-                entityManager.SetComponentData(entity, wanderState);
                 continue;
             }
 
@@ -186,7 +170,6 @@ public partial class ECSMateSearchExecutionSystem : SystemBase
                     request.targetInstanceId = actionTarget.targetInstanceId;
                     request.cancelRequested = false;
                     request.completeRequested = false;
-                    entityManager.SetComponentData(entity, request);
                 }
                 else
                 {
@@ -197,11 +180,6 @@ public partial class ECSMateSearchExecutionSystem : SystemBase
                     actionState.legacyStateType = CreatureStateType.MovingToMate;
                 }
             }
-
-            entityManager.SetComponentData(entity, actionState);
-            entityManager.SetComponentData(entity, actionTarget);
-            entityManager.SetComponentData(entity, actionTimer);
-            entityManager.SetComponentData(entity, wanderState);
         }
     }
 

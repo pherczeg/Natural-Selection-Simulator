@@ -35,6 +35,7 @@ public abstract class BaseCreatureBehaviour : MonoBehaviour
     protected CreatureSpawner creatureSpawner;
     protected float lastObservation = 0f;
     private bool despawnQueued;
+    private float utilityDecisionPhase = -1f;
 
     public GameObject energyBarObject;
     public float maxEnergy;
@@ -188,6 +189,31 @@ public abstract class BaseCreatureBehaviour : MonoBehaviour
         return CreatureActionExecutor.Execute(this, action);
     }
 
+    protected float GetJitteredUtilityDecisionDelay(float interval, float jitterFraction)
+    {
+        float clampedInterval = Mathf.Max(0.01f, interval);
+        float clampedJitter = Mathf.Clamp01(jitterFraction);
+        float phaseOffset = (GetUtilityDecisionPhase01() - 0.5f) * 2f;
+        float factor = 1f + phaseOffset * clampedJitter;
+        return Mathf.Max(0.01f, clampedInterval * factor);
+    }
+
+    private float GetUtilityDecisionPhase01()
+    {
+        if (utilityDecisionPhase >= 0f)
+            return utilityDecisionPhase;
+
+        uint hash = (uint)GetInstanceID();
+        hash ^= 2747636419u;
+        hash *= 2654435769u;
+        hash ^= hash >> 16;
+        hash *= 2246822519u;
+        hash ^= hash >> 13;
+
+        utilityDecisionPhase = (hash & 0x00FFFFFFu) / 16777215f;
+        return utilityDecisionPhase;
+    }
+
     protected bool TryExecuteECSUtilityDecision(GameConfig config)
     {
         if (utilityBrain == null)
@@ -198,6 +224,9 @@ public abstract class BaseCreatureBehaviour : MonoBehaviour
         {
             return false;
         }
+
+        if (ecsDecision.decisionTime <= LastUtilityAIDecisionTime + 0.0001f)
+            return false;
 
         UtilityAIContext context = ECSMirrorBridge.TryGetUtilityAIContext(this, out UtilityAIContext ecsContext)
             ? ecsContext

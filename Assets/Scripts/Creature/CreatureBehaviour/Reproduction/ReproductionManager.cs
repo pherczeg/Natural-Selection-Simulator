@@ -11,6 +11,7 @@ public class ReproductionManager
 
     BaseCreatureBehaviour creature;
     private readonly Dictionary<int, float> rejectedMateCooldowns = new Dictionary<int, float>();
+    private readonly List<int> rejectedMateKeyBuffer = new List<int>();
     public Coroutine reproductionCoroutine { get; set; }
     public float ReproductionCooldown { get; private set; }
     public float BaseDesirability { get; private set; }
@@ -29,8 +30,27 @@ public class ReproductionManager
 
     public void UpdateReproductionCooldown(float amount)
     {
-        ReproductionCooldown -= amount;
-        ReproductionCooldown = Math.Clamp(ReproductionCooldown, 0, GetCooldownDuration());
+        if (amount <= 0f)
+            return;
+
+        if (ReproductionCooldown <= 0f && rejectedMateCooldowns.Count == 0)
+            return;
+
+        if (ReproductionCooldown > 0f)
+        {
+            ReproductionCooldown -= amount;
+            if (ReproductionCooldown < 0f)
+            {
+                ReproductionCooldown = 0f;
+            }
+            else
+            {
+                float cooldownDuration = GetCooldownDuration();
+                if (ReproductionCooldown > cooldownDuration)
+                    ReproductionCooldown = cooldownDuration;
+            }
+        }
+
         UpdateRejectedMateCooldowns(amount);
     }
     public bool IsOnCooldown()
@@ -65,8 +85,9 @@ public class ReproductionManager
         if (spawner == null)
             return;
 
+        bool isPredatorSpecies = creature is PredatorBehaviour;
         int offspringCount = GetOffspringCount();
-        int availableSlots = spawner.GetRemainingCreatureSlots();
+        int availableSlots = spawner.GetRemainingCreatureSlots(isPredatorSpecies);
         if (availableSlots <= 0)
             return;
 
@@ -82,7 +103,7 @@ public class ReproductionManager
         int spawnedOffspring = 0;
         for (int i = 0; i < offspringCount; i++)
         {
-            if (!spawner.CanSpawnCreature())
+            if (!spawner.CanSpawnCreature(isPredatorSpecies))
                 break;
 
             var newWeight = InheritWithMutation(creature.Weight, mate.Weight, 2);
@@ -104,7 +125,7 @@ public class ReproductionManager
             Vector3 spawnPosition = mate.transform.position;
             SpawnCreatureRequest request = new SpawnCreatureRequest
             {
-                creatureKind = creature is PredatorBehaviour ? ECSCreatureKind.Predator : ECSCreatureKind.Herbivore,
+                creatureKind = isPredatorSpecies ? ECSCreatureKind.Predator : ECSCreatureKind.Herbivore,
                 sex = (int)(UnityEngine.Random.value < 0.5f ? CreatureSex.Female : CreatureSex.Male),
                 position = new float3(spawnPosition.x, spawnPosition.y, spawnPosition.z),
                 moveSpeed = newMoveSpeed,
@@ -280,10 +301,19 @@ public class ReproductionManager
         if (rejectedMateCooldowns.Count == 0 || amount <= 0f)
             return;
 
-        List<int> keys = new List<int>(rejectedMateCooldowns.Keys);
-        foreach (int key in keys)
+        rejectedMateKeyBuffer.Clear();
+        foreach (var pair in rejectedMateCooldowns)
         {
-            float updated = rejectedMateCooldowns[key] - amount;
+            rejectedMateKeyBuffer.Add(pair.Key);
+        }
+
+        for (int i = 0; i < rejectedMateKeyBuffer.Count; i++)
+        {
+            int key = rejectedMateKeyBuffer[i];
+            if (!rejectedMateCooldowns.TryGetValue(key, out float remaining))
+                continue;
+
+            float updated = remaining - amount;
             if (updated <= 0f)
             {
                 rejectedMateCooldowns.Remove(key);

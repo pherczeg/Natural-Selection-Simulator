@@ -108,11 +108,15 @@ public class PredatorBehaviour : BaseCreatureBehaviour
         if (config.useEcsUtilityScoring)
         {
             EnsureUtilityBrain();
-            nextUtilityDecisionTime = Time.time + (TryExecuteECSUtilityDecision(config) ? decisionInterval : 0.01f);
+            bool executedDecision = TryExecuteECSUtilityDecision(config);
+            float nextDecisionDelay = executedDecision
+                ? GetJitteredUtilityDecisionDelay(decisionInterval, 0.35f)
+                : GetJitteredUtilityDecisionDelay(Mathf.Max(0.02f, decisionInterval * 0.5f), 0.5f);
+            nextUtilityDecisionTime = Time.time + nextDecisionDelay;
             return;
         }
 
-        nextUtilityDecisionTime = Time.time + decisionInterval;
+        nextUtilityDecisionTime = Time.time + GetJitteredUtilityDecisionDelay(decisionInterval, 0.2f);
         EnsureUtilityBrain();
 
         if (utilityBrain == null)
@@ -210,6 +214,10 @@ public class PredatorBehaviour : BaseCreatureBehaviour
         if (config.useUtilityAI)
         {
             EnsureUtilityBrain();
+            float initialDecisionDelay = GetJitteredUtilityDecisionDelay(
+                Mathf.Max(0.02f, config.utilityDecisionInterval * 0.5f),
+                0.75f);
+            nextUtilityDecisionTime = Time.time + initialDecisionDelay;
         }
     }
 
