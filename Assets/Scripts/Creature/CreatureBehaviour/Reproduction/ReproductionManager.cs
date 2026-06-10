@@ -8,10 +8,12 @@ public class ReproductionManager
 {
     private const float SocialStrategyFatherInheritanceChance = 0.475f;
     private const float SocialStrategyMotherInheritanceChance = 0.475f;
+    private const float MatingIntentFalloffStartUsage = 0.9f;
 
     BaseCreatureBehaviour creature;
     private readonly Dictionary<int, float> rejectedMateCooldowns = new Dictionary<int, float>();
     private readonly List<int> rejectedMateKeyBuffer = new List<int>();
+    private float cachedMatingIntentSample01 = -1f;
     public Coroutine reproductionCoroutine { get; set; }
     public float ReproductionCooldown { get; private set; }
     public float BaseDesirability { get; private set; }
@@ -287,13 +289,56 @@ public class ReproductionManager
         if (config == null)
             return true;
 
+        float populationIntentMultiplier = GetSpeciesMatingIntentMultiplier();
+        if (!IsPopulationAllowedToSeekMate(populationIntentMultiplier))
+            return false;
+
         bool isPredator = creature is PredatorBehaviour;
         float normalized = Mathf.InverseLerp(config.herbivoreDesirabilityMin, config.herbivoreDesirabilityMax, candidateDesirability);
         float acceptanceChance = Mathf.Lerp(
             config.GetMinMateAcceptanceChance(isPredator),
             config.GetMaxMateAcceptanceChance(isPredator),
             normalized);
+        acceptanceChance = Mathf.Clamp01(acceptanceChance * populationIntentMultiplier);
         return UnityEngine.Random.value <= acceptanceChance;
+    }
+
+    private float GetSpeciesMatingIntentMultiplier()
+    {
+        if (creature == null)
+            return 1f;
+
+        CreatureSpawner spawner = CreatureSpawner.Instance;
+        if (spawner == null)
+            return 1f;
+
+        bool isPredator = creature is PredatorBehaviour;
+        return spawner.GetSpeciesMatingIntentMultiplier(isPredator, MatingIntentFalloffStartUsage);
+    }
+
+    private bool IsPopulationAllowedToSeekMate(float populationIntentMultiplier)
+    {
+        if (populationIntentMultiplier <= 0f)
+            return false;
+
+        if (populationIntentMultiplier >= 1f || creature == null)
+            return true;
+
+        if (cachedMatingIntentSample01 < 0f)
+            cachedMatingIntentSample01 = GetStableInstanceSample01(creature.GetInstanceID());
+
+        return cachedMatingIntentSample01 <= populationIntentMultiplier;
+    }
+
+    private static float GetStableInstanceSample01(int seed)
+    {
+        uint hash = (uint)seed;
+        hash ^= 2747636419u;
+        hash *= 2654435769u;
+        hash ^= hash >> 16;
+        hash *= 2246822519u;
+        hash ^= hash >> 13;
+        return (hash & 0x00FFFFFFu) / 16777215f;
     }
 
     private void UpdateRejectedMateCooldowns(float amount)
@@ -617,6 +662,10 @@ public class ReproductionManager
 
         GameConfig config = GameConfig.Instance;
         if (config == null)
+            return false;
+
+        float populationIntentMultiplier = GetSpeciesMatingIntentMultiplier();
+        if (!IsPopulationAllowedToSeekMate(populationIntentMultiplier))
             return false;
 
         CreatureStateType currentState = creature.CurrentStateType;

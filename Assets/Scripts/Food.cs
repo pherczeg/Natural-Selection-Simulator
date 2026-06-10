@@ -201,7 +201,8 @@ public class Food : MonoBehaviour
 
         if (!challengerHerbivore.IsHawk && !ownerHerbivore.IsHawk)
         {
-            challengerCanEat = true;
+            // Keep single-owner semantics: dove challengers back off instead of consuming in parallel.
+            challengerCanEat = false;
             shouldTakeOver = false;
             return true;
         }

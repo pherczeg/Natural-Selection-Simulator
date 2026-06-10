@@ -5,6 +5,9 @@ public class CreatureSpawner : MonoBehaviour
 {
     private const float GroundRaycastOriginHeight = 500f;
     private const float GroundRaycastDistance = 1000f;
+    private int cachedPopulationFrame = -1;
+    private int cachedActiveHerbivoreCount;
+    private int cachedActivePredatorCount;
 
     public static CreatureSpawner Instance { get; private set; }
 
@@ -114,11 +117,13 @@ public class CreatureSpawner : MonoBehaviour
     {
         if (herbivorCreatures != null && herbivorCreatures.Remove(creature))
         {
+            InvalidatePopulationCache();
             return true;
         }
 
         if (predatorCreatures != null && predatorCreatures.Remove(creature))
         {
+            InvalidatePopulationCache();
             return true;
         }
 
@@ -159,15 +164,62 @@ public class CreatureSpawner : MonoBehaviour
         if (maxCreatureCount <= 0)
             return int.MaxValue;
 
-        int activeCount = isPredator
-            ? CountActiveCreatures(predatorCreatures)
-            : CountActiveCreatures(herbivorCreatures);
+        int activeCount = GetActiveSpeciesCountCached(isPredator);
         return Mathf.Max(0, maxCreatureCount - activeCount);
+    }
+
+    public float GetSpeciesPopulationUsage01(bool isPredator)
+    {
+        GameConfig config = GameConfig.Instance;
+        if (config == null)
+            return 0f;
+
+        int maxCreatureCount = config.GetMaxCreatureCountForSpecies(isPredator);
+        if (maxCreatureCount <= 0)
+            return 0f;
+
+        int activeCount = GetActiveSpeciesCountCached(isPredator);
+        return Mathf.Clamp01(activeCount / (float)maxCreatureCount);
+    }
+
+    public float GetSpeciesMatingIntentMultiplier(bool isPredator, float falloffStartUsage = 0.9f)
+    {
+        float usage = GetSpeciesPopulationUsage01(isPredator);
+        float startUsage = Mathf.Clamp(falloffStartUsage, 0f, 0.9999f);
+        if (usage <= startUsage)
+            return 1f;
+
+        return Mathf.Clamp01((1f - usage) / (1f - startUsage));
     }
 
     public int GetActiveCreatureCount()
     {
-        return CountActiveCreatures(herbivorCreatures) + CountActiveCreatures(predatorCreatures);
+        RefreshPopulationCacheIfNeeded();
+        return cachedActiveHerbivoreCount + cachedActivePredatorCount;
+    }
+
+    private int GetActiveSpeciesCountCached(bool isPredator)
+    {
+        RefreshPopulationCacheIfNeeded();
+        return isPredator
+            ? cachedActivePredatorCount
+            : cachedActiveHerbivoreCount;
+    }
+
+    private void RefreshPopulationCacheIfNeeded()
+    {
+        int frame = Time.frameCount;
+        if (cachedPopulationFrame == frame)
+            return;
+
+        cachedActiveHerbivoreCount = CountActiveCreatures(herbivorCreatures);
+        cachedActivePredatorCount = CountActiveCreatures(predatorCreatures);
+        cachedPopulationFrame = frame;
+    }
+
+    private void InvalidatePopulationCache()
+    {
+        cachedPopulationFrame = -1;
     }
 
     private static int CountActiveCreatures(List<BaseCreatureBehaviour> creatures)
@@ -291,10 +343,12 @@ public class CreatureSpawner : MonoBehaviour
         if (prefab == herbivorPrefab)
         {
             herbivorCreatures.Add(creatureBehaviour);
+            InvalidatePopulationCache();
         }
         else if (prefab == predatorPrefab)
         {
             predatorCreatures.Add(creatureBehaviour);
+            InvalidatePopulationCache();
         }
         Statistics.Instance?.RecordCreatureSpawned(creatureBehaviour);
         return creatureBehaviour;

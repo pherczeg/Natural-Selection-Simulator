@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using UnityEngine;
 
 public class HerbivoreBehaviour : BaseCreatureBehaviour
@@ -9,26 +8,11 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
     private static readonly int ColorPropertyId = Shader.PropertyToID("_Color");
     private const float MinThreatScanInterval = 0.05f;
     private const float MaxThreatScanInterval = 0.25f;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-    private const double SlowFixedUpdateThresholdMs = 0.35d;
-    private static readonly double StopwatchTicksToMs = 1000d / Stopwatch.Frequency;
-    private static int lastSlowFixedUpdateLogFrame = -1;
-    private string transitionPerfPath = "Unknown";
-    private string transitionPerfStep = "None";
-    private double transitionPerfLegacyMs;
-    private double transitionPerfEnsureBrainMs;
-    private double transitionPerfEcsDecisionMs;
-    private double transitionPerfEvaluateMs;
-    private double transitionPerfExecuteMs;
-    private double transitionPerfRecordMs;
-    private double transitionPerfLogScoresMs;
-#endif
     private BaseCreatureBehaviour forcedThreat;
     private BaseCreatureBehaviour cachedThreat;
     private float forcedFleeUntilTime;
     private float activeFleeUntilTime;
     private float nextThreatScanTime;
-    private float nextUtilityDecisionTime;
     private Vector3 lastFleeDirection;
     private BaseCreatureBehaviour capturePredator;
     [SerializeField] private HerbivoreSocialStrategy socialStrategy = HerbivoreSocialStrategy.Dove;
@@ -96,31 +80,11 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
     }
     protected override void CheckTransitions()
     {
-        var config = GameConfig.Instance;
-        if (config != null && config.useUtilityAI)
-        {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            transitionPerfPath = config.useEcsUtilityScoring ? "UtilityAI(ECS)" : "UtilityAI(Local)";
-#endif
-            UpdateUtilityAI(config);
-            return;
-        }
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        transitionPerfPath = "Legacy";
-        long legacyStartTimestamp = Stopwatch.GetTimestamp();
-#endif
-        CheckLegacyTransitions();
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        transitionPerfLegacyMs = ElapsedMilliseconds(legacyStartTimestamp, Stopwatch.GetTimestamp());
-        transitionPerfStep = "LegacyComplete";
-#endif
-    }
-
-    private void CheckLegacyTransitions()
-    {
         CreatureStateType currentState = CurrentStateType;
-        if (currentState == CreatureStateType.MovingToFood || currentState == CreatureStateType.Eating || currentState == CreatureStateType.SearchingForFood || currentState == CreatureStateType.Reproducting)
+        if (currentState == CreatureStateType.MovingToFood ||
+            currentState == CreatureStateType.Eating ||
+            currentState == CreatureStateType.SearchingForFood ||
+            currentState == CreatureStateType.Reproducting)
         {
             return;
         }
@@ -141,158 +105,10 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
             CreatureActionExecutor.Execute(this, CreatureAction.Wander);
         }
     }
-
-    private void UpdateUtilityAI(GameConfig config)
-    {
-        if (Time.time < nextUtilityDecisionTime)
-        {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            transitionPerfStep = "UtilityIntervalSkip";
-#endif
-            return;
-        }
-
-        float decisionInterval = Mathf.Max(0.01f, config.utilityDecisionInterval);
-
-        if (config.useEcsUtilityScoring)
-        {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            long ensureBrainStartTimestamp = Stopwatch.GetTimestamp();
-#endif
-            EnsureUtilityBrain();
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            transitionPerfEnsureBrainMs = ElapsedMilliseconds(ensureBrainStartTimestamp, Stopwatch.GetTimestamp());
-            long ecsDecisionStartTimestamp = Stopwatch.GetTimestamp();
-#endif
-            bool executedDecision = TryExecuteECSUtilityDecision(config);
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            transitionPerfEcsDecisionMs = ElapsedMilliseconds(ecsDecisionStartTimestamp, Stopwatch.GetTimestamp());
-            transitionPerfStep = executedDecision ? "ECSDecisionExecuted" : "ECSDecisionDeferred";
-#endif
-            float nextDecisionDelay = executedDecision
-                ? GetJitteredUtilityDecisionDelay(decisionInterval, 0.35f)
-                : GetJitteredUtilityDecisionDelay(Mathf.Max(0.02f, decisionInterval * 0.5f), 0.5f);
-            nextUtilityDecisionTime = Time.time + nextDecisionDelay;
-            return;
-        }
-
-        nextUtilityDecisionTime = Time.time + GetJitteredUtilityDecisionDelay(decisionInterval, 0.2f);
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        long localEnsureBrainStartTimestamp = Stopwatch.GetTimestamp();
-#endif
-        EnsureUtilityBrain();
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        transitionPerfEnsureBrainMs = ElapsedMilliseconds(localEnsureBrainStartTimestamp, Stopwatch.GetTimestamp());
-#endif
-
-        if (utilityBrain == null)
-        {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            transitionPerfStep = "UtilityBrainMissing";
-#endif
-            return;
-        }
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        long evaluateStartTimestamp = Stopwatch.GetTimestamp();
-#endif
-        UtilityDecision decision = utilityBrain.Evaluate();
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        transitionPerfEvaluateMs = ElapsedMilliseconds(evaluateStartTimestamp, Stopwatch.GetTimestamp());
-        long executeStartTimestamp = Stopwatch.GetTimestamp();
-#endif
-        CreatureActionExecutionResult execution = ExecuteUtilityAIAction(decision);
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        transitionPerfExecuteMs = ElapsedMilliseconds(executeStartTimestamp, Stopwatch.GetTimestamp());
-        long recordStartTimestamp = Stopwatch.GetTimestamp();
-#endif
-        RecordUtilityAIExecution(decision, execution);
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        transitionPerfRecordMs = ElapsedMilliseconds(recordStartTimestamp, Stopwatch.GetTimestamp());
-#endif
-
-        if (config.logUtilityAIScores)
-        {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            long logScoresStartTimestamp = Stopwatch.GetTimestamp();
-#endif
-            LogUtilityAIScores(decision);
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            transitionPerfLogScoresMs = ElapsedMilliseconds(logScoresStartTimestamp, Stopwatch.GetTimestamp());
-#endif
-        }
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        transitionPerfStep = "UtilityComplete";
-#endif
-    }
-
-    private void EnsureUtilityBrain()
-    {
-        CreatureUtilityBrain utilityBrain = EnsureUtilityBrainComponent();
-
-        if (utilityBrain.Creature != this || utilityBrain.Actions.Count == 0)
-        {
-            utilityBrain.Initialize(this);
-            utilityBrain.SetActions(CreateHerbivoreUtilityActions());
-        }
-    }
-
-    private IEnumerable<UtilityAction> CreateHerbivoreUtilityActions()
-    {
-        return new[]
-        {
-            new UtilityAction(
-                CreatureAction.None,
-                "Keep Current State",
-                new[]
-                {
-                    new UtilityConsideration("Current State Lockout", context => UtilityAIScoreRules.GetKeepCurrentStateScore(context, GetUtilityAIScoringParameters(), ECSCreatureKind.Herbivore))
-                }),
-            new UtilityAction(
-                CreatureAction.SearchFood,
-                "Search Food",
-                new[]
-                {
-                    new UtilityConsideration("Hunger", context => UtilityAIScoreRules.GetHungerScore(context, GetUtilityAIScoringParameters()) * UtilityAIScoreRules.GetFoodSearchAvailabilityScore(context, GetUtilityAIScoringParameters(), ECSCreatureKind.Herbivore))
-                }),
-            new UtilityAction(
-                CreatureAction.SearchMate,
-                "Search Mate",
-                new[]
-                {
-                    new UtilityConsideration("Reproduction Readiness", context => UtilityAIScoreRules.GetReproductionScore(context, GetUtilityAIScoringParameters()) * UtilityAIScoreRules.GetMateSearchAvailabilityScore(context))
-                },
-                UtilityAIDefaultScorer.SearchMateBaseScore),
-            new UtilityAction(
-                CreatureAction.Wander,
-                "Wander",
-                new[]
-                {
-                    new UtilityConsideration("Idle Wander", UtilityAIScoreRules.GetIdleWanderScore)
-                },
-                UtilityAIDefaultScorer.WanderBaseScore)
-        };
-    }
-
-    private static UtilityAIScoringParameters GetUtilityAIScoringParameters()
-    {
-        var config = GameConfig.Instance;
-        if (config == null)
-            return UtilityAIScoringParameters.Default;
-
-        return new UtilityAIScoringParameters(
-            config.eatingEnergyThreshold,
-            config.GetReproductionEnergyThreshold(false));
-    }
-
     public override void Initialize(float moveSpeed, float weight, float senseRadius)
     {
         var config = GameConfig.Instance;
-        EnsureUtilityBehaviorProfileInitialized();
         ResetDespawnRequestState();
-        ResetUtilityAIDebugState();
-        nextUtilityDecisionTime = 0f;
         forcedThreat = null;
         cachedThreat = null;
         forcedFleeUntilTime = 0f;
@@ -311,15 +127,35 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
         EnergyManager.UpdateEnergyBar();
         EatingManager = new EatingManager(this);
         SetAgility(Mathf.Lerp(config.herbivoreAgilityMin, config.herbivoreAgilityMax, 0.5f));
-        if (config.useUtilityAI)
-        {
-            EnsureUtilityBrain();
-            float initialDecisionDelay = GetJitteredUtilityDecisionDelay(
-                Mathf.Max(0.02f, config.utilityDecisionInterval * 0.5f),
-                0.75f);
-            nextUtilityDecisionTime = Time.time + initialDecisionDelay;
-        }
     }
+    // void FixedUpdate()
+    // {
+    //     if (GameConfig.Instance == null) return;
+    //     lastObservation += Time.fixedDeltaTime;
+    //     if (lastObservation >= GameConfig.Instance.updateInterval)
+    //     {
+    //         //ObservationManager.UpdateObservations();
+    //         var energyConsumption = EnergyManager.CalculateEnergyConsumption();
+    //         EnergyManager.ConsumeEnergy(energyConsumption);
+    //         AgeManager.UpdateAge(lastObservation);
+    //         if (AgeManager.IsMaxAgeReached())
+    //         {
+    //             DestroyObject();
+    //         }
+    //         if (ReproductionManager.IsOnCooldown())
+    //         {
+    //             ReproductionManager.UpdateReproductionCooldown(lastObservation);
+    //         }
+    //         lastObservation = 0f;
+    //     }
+    //     if (EnergyManager.IsEnergyDepleted())
+    //     {
+    //         DestroyObject();
+    //         return;
+    //     }
+    //     stateMachine.Update();
+    //     CheckTransitions();
+    // }
     void FixedUpdate()
     {
         if (IsDespawnQueued)
@@ -328,22 +164,7 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
         var config = GameConfig.Instance;
         if (config == null) return;
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        long fixedUpdateStartTimestamp = Stopwatch.GetTimestamp();
-        double tempEffectsMs = 0d;
-        double lifecycleMs = 0d;
-        double fleeMs = 0d;
-        double transitionsMs = 0d;
-        string lifecycleSection = "Skipped";
-#endif
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        long tempEffectsStartTimestamp = Stopwatch.GetTimestamp();
-#endif
         MovementManager.UpdateTemporaryEffects(Time.fixedDeltaTime);
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        tempEffectsMs = ElapsedMilliseconds(tempEffectsStartTimestamp, Stopwatch.GetTimestamp());
-#endif
 
         lastObservation += Time.fixedDeltaTime;
 
@@ -351,149 +172,24 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
         {
             float simulationDeltaTime = lastObservation;
             lastObservation = 0f;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            long lifecycleStartTimestamp = Stopwatch.GetTimestamp();
-#endif
             if (config.useEcsCreatureLifecycle)
             {
                 ReproductionManager.UpdateReproductionCooldown(simulationDeltaTime);
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                lifecycleSection = "ReproductionCooldown";
-                lifecycleMs = ElapsedMilliseconds(lifecycleStartTimestamp, Stopwatch.GetTimestamp());
-#endif
             }
-            else
+            else if (UpdateSlowSimulation(simulationDeltaTime))
             {
-                bool aborted = UpdateSlowSimulation(simulationDeltaTime);
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                lifecycleSection = aborted ? "SlowSimulation(Aborted)" : "SlowSimulation";
-                lifecycleMs = ElapsedMilliseconds(lifecycleStartTimestamp, Stopwatch.GetTimestamp());
-                if (aborted)
-                {
-                    LogSlowFixedUpdateBreakdown(
-                        fixedUpdateStartTimestamp,
-                        tempEffectsMs,
-                        lifecycleMs,
-                        fleeMs,
-                        transitionsMs,
-                        lifecycleSection,
-                        "SlowSimulationAbort");
-                    return;
-                }
-#else
-                if (aborted)
-                {
-                    return;
-                }
-#endif
+                return;
             }
         }
 
         if (IsCaptured)
-        {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            LogSlowFixedUpdateBreakdown(
-                fixedUpdateStartTimestamp,
-                tempEffectsMs,
-                lifecycleMs,
-                fleeMs,
-                transitionsMs,
-                lifecycleSection,
-                "Captured");
-#endif
             return;
-        }
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        long fleeStartTimestamp = Stopwatch.GetTimestamp();
-#endif
         if (TryHandlePredatorFlee(config))
-        {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            fleeMs = ElapsedMilliseconds(fleeStartTimestamp, Stopwatch.GetTimestamp());
-            LogSlowFixedUpdateBreakdown(
-                fixedUpdateStartTimestamp,
-                tempEffectsMs,
-                lifecycleMs,
-                fleeMs,
-                transitionsMs,
-                lifecycleSection,
-                "PredatorFlee");
-#endif
             return;
-        }
-
-        #if UNITY_EDITOR || DEVELOPMENT_BUILD
-        fleeMs = ElapsedMilliseconds(fleeStartTimestamp, Stopwatch.GetTimestamp());
-
-        ResetTransitionPerfBreakdown();
-        long transitionsStartTimestamp = Stopwatch.GetTimestamp();
-#endif
 
         CheckTransitions();
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        transitionsMs = ElapsedMilliseconds(transitionsStartTimestamp, Stopwatch.GetTimestamp());
-        LogSlowFixedUpdateBreakdown(
-            fixedUpdateStartTimestamp,
-            tempEffectsMs,
-            lifecycleMs,
-            fleeMs,
-            transitionsMs,
-            lifecycleSection,
-            "Completed");
-#endif
     }
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-    private static double ElapsedMilliseconds(long startTimestamp, long endTimestamp)
-    {
-        return (endTimestamp - startTimestamp) * StopwatchTicksToMs;
-    }
-
-    private void ResetTransitionPerfBreakdown()
-    {
-        transitionPerfPath = "Unknown";
-        transitionPerfStep = "None";
-        transitionPerfLegacyMs = 0d;
-        transitionPerfEnsureBrainMs = 0d;
-        transitionPerfEcsDecisionMs = 0d;
-        transitionPerfEvaluateMs = 0d;
-        transitionPerfExecuteMs = 0d;
-        transitionPerfRecordMs = 0d;
-        transitionPerfLogScoresMs = 0d;
-    }
-
-    private string GetTransitionPerfSummary()
-    {
-        return
-            $"transitionPath={transitionPerfPath}, step={transitionPerfStep}, legacy={transitionPerfLegacyMs:F3} ms, " +
-            $"ensureBrain={transitionPerfEnsureBrainMs:F3} ms, ecsDecision={transitionPerfEcsDecisionMs:F3} ms, " +
-            $"evaluate={transitionPerfEvaluateMs:F3} ms, execute={transitionPerfExecuteMs:F3} ms, " +
-            $"record={transitionPerfRecordMs:F3} ms, logScores={transitionPerfLogScoresMs:F3} ms";
-    }
-
-    private void LogSlowFixedUpdateBreakdown(
-        long fixedUpdateStartTimestamp,
-        double tempEffectsMs,
-        double lifecycleMs,
-        double fleeMs,
-        double transitionsMs,
-        string lifecycleSection,
-        string exitPoint)
-    {
-        double totalMs = ElapsedMilliseconds(fixedUpdateStartTimestamp, Stopwatch.GetTimestamp());
-        if (totalMs < SlowFixedUpdateThresholdMs || lastSlowFixedUpdateLogFrame == Time.frameCount)
-            return;
-
-        lastSlowFixedUpdateLogFrame = Time.frameCount;
-        UnityEngine.Debug.LogWarning(
-            $"[Perf][Herbivore] Slow FixedUpdate {totalMs:F3} ms (exit={exitPoint}, lifecycle={lifecycleSection}) " +
-            $"tempEffects={tempEffectsMs:F3} ms, lifecycle={lifecycleMs:F3} ms, flee={fleeMs:F3} ms, transitions={transitionsMs:F3} ms, " +
-            GetTransitionPerfSummary(),
-            this);
-    }
-#endif
 
     public void SetAgility(float agility)
     {

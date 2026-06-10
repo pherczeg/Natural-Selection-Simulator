@@ -156,6 +156,9 @@ public class GameConfig : ScriptableObject
     public float predatorFailedHuntSpeedMultiplier = 0.5f;
     public float predatorFailedHuntDebuffDuration = 2f;
     public float escapedPreyBlacklistDuration = 3f;
+    [Min(0f)] public float predatorMaxChaseDuration = 3f;
+    [Min(1f)] public float predatorPreySpeedGiveUpFactor = 1.15f;
+    [Min(0f)] public float predatorMinChaseTimeBeforeSpeedCheck = 2f;
     public float predatorStrengthScoreWeight = 0.65f;
     public float predatorWeightScoreWeight = 0.35f;
     public float herbivoreAgilityScoreWeight = 0.60f;

@@ -25,6 +25,7 @@ public partial class ECSFoodSearchExecutionSystem : SystemBase
     protected override void OnUpdate()
     {
         float deltaTime = (float)World.Time.DeltaTime;
+        GameConfig config = GameConfig.Instance;
 
         foreach (var (identityRef, observationRef, requestRef, actionStateRef, actionTargetRef, actionTimerRef, wanderStateRef)
                  in SystemAPI.Query<
@@ -114,6 +115,8 @@ public partial class ECSFoodSearchExecutionSystem : SystemBase
                     actionState.phase = CreatureActionPhase.MovingToTarget;
                     actionState.status = CreatureActionStatus.Running;
                     actionState.legacyStateType = CreatureStateType.MovingToFood;
+                    actionTimer.elapsedTime = 0f;
+                    actionTimer.remainingTime = -1f;
                     wanderState.hasTarget = false;
                     wanderState.targetPosition = float3.zero;
                 }
@@ -153,12 +156,32 @@ public partial class ECSFoodSearchExecutionSystem : SystemBase
 
             if (actionState.phase == CreatureActionPhase.MovingToTarget)
             {
+                if (actionState.currentAction == CreatureAction.Hunt &&
+                    TryAbandonHopelessPredatorChase(
+                        creature,
+                        actionTarget.targetInstanceId,
+                        actionTimer.elapsedTime,
+                        config))
+                {
+                    actionTarget.targetInstanceId = 0;
+                    actionState.phase = CreatureActionPhase.Searching;
+                    actionState.status = CreatureActionStatus.Running;
+                    actionState.legacyStateType = CreatureStateType.SearchingForFood;
+                    actionTimer.elapsedTime = 0f;
+                    actionTimer.remainingTime = -1f;
+                    wanderState.hasTarget = false;
+                    wanderState.targetPosition = float3.zero;
+                    continue;
+                }
+
                 if (!TryGetTargetPosition(creature, actionState.currentAction, actionTarget.targetInstanceId, out Vector3 targetPosition))
                 {
                     actionTarget.targetInstanceId = 0;
                     actionState.phase = CreatureActionPhase.Searching;
                     actionState.status = CreatureActionStatus.Running;
                     actionState.legacyStateType = CreatureStateType.SearchingForFood;
+                    actionTimer.elapsedTime = 0f;
+                    actionTimer.remainingTime = -1f;
                     wanderState.hasTarget = false;
                     wanderState.targetPosition = float3.zero;
                 }
@@ -232,45 +255,18 @@ public partial class ECSFoodSearchExecutionSystem : SystemBase
         if (action == CreatureAction.Hunt)
         {
             int preyId = observation.closestPreyInstanceId;
-            if (preyId == 0)
+            if (!IsValidPreyTarget(creature, identity.gameObjectInstanceId, preyId))
                 preyId = SelectObservedCreatureTarget(creature, ObservationType.FoodCreature);
 
-            if (preyId == 0 || preyId == identity.gameObjectInstanceId)
-                return 0;
-
-            if (!ECSMirrorBridge.TryGetCreatureByInstanceId(preyId, out BaseCreatureBehaviour prey) ||
-                prey == null ||
-                prey == creature ||
-                !prey.gameObject.activeInHierarchy)
-            {
-                return 0;
-            }
-
-            if (prey is HerbivoreBehaviour herbivore && herbivore.IsCaptured && !herbivore.IsCapturedBy(creature))
-                return 0;
-
-            if (creature is PredatorBehaviour predator && predator.IsPreyBlacklisted(prey))
+            if (!IsValidPreyTarget(creature, identity.gameObjectInstanceId, preyId))
                 return 0;
 
             return preyId;
         }
 
         int foodId = observation.closestFoodInstanceId;
-        if (foodId == 0)
+        if (!IsValidFoodTarget(creature, foodId))
             foodId = SelectObservedFoodTarget(creature);
-
-        if (foodId == 0)
-            return 0;
-
-        if (!ECSMirrorBridge.TryGetFoodByInstanceId(foodId, out Food food) ||
-            food == null ||
-            !food.gameObject.activeInHierarchy)
-        {
-            return 0;
-        }
-
-        if (creature.EatingManager != null && creature.EatingManager.IsFoodBlacklisted(food))
-            return 0;
 
         return foodId;
     }
@@ -288,18 +284,67 @@ public partial class ECSFoodSearchExecutionSystem : SystemBase
                 continue;
 
             Food food = observation.observedObject.GetComponent<Food>();
-            if (food == null ||
-                !food.gameObject.activeInHierarchy ||
-                food.IsDespawnQueued ||
-                (creature.EatingManager != null && creature.EatingManager.IsFoodBlacklisted(food)))
-            {
+            if (!IsValidFoodTarget(creature, food))
                 continue;
-            }
 
             return food.GetInstanceID();
         }
 
         return 0;
+    }
+
+    private static bool IsValidFoodTarget(BaseCreatureBehaviour creature, int foodId)
+    {
+        if (foodId == 0 ||
+            !ECSMirrorBridge.TryGetFoodByInstanceId(foodId, out Food food) ||
+            food == null)
+        {
+            return false;
+        }
+
+        return IsValidFoodTarget(creature, food);
+    }
+
+    private static bool IsValidFoodTarget(BaseCreatureBehaviour creature, Food food)
+    {
+        if (creature == null ||
+            food == null ||
+            !food.gameObject.activeInHierarchy ||
+            food.IsDespawnQueued)
+        {
+            return false;
+        }
+
+        if (creature.EatingManager != null && creature.EatingManager.IsFoodBlacklisted(food))
+            return false;
+
+        int creatureInstanceId = creature.GetInstanceID();
+        if (creatureInstanceId == 0)
+            return false;
+
+        return CanTargetFoodLock(creatureInstanceId, food);
+    }
+
+    private static bool CanTargetFoodLock(
+        int creatureInstanceId,
+        Food food)
+    {
+        bool lockFound = ECSMirrorBridge.TryGetFoodLockData(
+            food.GetInstanceID(),
+            out bool isBeingEaten,
+            out int eatingCreatureInstanceId);
+
+        if (!lockFound)
+        {
+            isBeingEaten = food.IsBeingEaten;
+            BaseCreatureBehaviour eatingCreature = food.GetEatingCreature();
+            eatingCreatureInstanceId = eatingCreature != null ? eatingCreature.GetInstanceID() : 0;
+        }
+
+        if (!isBeingEaten)
+            return true;
+
+        return eatingCreatureInstanceId != 0 && eatingCreatureInstanceId == creatureInstanceId;
     }
 
     private static int SelectObservedCreatureTarget(BaseCreatureBehaviour creature, ObservationType observationType)
@@ -333,6 +378,72 @@ public partial class ECSFoodSearchExecutionSystem : SystemBase
         }
 
         return 0;
+    }
+
+    private static bool IsValidPreyTarget(BaseCreatureBehaviour creature, int creatureInstanceId, int preyId)
+    {
+        if (creature == null || preyId == 0 || preyId == creatureInstanceId)
+            return false;
+
+        if (!ECSMirrorBridge.TryGetCreatureByInstanceId(preyId, out BaseCreatureBehaviour prey) ||
+            prey == null ||
+            prey == creature ||
+            !prey.gameObject.activeInHierarchy)
+        {
+            return false;
+        }
+
+        if (prey is HerbivoreBehaviour herbivore && herbivore.IsCaptured && !herbivore.IsCapturedBy(creature))
+            return false;
+
+        if (creature is PredatorBehaviour predator && predator.IsPreyBlacklisted(prey))
+            return false;
+
+        return true;
+    }
+
+    private static bool TryAbandonHopelessPredatorChase(
+        BaseCreatureBehaviour creature,
+        int preyInstanceId,
+        float chaseElapsedTime,
+        GameConfig config)
+    {
+        if (!(creature is PredatorBehaviour predator) || preyInstanceId == 0)
+            return false;
+
+        if (!ECSMirrorBridge.TryGetCreatureByInstanceId(preyInstanceId, out BaseCreatureBehaviour prey) ||
+            prey == null)
+        {
+            return false;
+        }
+
+        float maxChaseDuration = config != null ? Mathf.Max(0f, config.predatorMaxChaseDuration) : 0f;
+        bool chaseTimedOut = maxChaseDuration > 0f && chaseElapsedTime >= maxChaseDuration;
+
+        bool preyLikelyTooFast = false;
+        if (!chaseTimedOut &&
+            config != null &&
+            predator.MovementManager != null &&
+            prey.MovementManager != null)
+        {
+            float minChaseTimeBeforeSpeedCheck = Mathf.Max(0f, config.predatorMinChaseTimeBeforeSpeedCheck);
+            float speedGiveUpFactor = Mathf.Max(1f, config.predatorPreySpeedGiveUpFactor);
+
+            if (speedGiveUpFactor > 1f && chaseElapsedTime >= minChaseTimeBeforeSpeedCheck)
+            {
+                float predatorSpeed = Mathf.Max(0.01f, predator.MovementManager.MoveSpeed);
+                float preySpeed = Mathf.Max(0.01f, prey.MovementManager.MoveSpeed);
+                preyLikelyTooFast = preySpeed > predatorSpeed * speedGiveUpFactor;
+            }
+        }
+
+        if (!chaseTimedOut && !preyLikelyTooFast)
+            return false;
+
+        if (preyLikelyTooFast)
+            predator.BlacklistPrey(prey);
+
+        return true;
     }
 
     private static bool TryGetTargetPosition(

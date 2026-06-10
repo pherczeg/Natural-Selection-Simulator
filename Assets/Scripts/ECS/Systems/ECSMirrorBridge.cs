@@ -102,6 +102,23 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         return food != null && food.gameObject.activeInHierarchy;
     }
 
+    public static bool TryGetFoodLockData(
+        int instanceId,
+        out bool isBeingEaten,
+        out int eatingCreatureInstanceId)
+    {
+        isBeingEaten = false;
+        eatingCreatureInstanceId = 0;
+
+        if (instance == null)
+            return false;
+
+        return instance.TryGetFoodLockDataFromMirror(
+            instanceId,
+            out isBeingEaten,
+            out eatingCreatureInstanceId);
+    }
+
     private bool TryResolveCreatureByInstanceId(int instanceId, out BaseCreatureBehaviour creature)
     {
         if (instanceId == 0)
@@ -175,6 +192,33 @@ public sealed class ECSMirrorBridge : MonoBehaviour
 
         activeFoodByInstanceId[instanceId] = food;
         unresolvedFoodIds.Remove(instanceId);
+        return true;
+    }
+
+    private bool TryGetFoodLockDataFromMirror(
+        int instanceId,
+        out bool isBeingEaten,
+        out int eatingCreatureInstanceId)
+    {
+        isBeingEaten = false;
+        eatingCreatureInstanceId = 0;
+
+        if (instanceId == 0 || !TryGetEntityManager(out EntityManager entityManager))
+            return false;
+
+        if (!foodEntities.TryGetValue(instanceId, out Entity entity) ||
+            !entityManager.Exists(entity) ||
+            !entityManager.HasComponent<FoodMirrorData>(entity))
+        {
+            return false;
+        }
+
+        FoodMirrorData mirrorData = entityManager.GetComponentData<FoodMirrorData>(entity);
+        if (mirrorData.gameObjectInstanceId != instanceId)
+            return false;
+
+        isBeingEaten = mirrorData.isBeingEaten;
+        eatingCreatureInstanceId = mirrorData.eatingCreatureInstanceId;
         return true;
     }
 
@@ -827,9 +871,16 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         GameConfig config = GameConfig.Instance;
         if (config != null && predator.MovementManager != null)
         {
-            predator.MovementManager.ApplyTemporarySpeedMultiplier(
-                config.predatorFailedHuntSpeedMultiplier,
-                config.predatorFailedHuntDebuffDuration);
+            float baseSpeed = Mathf.Max(0.01f, predator.MovementManager.BaseMoveSpeed);
+            float currentSpeed = Mathf.Max(0f, predator.MovementManager.MoveSpeed);
+            bool alreadyHeavilySlowed = currentSpeed < baseSpeed * 0.8f;
+
+            if (!alreadyHeavilySlowed)
+            {
+                predator.MovementManager.ApplyTemporarySpeedMultiplier(
+                    config.predatorFailedHuntSpeedMultiplier,
+                    config.predatorFailedHuntDebuffDuration);
+            }
         }
 
         return CreatureActionStatus.Cancelled;
@@ -1800,7 +1851,19 @@ public sealed class ECSMirrorBridge : MonoBehaviour
                     continue;
                 }
 
-                entityManager.SetComponentData(entity, CreateFoodMirrorData(food, instanceId));
+                FoodMirrorData mirroredData = CreateFoodMirrorData(food, instanceId);
+                if (config != null &&
+                    config.useEcsFoodLifecycle &&
+                    entityManager.HasComponent<FoodMirrorData>(entity))
+                {
+                    FoodMirrorData existingData = entityManager.GetComponentData<FoodMirrorData>(entity);
+                    if (existingData.gameObjectInstanceId == instanceId)
+                    {
+                        mirroredData = MergeFoodMirrorRuntimeState(existingData, mirroredData);
+                    }
+                }
+
+                entityManager.SetComponentData(entity, mirroredData);
             }
         }
 
@@ -2438,6 +2501,27 @@ public sealed class ECSMirrorBridge : MonoBehaviour
             rotation = ToQuaternion(food.transform.rotation),
             scale = ToFloat3(food.transform.localScale)
         };
+    }
+
+    private static FoodMirrorData MergeFoodMirrorRuntimeState(
+        FoodMirrorData existingData,
+        FoodMirrorData mirroredData)
+    {
+        if (existingData.despawnRequested)
+            mirroredData.despawnRequested = true;
+
+        if (existingData.isBeingEaten)
+        {
+            mirroredData.isBeingEaten = true;
+            if (mirroredData.eatingCreatureInstanceId == 0)
+                mirroredData.eatingCreatureInstanceId = existingData.eatingCreatureInstanceId;
+        }
+        else if (mirroredData.eatingCreatureInstanceId != 0)
+        {
+            mirroredData.isBeingEaten = true;
+        }
+
+        return mirroredData;
     }
 
     private static float3 ToFloat3(Vector3 source)
