@@ -124,7 +124,6 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
         MovementManager = new MovementManager(this, moveSpeed);
         ObservationManager = new ObservationManager(this, senseRadius, numberOfRaycasts, angleBetweenRaycasts);
         EnergyManager = new EnergyManager(this, maxEnergy * config.initialEnergyPercentageHerbivore, maxEnergy);
-        EnergyManager.UpdateEnergyBar();
         EatingManager = new EatingManager(this);
         SetAgility(Mathf.Lerp(config.herbivoreAgilityMin, config.herbivoreAgilityMax, 0.5f));
     }

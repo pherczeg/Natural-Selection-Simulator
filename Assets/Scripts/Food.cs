@@ -30,9 +30,13 @@ public class Food : MonoBehaviour
     public float GrowthFraction { get; private set; }
     private BaseCreatureBehaviour eatingCreature = null;
     private Renderer _renderer;
+    private MaterialPropertyBlock _propertyBlock;
     private Color foodColor;
     private bool despawnQueued;
     public bool IsDespawnQueued => despawnQueued;
+
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+    private static readonly int LegacyColorId = Shader.PropertyToID("_Color");
 
     Color FoodColor
     {
@@ -40,14 +44,19 @@ public class Food : MonoBehaviour
         set
         {
             foodColor = value;
-            if (_renderer != null)
-                _renderer.material.color = foodColor;
+            if (_renderer != null && _propertyBlock != null)
+            {
+                _propertyBlock.SetColor(BaseColorId, foodColor);
+                _propertyBlock.SetColor(LegacyColorId, foodColor);
+                _renderer.SetPropertyBlock(_propertyBlock);
+            }
         }
     }
 
     void Awake()
     {
         _renderer = GetComponentInChildren<Renderer>();
+        _propertyBlock = new MaterialPropertyBlock();
     }
 
     public void Initialize(float targetNutrition)

@@ -37,7 +37,6 @@ public abstract class BaseCreatureBehaviour : MonoBehaviour
     private bool despawnQueued;
     private float utilityDecisionPhase = -1f;
 
-    public GameObject energyBarObject;
     public float maxEnergy;
     public float Weight => weight;
     public CreatureSex Sex { get; private set; }

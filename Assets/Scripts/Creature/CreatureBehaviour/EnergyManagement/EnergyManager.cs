@@ -48,7 +48,6 @@ public class EnergyManager
         if (EnergyLevel < 0) EnergyLevel = 0;
         if (EnergyLevel > CurrentMaxEnergy) EnergyLevel = CurrentMaxEnergy;
         TrackECSExternalEnergyDelta(EnergyLevel - previousEnergyLevel);
-        UpdateEnergyBar();
     }
 
     public void GainEnergy(float amount)
@@ -57,7 +56,6 @@ public class EnergyManager
         EnergyLevel += amount;
         if (EnergyLevel > CurrentMaxEnergy) EnergyLevel = CurrentMaxEnergy;
         TrackECSExternalEnergyDelta(EnergyLevel - previousEnergyLevel);
-        UpdateEnergyBar();
     }
 
     public float CurrentMaxEnergy
@@ -86,7 +84,6 @@ public class EnergyManager
         hasEcsCurrentMaxEnergy = true;
         ecsCurrentMaxEnergy = Mathf.Max(0f, currentMaxEnergy);
         EnergyLevel = Mathf.Clamp(energyLevel, 0f, ecsCurrentMaxEnergy);
-        UpdateEnergyBar();
     }
 
     public float ConsumePendingECSExternalEnergyDelta()
@@ -106,14 +103,6 @@ public class EnergyManager
             return;
 
         pendingEcsExternalEnergyDelta += delta;
-    }
-
-    public void UpdateEnergyBar()
-    {
-        if (creature.energyBarObject)
-        {
-            creature.energyBarObject.GetComponent<EnergyBar>().SetEnergy(EnergyLevel, CurrentMaxEnergy);
-        }
     }
 
     public bool IsEnergyDepleted()

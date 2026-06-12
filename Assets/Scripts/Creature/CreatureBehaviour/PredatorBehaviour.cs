@@ -207,7 +207,6 @@ public class PredatorBehaviour : BaseCreatureBehaviour
         MovementManager = new MovementManager(this, moveSpeed);
         EnergyManager = new EnergyManager(this, maxEnergy * config.initialEnergyPercentagePredator, maxEnergy);
         ObservationManager = new ObservationManager(this, senseRadius, numberOfRaycasts, angleBetweenRaycasts);
-        EnergyManager.UpdateEnergyBar();
         EatingManager = new EatingManager(this);
         SetStrength(Mathf.Lerp(config.predatorStrengthMin, config.predatorStrengthMax, 0.5f));
         CreatureActionExecutor.Execute(this, CreatureAction.Wander);

@@ -1021,11 +1021,6 @@ MonoBehaviour:
   rotationSpeed: 100
   pitchLimit: {x: 10, y: 80}
   moveSmoothTime: 0.1
-  enableCreatureFollow: 1
-  disableManualPanWhileFollowing: 1
-  recenterOnSelection: 1
-  followBackOffset: 6
-  selectionManager: {fileID: 0}
 --- !u!1 &1010689918
 GameObject:
   m_ObjectHideFlags: 0
