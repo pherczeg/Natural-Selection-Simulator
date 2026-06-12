@@ -816,20 +816,11 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         if (config == null || prey == null || prey.EnergyManager == null)
             return 0f;
 
-        float preyCurrentEnergy = prey.EnergyManager.EnergyLevel;
-        float preyStoredEnergy = prey.maxEnergy * 0.75f;
-        float biomassEnergy = prey.Weight * config.predatorEnergyGainPerPreyWeight;
-        return Mathf.Max(preyCurrentEnergy, preyStoredEnergy) + biomassEnergy;
-    }
-
-    private static float NormalizePredationStat(float value, float min, float max)
-    {
-        float normalizedMin = Mathf.Min(min, max);
-        float normalizedMax = Mathf.Max(min, max);
-        if (Mathf.Approximately(normalizedMin, normalizedMax))
-            return 0.5f;
-
-        return Mathf.InverseLerp(normalizedMin, normalizedMax, value);
+        return PredationCalculator.CalculateEnergyGainFromPrey(
+            prey.EnergyManager.EnergyLevel,
+            prey.maxEnergy,
+            prey.Weight,
+            PredationParameters.FromConfig(config));
     }
 
     private static float CalculatePredationSuccessChance(BaseCreatureBehaviour predatorCreature, BaseCreatureBehaviour prey)
@@ -845,19 +836,12 @@ public sealed class ECSMirrorBridge : MonoBehaviour
             ? herbivore.Agility
             : config.herbivoreAgilityMin;
 
-        float predatorScore =
-            config.predatorStrengthScoreWeight * NormalizePredationStat(predatorStrength, config.predatorStrengthMin, config.predatorStrengthMax) +
-            config.predatorWeightScoreWeight * NormalizePredationStat(predatorCreature.Weight, config.predatorWeightMin, config.predatorWeightMax);
-
-        float herbivoreScore =
-            config.herbivoreAgilityScoreWeight * NormalizePredationStat(herbivoreAgility, config.herbivoreAgilityMin, config.herbivoreAgilityMax) +
-            config.herbivoreWeightScoreWeight * NormalizePredationStat(prey.Weight, config.herbivoreWeightMin, config.herbivoreWeightMax);
-
-        float advantage = predatorScore - herbivoreScore;
-        float chance = 1f / (1f + Mathf.Exp(-(config.predationBias + advantage * config.predationSharpness)));
-        float minChance = Mathf.Min(config.minPredationSuccessChance, config.maxPredationSuccessChance);
-        float maxChance = Mathf.Max(config.minPredationSuccessChance, config.maxPredationSuccessChance);
-        return Mathf.Clamp(chance, minChance, maxChance);
+        return PredationCalculator.CalculatePredationSuccessChance(
+            predatorStrength,
+            predatorCreature.Weight,
+            herbivoreAgility,
+            prey.Weight,
+            PredationParameters.FromConfig(config));
     }
 
     private static CreatureActionStatus ResolvePredationOutcome(BaseCreatureBehaviour predator, BaseCreatureBehaviour prey)

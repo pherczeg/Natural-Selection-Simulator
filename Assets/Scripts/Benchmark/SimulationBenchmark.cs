@@ -17,7 +17,9 @@ using UnityEngine;
 /// during measurement, so actual live counts are reported next to the target.
 ///
 /// Results: Unity console summary per scenario plus CSV and Markdown files under
-/// BenchmarkResults/ at the repository root.
+/// BenchmarkResults/ at the repository root. Each row is stamped with the short git
+/// hash of HEAD so runs can be compared across commits (replacing flag-based A/B
+/// once the migration flags are deleted).
 /// </summary>
 public class SimulationBenchmark : MonoBehaviour
 {
@@ -27,6 +29,7 @@ public class SimulationBenchmark : MonoBehaviour
     private bool configOverrideActive;
     private int savedMaxHerbivoreCount;
     private int savedMaxPredatorCount;
+    private string gitHash = "unknown";
     private readonly List<ScenarioResult> results = new List<ScenarioResult>();
 
     private struct ScenarioResult
@@ -50,6 +53,15 @@ public class SimulationBenchmark : MonoBehaviour
         public int deaths;
         public int reproductionEvents;
         public int predationAttempts;
+        public float p50FrameMs;
+        public float p95FrameMs;
+        public float p99FrameMs;
+        // Render counters average -1 when the recorder produced no samples
+        // (availability varies between editor and player configurations).
+        public float avgBatches;
+        public float avgSetPassCalls;
+        public float avgTriangles;
+        public string gitHash;
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -123,7 +135,9 @@ public class SimulationBenchmark : MonoBehaviour
             ? config.benchmarkCreatureCounts
             : new[] { 500, 1000, 2000, 5000 };
 
-        Debug.Log($"SimulationBenchmark: starting run, targets=[{string.Join(", ", targets)}], flags=({BuildFlagsText(config)})");
+        gitHash = ResolveGitShortHash();
+
+        Debug.Log($"SimulationBenchmark: starting run, targets=[{string.Join(", ", targets)}], git={gitHash}, flags=({BuildFlagsText(config)})");
 
         try
         {
@@ -223,13 +237,49 @@ public class SimulationBenchmark : MonoBehaviour
         {
         }
 
+        ProfilerRecorder batchesRecorder = default;
+        ProfilerRecorder setPassRecorder = default;
+        ProfilerRecorder trianglesRecorder = default;
+        try
+        {
+            batchesRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Render, "Batches Count", 1);
+        }
+        catch (Exception)
+        {
+        }
+
+        try
+        {
+            setPassRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Render, "SetPass Calls Count", 1);
+        }
+        catch (Exception)
+        {
+        }
+
+        try
+        {
+            trianglesRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Render, "Triangles Count", 1);
+        }
+        catch (Exception)
+        {
+        }
+
         int frames = 0;
         float elapsed = 0f;
         double mainThreadNsSum = 0;
         int mainThreadSamples = 0;
         double gcBytesSum = 0;
         int gcSamples = 0;
+        double batchesSum = 0;
+        int batchesSamples = 0;
+        double setPassSum = 0;
+        int setPassSamples = 0;
+        double trianglesSum = 0;
+        int trianglesSamples = 0;
         float measureSeconds = Mathf.Max(1f, config.benchmarkMeasureSeconds);
+
+        // Per-frame timings for percentiles; preallocated generously (editor-only tool).
+        var frameSecondsSamples = new List<float>(Mathf.CeilToInt(measureSeconds * 200f));
 
         while (elapsed < measureSeconds)
         {
@@ -237,6 +287,7 @@ public class SimulationBenchmark : MonoBehaviour
 
             frames++;
             elapsed += Time.unscaledDeltaTime;
+            frameSecondsSamples.Add(Time.unscaledDeltaTime);
 
             if (mainThreadRecorder.Valid && mainThreadRecorder.LastValue > 0)
             {
@@ -249,12 +300,38 @@ public class SimulationBenchmark : MonoBehaviour
                 gcBytesSum += gcAllocRecorder.LastValue;
                 gcSamples++;
             }
+
+            if (batchesRecorder.Valid && batchesRecorder.LastValue >= 0)
+            {
+                batchesSum += batchesRecorder.LastValue;
+                batchesSamples++;
+            }
+
+            if (setPassRecorder.Valid && setPassRecorder.LastValue >= 0)
+            {
+                setPassSum += setPassRecorder.LastValue;
+                setPassSamples++;
+            }
+
+            if (trianglesRecorder.Valid && trianglesRecorder.LastValue >= 0)
+            {
+                trianglesSum += trianglesRecorder.LastValue;
+                trianglesSamples++;
+            }
         }
 
         if (mainThreadRecorder.Valid)
             mainThreadRecorder.Dispose();
         if (gcAllocRecorder.Valid)
             gcAllocRecorder.Dispose();
+        if (batchesRecorder.Valid)
+            batchesRecorder.Dispose();
+        if (setPassRecorder.Valid)
+            setPassRecorder.Dispose();
+        if (trianglesRecorder.Valid)
+            trianglesRecorder.Dispose();
+
+        frameSecondsSamples.Sort();
 
         var result = new ScenarioResult
         {
@@ -276,7 +353,14 @@ public class SimulationBenchmark : MonoBehaviour
             creaturesSpawned = (statistics?.totalHerbivoresSpawned ?? 0) + (statistics?.totalPredatorsSpawned ?? 0) - spawnedStart,
             deaths = (statistics?.totalHerbivoreDeaths ?? 0) + (statistics?.totalPredatorDeaths ?? 0) - deathsStart,
             reproductionEvents = (statistics?.totalReproductionEvents ?? 0) - reproductionStart,
-            predationAttempts = (statistics?.totalPredationAttempts ?? 0) - predationStart
+            predationAttempts = (statistics?.totalPredationAttempts ?? 0) - predationStart,
+            p50FrameMs = PercentileMs(frameSecondsSamples, 0.50f),
+            p95FrameMs = PercentileMs(frameSecondsSamples, 0.95f),
+            p99FrameMs = PercentileMs(frameSecondsSamples, 0.99f),
+            avgBatches = batchesSamples > 0 ? (float)(batchesSum / batchesSamples) : -1f,
+            avgSetPassCalls = setPassSamples > 0 ? (float)(setPassSum / setPassSamples) : -1f,
+            avgTriangles = trianglesSamples > 0 ? (float)(trianglesSum / trianglesSamples) : -1f,
+            gitHash = gitHash
         };
 
         results.Add(result);
@@ -287,8 +371,11 @@ public class SimulationBenchmark : MonoBehaviour
             $"food(start/end)={result.foodStart}/{result.foodEnd} | " +
             $"avgFPS={result.avgFps:F1} avgFrame={result.avgFrameMs:F2}ms mainThread={result.avgMainThreadMs:F2}ms " +
             $"gcAlloc/frame={result.avgGcAllocBytesPerFrame:F0}B | " +
+            $"frame p50/p95/p99={result.p50FrameMs:F2}/{result.p95FrameMs:F2}/{result.p99FrameMs:F2}ms | " +
+            $"batches={result.avgBatches:F0} setPass={result.avgSetPassCalls:F0} tris={result.avgTriangles:F0} | " +
             $"sensorQueries={result.sensorQueries} spawned={result.creaturesSpawned} deaths={result.deaths} " +
-            $"repro={result.reproductionEvents} predation={result.predationAttempts} | flags=({result.flags})");
+            $"repro={result.reproductionEvents} predation={result.predationAttempts} | " +
+            $"git={result.gitHash} flags=({result.flags})");
     }
 
     private void EnsureConfigOverrides(GameConfig config, int targetCreatures)
@@ -351,7 +438,8 @@ public class SimulationBenchmark : MonoBehaviour
         builder.AppendLine(
             "timestamp,targetCreatures,herbivoresStart,predatorsStart,herbivoresEnd,predatorsEnd,foodStart,foodEnd," +
             "flags,frames,avgFps,avgFrameMs,avgMainThreadMs,avgGcAllocBytesPerFrame,sensorQueries," +
-            "creaturesSpawned,deaths,reproductionEvents,predationAttempts");
+            "creaturesSpawned,deaths,reproductionEvents,predationAttempts," +
+            "p50FrameMs,p95FrameMs,p99FrameMs,avgBatches,avgSetPassCalls,avgTriangles,gitHash");
 
         foreach (ScenarioResult r in results)
         {
@@ -374,7 +462,14 @@ public class SimulationBenchmark : MonoBehaviour
                 r.creaturesSpawned.ToString(CultureInfo.InvariantCulture),
                 r.deaths.ToString(CultureInfo.InvariantCulture),
                 r.reproductionEvents.ToString(CultureInfo.InvariantCulture),
-                r.predationAttempts.ToString(CultureInfo.InvariantCulture)));
+                r.predationAttempts.ToString(CultureInfo.InvariantCulture),
+                r.p50FrameMs.ToString("F3", CultureInfo.InvariantCulture),
+                r.p95FrameMs.ToString("F3", CultureInfo.InvariantCulture),
+                r.p99FrameMs.ToString("F3", CultureInfo.InvariantCulture),
+                r.avgBatches.ToString("F1", CultureInfo.InvariantCulture),
+                r.avgSetPassCalls.ToString("F1", CultureInfo.InvariantCulture),
+                r.avgTriangles.ToString("F1", CultureInfo.InvariantCulture),
+                r.gitHash));
         }
 
         return builder.ToString();
@@ -389,8 +484,10 @@ public class SimulationBenchmark : MonoBehaviour
         builder.AppendLine();
         builder.AppendLine($"Active flags: `{(results.Count > 0 ? results[0].flags : BuildFlagsText(GameConfig.Instance))}`");
         builder.AppendLine();
-        builder.AppendLine("| Target | Creatures start→end | Food start→end | Avg FPS | Avg frame (ms) | Main thread (ms) | GC alloc/frame (B) | Sensor queries | Spawned | Deaths | Repro | Predation |");
-        builder.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|");
+        builder.AppendLine($"Git hash: `{(results.Count > 0 ? results[0].gitHash : gitHash)}`");
+        builder.AppendLine();
+        builder.AppendLine("| Target | Creatures start→end | Food start→end | Avg FPS | Avg frame (ms) | Main thread (ms) | GC alloc/frame (B) | Sensor queries | Spawned | Deaths | Repro | Predation | p50 (ms) | p95 (ms) | p99 (ms) | Batches | SetPass | Triangles | gitHash |");
+        builder.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
 
         foreach (ScenarioResult r in results)
         {
@@ -406,7 +503,14 @@ public class SimulationBenchmark : MonoBehaviour
                 $"| {r.creaturesSpawned} " +
                 $"| {r.deaths} " +
                 $"| {r.reproductionEvents} " +
-                $"| {r.predationAttempts} |");
+                $"| {r.predationAttempts} " +
+                $"| {r.p50FrameMs:F2} " +
+                $"| {r.p95FrameMs:F2} " +
+                $"| {r.p99FrameMs:F2} " +
+                $"| {r.avgBatches:F0} " +
+                $"| {r.avgSetPassCalls:F0} " +
+                $"| {r.avgTriangles:F0} " +
+                $"| {r.gitHash} |");
         }
 
         builder.AppendLine();
@@ -429,6 +533,86 @@ public class SimulationBenchmark : MonoBehaviour
             $"useEcsCreatureLifecycle={config.useEcsCreatureLifecycle} " +
             $"useEcsMovementExecution={config.useEcsMovementExecution} " +
             $"useEcsStatistics={config.useEcsStatistics}";
+    }
+
+    /// <summary>
+    /// Linearly interpolated percentile over an ascending-sorted list of per-frame
+    /// durations in seconds, returned in milliseconds. Returns -1 when there are no samples.
+    /// </summary>
+    private static float PercentileMs(List<float> sortedFrameSeconds, float percentile)
+    {
+        if (sortedFrameSeconds == null || sortedFrameSeconds.Count == 0)
+            return -1f;
+
+        float rank = (sortedFrameSeconds.Count - 1) * Mathf.Clamp01(percentile);
+        int lower = Mathf.FloorToInt(rank);
+        int upper = Mathf.Min(lower + 1, sortedFrameSeconds.Count - 1);
+        return Mathf.Lerp(sortedFrameSeconds[lower], sortedFrameSeconds[upper], rank - lower) * 1000f;
+    }
+
+    /// <summary>
+    /// Resolves the short (7-char) hash of the repository HEAD by walking up from
+    /// Application.dataPath to the nearest .git directory. Fails soft to "unknown"
+    /// (e.g. exported player builds, missing repo, exotic ref layouts).
+    /// </summary>
+    private static string ResolveGitShortHash()
+    {
+        try
+        {
+            string directory = Path.GetFullPath(Application.dataPath);
+            while (!string.IsNullOrEmpty(directory))
+            {
+                string gitDirectory = Path.Combine(directory, ".git");
+                if (Directory.Exists(gitDirectory))
+                    return ReadGitHeadHash(gitDirectory);
+
+                directory = Path.GetDirectoryName(directory);
+            }
+        }
+        catch (Exception)
+        {
+            // Fall through to "unknown"; the benchmark must never fail on metadata.
+        }
+
+        return "unknown";
+    }
+
+    private static string ReadGitHeadHash(string gitDirectory)
+    {
+        string headPath = Path.Combine(gitDirectory, "HEAD");
+        if (!File.Exists(headPath))
+            return "unknown";
+
+        string head = File.ReadAllText(headPath).Trim();
+        if (!head.StartsWith("ref: ", StringComparison.Ordinal))
+            return ShortHash(head); // Detached HEAD stores the hash directly.
+
+        string refName = head.Substring("ref: ".Length).Trim();
+        string refPath = Path.Combine(gitDirectory, refName.Replace('/', Path.DirectorySeparatorChar));
+        if (File.Exists(refPath))
+            return ShortHash(File.ReadAllText(refPath).Trim());
+
+        // Refs can be packed (e.g. after git gc); look the ref up in packed-refs.
+        string packedRefsPath = Path.Combine(gitDirectory, "packed-refs");
+        if (File.Exists(packedRefsPath))
+        {
+            foreach (string line in File.ReadLines(packedRefsPath))
+            {
+                int separator = line.IndexOf(' ');
+                if (separator > 0 && line.Substring(separator + 1) == refName)
+                    return ShortHash(line.Substring(0, separator));
+            }
+        }
+
+        return "unknown";
+    }
+
+    private static string ShortHash(string hash)
+    {
+        if (string.IsNullOrEmpty(hash))
+            return "unknown";
+
+        return hash.Length > 7 ? hash.Substring(0, 7) : hash;
     }
 
     private static IEnumerator WaitUnscaled(float seconds)

@@ -8,20 +8,14 @@ public class MovementManager
     private float baseMoveSpeed;
     private float currentMoveSpeed;
     private float ageMultiplier = 1f;
-    private float temporaryMultiplier = 1f;
-    private float temporaryMultiplierRemaining = 0f;
-    private float baseSprintDuration;
-    private float baseSprintFactor = 1f;
-    private float baseSprintCooldown;
-    private float baseSprintCooldownSpeedFactor = 1f;
-    private float sprintRemaining;
-    private float sprintCooldownRemaining;
+    private SprintProfileParameters sprintProfile = SprintProfileParameters.Default;
+    private SprintEffectsState sprintState = SprintEffectsState.Default;
     public float MoveSpeed => currentMoveSpeed;
     public float BaseMoveSpeed => baseMoveSpeed;
-    public float BaseSprintDuration => baseSprintDuration;
-    public float BaseSprintFactor => baseSprintFactor;
-    public float BaseSprintCooldown => baseSprintCooldown;
-    public float BaseSprintCooldownSpeedFactor => baseSprintCooldownSpeedFactor;
+    public float BaseSprintDuration => sprintProfile.duration;
+    public float BaseSprintFactor => sprintProfile.sprintFactor;
+    public float BaseSprintCooldown => sprintProfile.cooldownDuration;
+    public float BaseSprintCooldownSpeedFactor => sprintProfile.cooldownSpeedFactor;
     public float HalfHeight => halfHeight;
 
     private BaseCreatureBehaviour creature;
@@ -41,24 +35,19 @@ public class MovementManager
 
     public void SetSprintProfile(float duration, float sprintFactor, float cooldownDuration, float cooldownSpeedFactor)
     {
-        baseSprintDuration = Mathf.Max(0f, duration);
-        baseSprintFactor = Mathf.Max(1f, sprintFactor);
-        baseSprintCooldown = Mathf.Max(0f, cooldownDuration);
-        baseSprintCooldownSpeedFactor = Mathf.Clamp(cooldownSpeedFactor, 0f, 1f);
-        sprintRemaining = 0f;
-        sprintCooldownRemaining = 0f;
+        sprintProfile = SprintProfileParameters.Create(duration, sprintFactor, cooldownDuration, cooldownSpeedFactor);
+        // Legacy behavior: profile changes reset the sprint timers but keep any
+        // active temporary multiplier.
+        sprintState.sprintRemaining = 0f;
+        sprintState.sprintCooldownRemaining = 0f;
         RecalculateCurrentSpeed();
     }
 
     public bool TryStartSprint()
     {
-        if (baseSprintDuration <= 0f || baseSprintFactor <= 1f)
+        if (!SprintEffectsCalculator.TryStartSprint(ref sprintState, in sprintProfile))
             return false;
 
-        if (sprintRemaining > 0f || sprintCooldownRemaining > 0f)
-            return false;
-
-        sprintRemaining = baseSprintDuration;
         RecalculateCurrentSpeed();
         return true;
     }
@@ -71,61 +60,19 @@ public class MovementManager
 
     public void ApplyTemporarySpeedMultiplier(float multiplier, float duration)
     {
-        temporaryMultiplier = Mathf.Clamp(multiplier, 0f, 1f);
-        temporaryMultiplierRemaining = Mathf.Max(0f, duration);
+        SprintEffectsCalculator.ApplyTemporaryMultiplier(ref sprintState, multiplier, duration);
         RecalculateCurrentSpeed();
     }
 
     public void UpdateTemporaryEffects(float deltaTime)
     {
-        bool requiresRecalc = false;
-
-        if (temporaryMultiplierRemaining > 0f)
-        {
-            temporaryMultiplierRemaining -= deltaTime;
-            if (temporaryMultiplierRemaining <= 0f)
-            {
-                temporaryMultiplier = 1f;
-                temporaryMultiplierRemaining = 0f;
-                requiresRecalc = true;
-            }
-        }
-
-        if (sprintRemaining > 0f)
-        {
-            sprintRemaining -= deltaTime;
-            if (sprintRemaining <= 0f)
-            {
-                sprintRemaining = 0f;
-                if (baseSprintCooldown > 0f)
-                {
-                    sprintCooldownRemaining = baseSprintCooldown;
-                }
-                requiresRecalc = true;
-            }
-        }
-
-        if (sprintCooldownRemaining > 0f)
-        {
-            sprintCooldownRemaining -= deltaTime;
-            if (sprintCooldownRemaining <= 0f)
-            {
-                sprintCooldownRemaining = 0f;
-                requiresRecalc = true;
-            }
-        }
-
-        if (requiresRecalc)
+        if (SprintEffectsCalculator.Tick(ref sprintState, deltaTime, in sprintProfile))
             RecalculateCurrentSpeed();
     }
 
     private void RecalculateCurrentSpeed()
     {
-        float sprintMultiplier = sprintRemaining > 0f ? baseSprintFactor : 1f;
-        float cooldownMultiplier = sprintRemaining <= 0f && sprintCooldownRemaining > 0f
-            ? baseSprintCooldownSpeedFactor
-            : 1f;
-        currentMoveSpeed = Mathf.Max(0f, baseMoveSpeed * ageMultiplier * temporaryMultiplier * sprintMultiplier * cooldownMultiplier);
+        currentMoveSpeed = SprintEffectsCalculator.ComputeCurrentSpeed(in sprintState, baseMoveSpeed, ageMultiplier, in sprintProfile);
     }
 
     public void MoveTowards(Vector3 targetPosition)

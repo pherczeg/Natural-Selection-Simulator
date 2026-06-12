@@ -6,8 +6,6 @@ using UnityEngine;
 
 public class ReproductionManager
 {
-    private const float SocialStrategyFatherInheritanceChance = 0.475f;
-    private const float SocialStrategyMotherInheritanceChance = 0.475f;
     private const float MatingIntentFalloffStartUsage = 0.9f;
 
     BaseCreatureBehaviour creature;
@@ -242,27 +240,8 @@ public class ReproductionManager
         if (config == null)
             return 1;
 
-        bool isPredator = creature is PredatorBehaviour;
-        int minCount = Math.Min(
-            config.GetMinOffspringPerReproduction(isPredator),
-            config.GetMaxOffspringPerReproduction(isPredator));
-        int maxCount = Math.Max(
-            config.GetMinOffspringPerReproduction(isPredator),
-            config.GetMaxOffspringPerReproduction(isPredator));
-
-        float sampled = SampleNormalDistribution(
-            config.GetOffspringCountMean(isPredator),
-            Math.Max(0.0001f, config.GetOffspringCountStdDev(isPredator)));
-        int rounded = Mathf.RoundToInt(sampled);
-        return Mathf.Clamp(rounded, minCount, maxCount);
-    }
-
-    private float SampleNormalDistribution(float mean, float stdDev)
-    {
-        float u1 = 1f - UnityEngine.Random.value;
-        float u2 = 1f - UnityEngine.Random.value;
-        float standardNormal = Mathf.Sqrt(-2f * Mathf.Log(u1)) * Mathf.Cos(2f * Mathf.PI * u2);
-        return mean + stdDev * standardNormal;
+        UnityRandomSource rng = new UnityRandomSource();
+        return GeneticsCalculator.GetOffspringCount(GetGeneticsParameters(config), ref rng);
     }
 
     public bool IsOppositeSex(BaseCreatureBehaviour mate)
@@ -293,14 +272,12 @@ public class ReproductionManager
         if (!IsPopulationAllowedToSeekMate(populationIntentMultiplier))
             return false;
 
-        bool isPredator = creature is PredatorBehaviour;
-        float normalized = Mathf.InverseLerp(config.herbivoreDesirabilityMin, config.herbivoreDesirabilityMax, candidateDesirability);
-        float acceptanceChance = Mathf.Lerp(
-            config.GetMinMateAcceptanceChance(isPredator),
-            config.GetMaxMateAcceptanceChance(isPredator),
-            normalized);
-        acceptanceChance = Mathf.Clamp01(acceptanceChance * populationIntentMultiplier);
-        return UnityEngine.Random.value <= acceptanceChance;
+        UnityRandomSource rng = new UnityRandomSource();
+        return GeneticsCalculator.RollAcceptance(
+            candidateDesirability,
+            populationIntentMultiplier,
+            GetGeneticsParameters(config),
+            ref rng);
     }
 
     private float GetSpeciesMatingIntentMultiplier()
@@ -370,136 +347,102 @@ public class ReproductionManager
         }
     }
 
+    private GeneticsParameters GetGeneticsParameters(GameConfig config)
+    {
+        return GeneticsParameters.FromConfig(config, creature is PredatorBehaviour);
+    }
+
     private float InheritWithMutation(float trait1, float trait2, float minvalue)
     {
-        float inheritedTrait = UnityEngine.Random.value < 0.5f ? trait1 : trait2;
-
-        float mutationChance = GameConfig.Instance.mutationChance;
-        float mutationRate = GameConfig.Instance.mutationRate;
-        if (UnityEngine.Random.value < mutationChance)
-        {
-            float mutationAmount = UnityEngine.Random.Range((-1) * mutationRate, mutationRate);
-            inheritedTrait += mutationAmount;
-        }
-
-        if (inheritedTrait < minvalue)
-        {
-            inheritedTrait += (minvalue - inheritedTrait);
-        }
-
-        return inheritedTrait;
+        UnityRandomSource rng = new UnityRandomSource();
+        return GeneticsCalculator.InheritWithMutation(
+            trait1,
+            trait2,
+            minvalue,
+            GetGeneticsParameters(GameConfig.Instance),
+            ref rng);
     }
 
     private float InheritWithMutation(float trait1, float trait2, float minvalue, float maxValue)
     {
-        float inheritedTrait = InheritWithMutation(trait1, trait2, minvalue);
-        return Mathf.Clamp(inheritedTrait, minvalue, maxValue);
+        UnityRandomSource rng = new UnityRandomSource();
+        return GeneticsCalculator.InheritWithMutation(
+            trait1,
+            trait2,
+            minvalue,
+            maxValue,
+            GetGeneticsParameters(GameConfig.Instance),
+            ref rng);
     }
 
     private float GetInheritedAgility(BaseCreatureBehaviour mate, GameConfig config)
     {
+        GeneticsParameters parameters = GetGeneticsParameters(config);
         float parentAgility = creature is HerbivoreBehaviour herbivore
             ? herbivore.Agility
-            : Mathf.Lerp(config.herbivoreAgilityMin, config.herbivoreAgilityMax, 0.5f);
+            : GeneticsCalculator.GetDefaultAgility(parameters);
 
         float mateAgility = mate is HerbivoreBehaviour mateHerbivore
             ? mateHerbivore.Agility
-            : Mathf.Lerp(config.herbivoreAgilityMin, config.herbivoreAgilityMax, 0.5f);
+            : GeneticsCalculator.GetDefaultAgility(parameters);
 
-        return InheritWithMutation(
-            parentAgility,
-            mateAgility,
-            config.herbivoreAgilityMin,
-            config.herbivoreAgilityMax);
+        UnityRandomSource rng = new UnityRandomSource();
+        return GeneticsCalculator.GetInheritedAgility(parentAgility, mateAgility, parameters, ref rng);
     }
 
     private float GetInheritedStrength(BaseCreatureBehaviour mate, GameConfig config)
     {
+        GeneticsParameters parameters = GetGeneticsParameters(config);
         float parentStrength = creature is PredatorBehaviour predator
             ? predator.Strength
-            : Mathf.Lerp(config.predatorStrengthMin, config.predatorStrengthMax, 0.5f);
+            : GeneticsCalculator.GetDefaultStrength(parameters);
 
         float mateStrength = mate is PredatorBehaviour matePredator
             ? matePredator.Strength
-            : Mathf.Lerp(config.predatorStrengthMin, config.predatorStrengthMax, 0.5f);
+            : GeneticsCalculator.GetDefaultStrength(parameters);
 
-        return InheritWithMutation(
-            parentStrength,
-            mateStrength,
-            config.predatorStrengthMin,
-            config.predatorStrengthMax);
+        UnityRandomSource rng = new UnityRandomSource();
+        return GeneticsCalculator.GetInheritedStrength(parentStrength, mateStrength, parameters, ref rng);
     }
 
     private float GetInheritedSprintDuration(BaseCreatureBehaviour mate, GameConfig config)
     {
-        if (creature is PredatorBehaviour)
-        {
-            return InheritWithMutation(
-                creature.MovementManager.BaseSprintDuration,
-                mate.MovementManager.BaseSprintDuration,
-                config.predatorSprintDurationMin,
-                config.predatorSprintDurationMax);
-        }
-
-        return InheritWithMutation(
+        UnityRandomSource rng = new UnityRandomSource();
+        return GeneticsCalculator.GetInheritedSprintDuration(
             creature.MovementManager.BaseSprintDuration,
             mate.MovementManager.BaseSprintDuration,
-            config.herbivoreSprintDurationMin,
-            config.herbivoreSprintDurationMax);
+            GetGeneticsParameters(config),
+            ref rng);
     }
 
     private float GetInheritedSprintFactor(BaseCreatureBehaviour mate, GameConfig config)
     {
-        if (creature is PredatorBehaviour)
-        {
-            return InheritWithMutation(
-                creature.MovementManager.BaseSprintFactor,
-                mate.MovementManager.BaseSprintFactor,
-                config.predatorSprintFactorMin,
-                config.predatorSprintFactorMax);
-        }
-
-        return InheritWithMutation(
+        UnityRandomSource rng = new UnityRandomSource();
+        return GeneticsCalculator.GetInheritedSprintFactor(
             creature.MovementManager.BaseSprintFactor,
             mate.MovementManager.BaseSprintFactor,
-            config.herbivoreSprintFactorMin,
-            config.herbivoreSprintFactorMax);
+            GetGeneticsParameters(config),
+            ref rng);
     }
 
     private float GetInheritedSprintCooldown(BaseCreatureBehaviour mate, GameConfig config)
     {
-        if (creature is PredatorBehaviour)
-        {
-            return InheritWithMutation(
-                creature.MovementManager.BaseSprintCooldown,
-                mate.MovementManager.BaseSprintCooldown,
-                config.predatorSprintCooldownMin,
-                config.predatorSprintCooldownMax);
-        }
-
-        return InheritWithMutation(
+        UnityRandomSource rng = new UnityRandomSource();
+        return GeneticsCalculator.GetInheritedSprintCooldown(
             creature.MovementManager.BaseSprintCooldown,
             mate.MovementManager.BaseSprintCooldown,
-            config.herbivoreSprintCooldownMin,
-            config.herbivoreSprintCooldownMax);
+            GetGeneticsParameters(config),
+            ref rng);
     }
 
     private float GetInheritedSprintCooldownSpeedFactor(BaseCreatureBehaviour mate, GameConfig config)
     {
-        if (creature is PredatorBehaviour)
-        {
-            return InheritWithMutation(
-                creature.MovementManager.BaseSprintCooldownSpeedFactor,
-                mate.MovementManager.BaseSprintCooldownSpeedFactor,
-                config.predatorSprintCooldownSpeedFactorMin,
-                config.predatorSprintCooldownSpeedFactorMax);
-        }
-
-        return InheritWithMutation(
+        UnityRandomSource rng = new UnityRandomSource();
+        return GeneticsCalculator.GetInheritedSprintCooldownSpeedFactor(
             creature.MovementManager.BaseSprintCooldownSpeedFactor,
             mate.MovementManager.BaseSprintCooldownSpeedFactor,
-            config.herbivoreSprintCooldownSpeedFactorMin,
-            config.herbivoreSprintCooldownSpeedFactorMax);
+            GetGeneticsParameters(config),
+            ref rng);
     }
 
     private bool IsSameSpecies(BaseCreatureBehaviour mate)
@@ -572,16 +515,8 @@ public class ReproductionManager
             mateHerbivore,
             CreatureSex.Female);
 
-        float roll = UnityEngine.Random.value;
-        if (roll < SocialStrategyFatherInheritanceChance)
-            return fatherStrategy;
-
-        if (roll < SocialStrategyFatherInheritanceChance + SocialStrategyMotherInheritanceChance)
-            return motherStrategy;
-
-        return UnityEngine.Random.value < 0.5f
-            ? HerbivoreSocialStrategy.Hawk
-            : HerbivoreSocialStrategy.Dove;
+        UnityRandomSource rng = new UnityRandomSource();
+        return GeneticsCalculator.InheritSocialStrategy(fatherStrategy, motherStrategy, ref rng);
     }
 
     private CreatureUtilityBehaviorData GetInheritedUtilityBehaviorProfile(BaseCreatureBehaviour mate, GameConfig config)
@@ -606,7 +541,12 @@ public class ReproductionManager
             mate,
             CreatureSex.Female);
 
-        return UtilityBehaviorGenetics.InheritProfile(fatherProfile, motherProfile, config);
+        UnityRandomSource rng = new UnityRandomSource();
+        return GeneticsCalculator.InheritUtilityBehaviorProfile(
+            fatherProfile,
+            motherProfile,
+            GetGeneticsParameters(config),
+            ref rng);
     }
 
     private static CreatureUtilityBehaviorData GetParentUtilityBehaviorProfileBySex(
