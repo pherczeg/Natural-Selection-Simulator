@@ -59,12 +59,57 @@ public class CreatureSpawner : MonoBehaviour
 
         for (int i = 0; i < initialHerbivoreCount; i++)
         {
-            Vector3 spawnPosition = GetSpawnPosition(bounds, herbivorPrefab);
-            BaseCreatureBehaviour newCreatureBehaviour = SpawnCreature(spawnPosition, herbivorPrefab);
-            if (newCreatureBehaviour == null)
+            if (SpawnRandomCreature(false, GetInitialSex(i)) == null)
                 break;
+        }
+        for (int i = 0; i < initialPredatorCount; i++)
+        {
+            if (SpawnRandomCreature(true, GetInitialSex(i)) == null)
+                break;
+        }
+    }
 
-            newCreatureBehaviour.SetSex(GetInitialSex(i));
+    /// <summary>
+    /// Spawns one creature with traits randomized from the config ranges, exactly like
+    /// the initial population. Respects population caps (returns null when full).
+    /// Also used by SimulationBenchmark to spawn up to a target population.
+    /// </summary>
+    public BaseCreatureBehaviour SpawnRandomCreature(bool isPredator, CreatureSex sex)
+    {
+        var config = GameConfig.Instance;
+        if (config == null || GroundManager.Instance == null)
+            return null;
+
+        Bounds bounds = GroundManager.Instance.GroundBounds;
+        GameObject prefab = isPredator ? predatorPrefab : herbivorPrefab;
+        Vector3 spawnPosition = GetSpawnPosition(bounds, prefab);
+        BaseCreatureBehaviour newCreatureBehaviour = SpawnCreature(spawnPosition, prefab);
+        if (newCreatureBehaviour == null)
+            return null;
+
+        newCreatureBehaviour.SetSex(sex);
+        if (isPredator)
+        {
+            var weight = Random.Range(config.predatorWeightMin, config.predatorWeightMax);
+            var moveSpeed = Random.Range(config.predatorSpeedMin, config.predatorSpeedMax);
+            var sprintDuration = Random.Range(config.predatorSprintDurationMin, config.predatorSprintDurationMax);
+            var sprintFactor = Random.Range(config.predatorSprintFactorMin, config.predatorSprintFactorMax);
+            var sprintCooldown = Random.Range(config.predatorSprintCooldownMin, config.predatorSprintCooldownMax);
+            var sprintCooldownSpeedFactor = Random.Range(config.predatorSprintCooldownSpeedFactorMin, config.predatorSprintCooldownSpeedFactorMax);
+            var senseRange = Random.Range(config.predatorSenseMin, config.predatorSenseMax);
+            var strength = Random.Range(config.predatorStrengthMin, config.predatorStrengthMax);
+            newCreatureBehaviour.Initialize(moveSpeed, weight, senseRange);
+            newCreatureBehaviour.RandomizeUtilityBehaviorProfile(config);
+            newCreatureBehaviour.MovementManager?.SetSprintProfile(sprintDuration, sprintFactor, sprintCooldown, sprintCooldownSpeedFactor);
+            newCreatureBehaviour.AgeManager.SetInitialAge(Random.Range(0f, config.oldAgeStartAge));
+            if (newCreatureBehaviour is PredatorBehaviour predator)
+            {
+                predator.SetStrength(strength);
+                newCreatureBehaviour.ReproductionManager?.SetDesirability(strength);
+            }
+        }
+        else
+        {
             var weight = Random.Range(config.herbivoreWeightMin, config.herbivoreWeightMax);
             var moveSpeed = Random.Range(config.herbivoreSpeedMin, config.herbivoreSpeedMax);
             var sprintDuration = Random.Range(config.herbivoreSprintDurationMin, config.herbivoreSprintDurationMax);
@@ -86,32 +131,8 @@ public class CreatureSpawner : MonoBehaviour
                 //  herbivore.SetSocialStrategy(HerbivoreSocialStrategy.Hawk);
             }
         }
-        for (int i = 0; i < initialPredatorCount; i++)
-        {
-            Vector3 spawnPosition = GetSpawnPosition(bounds, predatorPrefab);
-            BaseCreatureBehaviour newCreatureBehaviour = SpawnCreature(spawnPosition, predatorPrefab);
-            if (newCreatureBehaviour == null)
-                break;
 
-            newCreatureBehaviour.SetSex(GetInitialSex(i));
-            var weight = Random.Range(config.predatorWeightMin, config.predatorWeightMax);
-            var moveSpeed = Random.Range(config.predatorSpeedMin, config.predatorSpeedMax);
-            var sprintDuration = Random.Range(config.predatorSprintDurationMin, config.predatorSprintDurationMax);
-            var sprintFactor = Random.Range(config.predatorSprintFactorMin, config.predatorSprintFactorMax);
-            var sprintCooldown = Random.Range(config.predatorSprintCooldownMin, config.predatorSprintCooldownMax);
-            var sprintCooldownSpeedFactor = Random.Range(config.predatorSprintCooldownSpeedFactorMin, config.predatorSprintCooldownSpeedFactorMax);
-            var senseRange = Random.Range(config.predatorSenseMin, config.predatorSenseMax);
-            var strength = Random.Range(config.predatorStrengthMin, config.predatorStrengthMax);
-            newCreatureBehaviour.Initialize(moveSpeed, weight, senseRange);
-            newCreatureBehaviour.RandomizeUtilityBehaviorProfile(config);
-            newCreatureBehaviour.MovementManager?.SetSprintProfile(sprintDuration, sprintFactor, sprintCooldown, sprintCooldownSpeedFactor);
-            newCreatureBehaviour.AgeManager.SetInitialAge(Random.Range(0f, config.oldAgeStartAge));
-            if (newCreatureBehaviour is PredatorBehaviour predator)
-            {
-                predator.SetStrength(strength);
-                newCreatureBehaviour.ReproductionManager?.SetDesirability(strength);
-            }
-        }
+        return newCreatureBehaviour;
     }
     public bool RemoveFromList(BaseCreatureBehaviour creature)
     {

@@ -58,6 +58,7 @@ internal class Scheduler : MonoBehaviour
         {
             foodPositions[i] = foods[i].transform.position;
         }
+        SimulationPerfCounters.AddSensorQueries(creatures.Count);
         NativeArray<int> closestFoods = new NativeArray<int>(creatures.Count, Allocator.TempJob);
         FindClosestFoodJob job = new FindClosestFoodJob
         {
@@ -108,6 +109,8 @@ internal class Scheduler : MonoBehaviour
                         && c.ReproductionManager != null
                         && c.ReproductionManager.IsReadyToReproduction())
             .ToList();
+
+        SimulationPerfCounters.AddSensorQueries(creatures.Count);
 
         for (int i = 0; i < creatures.Count; i++)
         {
@@ -170,6 +173,7 @@ internal class Scheduler : MonoBehaviour
         {
             predatorCreaturePositions[i] = predatorCreatures[i].transform.position;
         }
+        SimulationPerfCounters.AddSensorQueries(predatorCreatures.Count);
         NativeArray<int> closestFoodCreatureIndices = new NativeArray<int>(predatorCreatures.Count, Allocator.TempJob);
         FindClosestFoodCreatureJob job = new FindClosestFoodCreatureJob
         {

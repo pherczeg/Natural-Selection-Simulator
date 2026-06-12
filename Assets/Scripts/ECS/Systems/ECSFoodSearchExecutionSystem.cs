@@ -26,6 +26,7 @@ public partial class ECSFoodSearchExecutionSystem : SystemBase
     {
         float deltaTime = (float)World.Time.DeltaTime;
         GameConfig config = GameConfig.Instance;
+        bool useEcsMovementExecution = config != null && config.useEcsMovementExecution;
 
         foreach (var (identityRef, observationRef, requestRef, actionStateRef, actionTargetRef, actionTimerRef, wanderStateRef)
                  in SystemAPI.Query<
@@ -149,7 +150,7 @@ public partial class ECSFoodSearchExecutionSystem : SystemBase
                             creature.MovementManager.TryStartSprint();
                         }
 
-                        creature.MovementManager.MoveTowards(ToVector3(wanderState.targetPosition));
+                        creature.MovementManager.MoveTowardsOrQueue(ToVector3(wanderState.targetPosition), useEcsMovementExecution);
                     }
                 }
             }
@@ -223,7 +224,7 @@ public partial class ECSFoodSearchExecutionSystem : SystemBase
                         creature.MovementManager.TryStartSprint();
                     }
 
-                    creature.MovementManager.MoveTowards(targetPosition);
+                    creature.MovementManager.MoveTowardsOrQueue(targetPosition, useEcsMovementExecution);
                     actionState.status = CreatureActionStatus.Running;
                     actionState.legacyStateType = CreatureStateType.MovingToFood;
                 }

@@ -25,6 +25,8 @@ public partial class ECSMateSearchExecutionSystem : SystemBase
     protected override void OnUpdate()
     {
         float deltaTime = (float)World.Time.DeltaTime;
+        GameConfig config = GameConfig.Instance;
+        bool useEcsMovementExecution = config != null && config.useEcsMovementExecution;
 
         foreach (var (identityRef, observationRef, requestRef, actionStateRef, actionTargetRef, actionTimerRef, wanderStateRef)
                  in SystemAPI.Query<
@@ -143,7 +145,7 @@ public partial class ECSMateSearchExecutionSystem : SystemBase
 
                     if (wanderState.hasTarget)
                     {
-                        creature.MovementManager.MoveTowards(ToVector3(wanderState.targetPosition));
+                        creature.MovementManager.MoveTowardsOrQueue(ToVector3(wanderState.targetPosition), useEcsMovementExecution);
                     }
                 }
             }
@@ -175,7 +177,7 @@ public partial class ECSMateSearchExecutionSystem : SystemBase
                 {
                     wanderState.hasTarget = false;
                     wanderState.targetPosition = float3.zero;
-                    creature.MovementManager.MoveTowards(mate.transform.position);
+                    creature.MovementManager.MoveTowardsOrQueue(mate.transform.position, useEcsMovementExecution);
                     actionState.status = CreatureActionStatus.Running;
                     actionState.legacyStateType = CreatureStateType.MovingToMate;
                 }

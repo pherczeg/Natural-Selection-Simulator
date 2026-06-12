@@ -48,6 +48,8 @@ public partial class ECSObservationSystem : SystemBase
         if (creatureCount == 0)
             return;
 
+        SimulationPerfCounters.AddSensorQueries(creatureCount);
+
         NativeArray<Entity> creatureEntities = creatureQuery.ToEntityArray(Allocator.TempJob);
         NativeArray<CreatureIdentity> creatureIdentities = creatureQuery.ToComponentDataArray<CreatureIdentity>(Allocator.TempJob);
         NativeArray<CreatureTransformMirror> creatureTransforms = creatureQuery.ToComponentDataArray<CreatureTransformMirror>(Allocator.TempJob);

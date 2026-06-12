@@ -277,6 +277,14 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         instance = this;
     }
 
+    private void OnEnable()
+    {
+        if (instance != null && instance != this)
+            return;
+
+        CreatureMovementBatch.EnsureCreated();
+    }
+
     private void LateUpdate()
     {
         GameConfig config = GameConfig.Instance;
@@ -326,6 +334,11 @@ public sealed class ECSMirrorBridge : MonoBehaviour
             DestroyAllMirroredEntities(entityManager);
             DestroyAllRequestEntities(entityManager);
         }
+
+        if (instance == this)
+        {
+            CreatureMovementBatch.DisposeShared();
+        }
     }
 
     private void StopActivePredationSessions()
@@ -345,7 +358,10 @@ public sealed class ECSMirrorBridge : MonoBehaviour
     private void OnDestroy()
     {
         if (instance == this)
+        {
+            CreatureMovementBatch.DisposeShared();
             instance = null;
+        }
     }
 
     private bool TryGetEntityManager(out EntityManager entityManager)
@@ -1685,6 +1701,7 @@ public sealed class ECSMirrorBridge : MonoBehaviour
                 activeCreaturesByInstanceId.Remove(instanceId);
                 unresolvedCreatureIds.Remove(instanceId);
                 seenCreatureIds.Remove(instanceId);
+                CreatureMovementBatch.Instance?.Unregister(instanceId);
                 i--;
                 continue;
             }
@@ -1949,6 +1966,8 @@ public sealed class ECSMirrorBridge : MonoBehaviour
             }
 
             entityByInstanceId.Remove(instanceId);
+            // No-op for food ids; only creatures register movement intents.
+            CreatureMovementBatch.Instance?.Unregister(instanceId);
         }
     }
 

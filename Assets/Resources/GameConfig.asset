@@ -30,8 +30,15 @@ MonoBehaviour:
   useEcsUtilityScoring: 1
   useEcsFoodLifecycle: 1
   useEcsCreatureLifecycle: 1
+  useEcsMovementExecution: 1
+  useEcsStatistics: 1
   logUtilityAIScores: 0
   utilityDecisionInterval: 0.2
+  benchmarkEnabled: 1
+  benchmarkCreatureCounts: f4010000e8030000d007000088130000
+  benchmarkWarmupSeconds: 10
+  benchmarkMeasureSeconds: 30
+  benchmarkSpawnBatchPerFrame: 100
   utilityBehaviorWeightMin: 0.75
   utilityBehaviorWeightMax: 1.25
   oldAgeStartAge: 80

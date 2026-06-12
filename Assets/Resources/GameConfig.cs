@@ -47,8 +47,18 @@ public class GameConfig : ScriptableObject
     public bool useEcsUtilityScoring = false;
     public bool useEcsFoodLifecycle = false;
     public bool useEcsCreatureLifecycle = false;
+    public bool useEcsMovementExecution = false;
+    [Tooltip("Requires useEcsCreatureLifecycle; aggregates core species stats from ECS data instead of polling creature lists.")]
+    public bool useEcsStatistics = false;
     public bool logUtilityAIScores = false;
     [Min(0.01f)] public float utilityDecisionInterval = .2f;
+
+    [Header("Benchmark")]
+    public bool benchmarkEnabled = false;
+    public int[] benchmarkCreatureCounts = { 500, 1000, 2000, 5000 };
+    [Min(0f)] public float benchmarkWarmupSeconds = 10f;
+    [Min(1f)] public float benchmarkMeasureSeconds = 30f;
+    [Min(1)] public int benchmarkSpawnBatchPerFrame = 100;
 
     [Header("Utility Behavior Genetics")]
     [Range(0f, 2f)] public float utilityBehaviorWeightMin = 0.75f;

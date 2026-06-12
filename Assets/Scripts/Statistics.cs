@@ -376,7 +376,7 @@ public class Statistics : MonoBehaviour
         int totalHerbivoresSpawned = statistics?.totalHerbivoresSpawned ?? 0;
         int totalPredatorsSpawned = statistics?.totalPredatorsSpawned ?? 0;
 
-        return new SimulationDiagnosticsSnapshot
+        var snapshot = new SimulationDiagnosticsSnapshot
         {
             elapsedTime = statistics != null ? statistics.elapsedTime : Time.time,
             aliveHerbivores = herbivores.Length,
@@ -417,6 +417,33 @@ public class Statistics : MonoBehaviour
             hawkRatio = CalculateRatio(CountHerbivoreStrategy(herbivores, HerbivoreSocialStrategy.Hawk), herbivores.Length),
             stateDistribution = BuildStateDistribution(herbivores, predators)
         };
+
+        ApplyEcsDiagnosticsIfEnabled(snapshot);
+
+        return snapshot;
+    }
+
+    private static void ApplyEcsDiagnosticsIfEnabled(SimulationDiagnosticsSnapshot snapshot)
+    {
+        if (!ECSStatisticsMirror.IsEnabled(GameConfig.Instance) ||
+            !ECSStatisticsMirror.TryGet(
+                out EcsSpeciesAggregateData ecsHerbivores,
+                out EcsSpeciesAggregateData ecsPredators,
+                out int ecsFoodCount))
+        {
+            return;
+        }
+
+        snapshot.aliveHerbivores = ecsHerbivores.count;
+        snapshot.alivePredators = ecsPredators.count;
+        snapshot.foodCount = ecsFoodCount;
+        snapshot.averageHerbivoreEnergy = ecsHerbivores.averageEnergy;
+        snapshot.averagePredatorEnergy = ecsPredators.averageEnergy;
+
+        int totalCount = ecsHerbivores.count + ecsPredators.count;
+        snapshot.averageEnergy = totalCount > 0
+            ? (ecsHerbivores.averageEnergy * ecsHerbivores.count + ecsPredators.averageEnergy * ecsPredators.count) / totalCount
+            : 0f;
     }
 
     public static string FormatDiagnosticsSnapshot(SimulationDiagnosticsSnapshot snapshot)
@@ -493,7 +520,50 @@ public class Statistics : MonoBehaviour
         s.averageUtilitySearchMateWeight = creatures.Average(c => c.UtilityBehaviorProfile.searchMateWeight);
         s.averageUtilityWanderWeight = creatures.Average(c => c.UtilityBehaviorProfile.wanderWeight);
 
+        ApplyEcsAggregatesIfEnabled(s);
+
         return s;
+    }
+
+    /// <summary>
+    /// When useEcsStatistics is active, the fields covered by the ECS aggregation job
+    /// are taken from ECSStatisticsMirror instead of the list polling above. Fields not
+    /// represented in ECS data (current speed/sense, desirability, sprint profile,
+    /// dove/hawk, agility/strength, utility weights) keep their polled values.
+    /// </summary>
+    private static void ApplyEcsAggregatesIfEnabled(SpeciesStatisticsSnapshot s)
+    {
+        if (!ECSStatisticsMirror.IsEnabled(GameConfig.Instance) ||
+            !ECSStatisticsMirror.TryGet(
+                out EcsSpeciesAggregateData ecsHerbivores,
+                out EcsSpeciesAggregateData ecsPredators,
+                out _))
+        {
+            return;
+        }
+
+        EcsSpeciesAggregateData aggregates = s.species == "Predator" ? ecsPredators : ecsHerbivores;
+        s.count = aggregates.count;
+        s.femaleCount = aggregates.femaleCount;
+        s.maleCount = aggregates.maleCount;
+        s.averageWeight = aggregates.averageWeight;
+        s.minWeight = aggregates.minWeight;
+        s.maxWeight = aggregates.maxWeight;
+        s.averageBaseSpeed = aggregates.averageBaseSpeed;
+        s.minBaseSpeed = aggregates.minBaseSpeed;
+        s.maxBaseSpeed = aggregates.maxBaseSpeed;
+        s.averageEnergy = aggregates.averageEnergy;
+        s.minEnergy = aggregates.minEnergy;
+        s.maxEnergy = aggregates.maxEnergy;
+        s.averageCurrentMaxEnergy = aggregates.averageCurrentMaxEnergy;
+        s.minCurrentMaxEnergy = aggregates.minCurrentMaxEnergy;
+        s.maxCurrentMaxEnergy = aggregates.maxCurrentMaxEnergy;
+        s.averageAge = aggregates.averageAge;
+        s.minAge = aggregates.minAge;
+        s.maxAge = aggregates.maxAge;
+        s.averageBaseSenseRadius = aggregates.averageBaseSenseRadius;
+        s.minBaseSenseRadius = aggregates.minBaseSenseRadius;
+        s.maxBaseSenseRadius = aggregates.maxBaseSenseRadius;
     }
 
     private static BaseCreatureBehaviour[] GetActiveCreatures(List<BaseCreatureBehaviour> source)

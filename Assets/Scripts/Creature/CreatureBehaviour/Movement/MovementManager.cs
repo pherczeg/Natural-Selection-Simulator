@@ -1,8 +1,9 @@
-﻿using UnityEngine;
+﻿using Unity.Mathematics;
+using UnityEngine;
 
 public class MovementManager
 {
-    private const float BoundsInset = 0.25f;
+    private const float BoundsInset = CreatureMovementCalculator.BoundsInset;
 
     private float baseMoveSpeed;
     private float currentMoveSpeed;
@@ -21,7 +22,8 @@ public class MovementManager
     public float BaseSprintFactor => baseSprintFactor;
     public float BaseSprintCooldown => baseSprintCooldown;
     public float BaseSprintCooldownSpeedFactor => baseSprintCooldownSpeedFactor;
-    
+    public float HalfHeight => halfHeight;
+
     private BaseCreatureBehaviour creature;
     private Transform creatureTransform;
     private Bounds bounds;
@@ -130,28 +132,58 @@ public class MovementManager
     {
         // Movement is intentionally XZ-only; Y is resolved by the ground snap below.
         Vector3 currentPosition = creatureTransform.position;
-        Vector3 currentXZ = new Vector3(currentPosition.x, 0f, currentPosition.z);
-        Vector3 targetXZ = new Vector3(targetPosition.x, 0f, targetPosition.z);
 
-        currentXZ = ClampXZToBounds(currentXZ, halfHeight);
-        targetXZ = ClampXZToBounds(targetXZ, halfHeight);
+        CreatureMovementCalculator.ComputeStep(
+            currentPosition,
+            targetPosition,
+            currentMoveSpeed,
+            Time.fixedDeltaTime,
+            halfHeight,
+            GetBoundsParameters(),
+            out float3 stepPosition,
+            out bool hasRotation,
+            out quaternion rotation);
 
-        Vector3 nextXZ = Vector3.MoveTowards(currentXZ, targetXZ, currentMoveSpeed * Time.fixedDeltaTime);
-        nextXZ = ClampXZToBounds(nextXZ, halfHeight);
-
-        Vector3 moveDelta = targetXZ - currentXZ;
-        Vector3 nextPosition = new Vector3(nextXZ.x, currentPosition.y, nextXZ.z);
-        if (GroundSnapUtils.TryGetGroundY(nextXZ.x, nextXZ.z, out float groundY, halfHeight))
+        // Y stays on GroundSnapUtils so the out-of-bounds / missing-ground raycast
+        // fallback keeps working exactly as before.
+        Vector3 nextPosition = new Vector3(stepPosition.x, currentPosition.y, stepPosition.z);
+        if (GroundSnapUtils.TryGetGroundY(stepPosition.x, stepPosition.z, out float groundY, halfHeight))
         {
             nextPosition.y = groundY;
         }
         creatureTransform.position = nextPosition;
 
-        if (moveDelta.sqrMagnitude > 0.0001f)
+        if (hasRotation)
         {
-            Vector3 moveDirection = moveDelta.normalized;
-            creatureTransform.rotation = Quaternion.LookRotation(moveDirection);
+            creatureTransform.rotation = rotation;
         }
+    }
+
+    /// <summary>
+    /// Used by the ECS execution systems: queues the move into the shared movement
+    /// batch when ECS movement execution is enabled, otherwise moves immediately.
+    /// The flee path intentionally keeps calling MoveTowards directly.
+    /// </summary>
+    public void MoveTowardsOrQueue(Vector3 targetPosition, bool useEcsMovementExecution)
+    {
+        if (useEcsMovementExecution && TryQueueEcsMove(targetPosition))
+            return;
+
+        MoveTowards(targetPosition);
+    }
+
+    public bool TryQueueEcsMove(Vector3 targetPosition)
+    {
+        CreatureMovementBatch batch = CreatureMovementBatch.Instance;
+        if (batch == null || creature == null)
+            return false;
+
+        return batch.TryQueueMove(
+            creature.GetInstanceID(),
+            creatureTransform,
+            targetPosition,
+            currentMoveSpeed,
+            halfHeight);
     }
 
     public Vector3 Wander()
@@ -165,8 +197,8 @@ public class MovementManager
     {
         if (RefreshBounds())
         {
-            float x = Random.Range(bounds.min.x, bounds.max.x);
-            float z = Random.Range(bounds.min.z, bounds.max.z);
+            float x = UnityEngine.Random.Range(bounds.min.x, bounds.max.x);
+            float z = UnityEngine.Random.Range(bounds.min.z, bounds.max.z);
             return new Vector3(x, GroundSnapUtils.GetGroundY(x, z), z);
         }
         else
@@ -227,31 +259,22 @@ public class MovementManager
         return true;
     }
 
-    private Vector3 ClampXZToBounds(Vector3 position, float halfHeight)
+    private MovementBoundsParameters GetBoundsParameters()
     {
         if (!hasBounds && !RefreshBounds())
-            return position;
+            return default;
 
-        float inset = Mathf.Max(BoundsInset, halfHeight * 0.5f);
-        float minX = bounds.min.x + inset;
-        float maxX = bounds.max.x - inset;
-        float minZ = bounds.min.z + inset;
-        float maxZ = bounds.max.z - inset;
-
-        if (minX > maxX)
+        return new MovementBoundsParameters
         {
-            minX = maxX = bounds.center.x;
-        }
-
-        if (minZ > maxZ)
-        {
-            minZ = maxZ = bounds.center.z;
-        }
-
-        return new Vector3(
-            Mathf.Clamp(position.x, minX, maxX),
-            0f,
-            Mathf.Clamp(position.z, minZ, maxZ));
+            hasBounds = true,
+            minX = bounds.min.x,
+            maxX = bounds.max.x,
+            minZ = bounds.min.z,
+            maxZ = bounds.max.z,
+            centerX = bounds.center.x,
+            centerZ = bounds.center.z,
+            groundSurfaceY = GroundManager.Instance != null ? GroundManager.Instance.GroundSurfaceY : 0f
+        };
     }
 
     bool IsPathClear(Vector3 direction)

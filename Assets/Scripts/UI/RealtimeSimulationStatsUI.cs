@@ -80,6 +80,31 @@ public class RealtimeSimulationStatsUI : MonoBehaviour
         snapshot = Statistics.BuildDiagnosticsSnapshot(Statistics.Instance);
         herbivoreAverages = ComputeSpeciesAverages(CreatureSpawner.Instance?.herbivorCreatures);
         predatorAverages = ComputeSpeciesAverages(CreatureSpawner.Instance?.predatorCreatures);
+
+        if (ECSStatisticsMirror.IsEnabled(GameConfig.Instance) &&
+            ECSStatisticsMirror.TryGet(
+                out EcsSpeciesAggregateData ecsHerbivores,
+                out EcsSpeciesAggregateData ecsPredators,
+                out _))
+        {
+            ApplyEcsAggregates(ref herbivoreAverages, ecsHerbivores);
+            ApplyEcsAggregates(ref predatorAverages, ecsPredators);
+        }
+    }
+
+    /// <summary>
+    /// Overlays the fields covered by the ECS statistics aggregation; current
+    /// speed/sense, desirability, social strategy, agility/strength and utility
+    /// weights are not mirrored in ECS and keep their polled values.
+    /// </summary>
+    private static void ApplyEcsAggregates(ref SpeciesAverages averages, in EcsSpeciesAggregateData aggregates)
+    {
+        averages.count = aggregates.count;
+        averages.femaleCount = aggregates.femaleCount;
+        averages.maleCount = aggregates.maleCount;
+        averages.averageWeight = aggregates.averageWeight;
+        averages.averageAge = aggregates.averageAge;
+        averages.averageEnergy = aggregates.averageEnergy;
     }
 
     private void OnGUI()

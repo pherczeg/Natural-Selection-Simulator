@@ -24,6 +24,8 @@ public partial class ECSWanderExecutionSystem : SystemBase
     protected override void OnUpdate()
     {
         float deltaTime = (float)World.Time.DeltaTime;
+        GameConfig config = GameConfig.Instance;
+        bool useEcsMovementExecution = config != null && config.useEcsMovementExecution;
 
         foreach (var (identityRef, requestRef, actionStateRef, actionTargetRef, actionTimerRef, wanderStateRef)
                  in SystemAPI.Query<
@@ -121,7 +123,7 @@ public partial class ECSWanderExecutionSystem : SystemBase
                 }
             }
 
-            creature.MovementManager.MoveTowards(target);
+            creature.MovementManager.MoveTowardsOrQueue(target, useEcsMovementExecution);
             actionState.status = CreatureActionStatus.Running;
         }
     }
