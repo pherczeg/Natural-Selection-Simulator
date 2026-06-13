@@ -5,9 +5,6 @@ using UnityEngine;
 
 public class FoodSpawner : MonoBehaviour
 {
-    private const float GroundRaycastOriginHeight = 500f;
-    private const float GroundRaycastDistance = 1000f;
-
     public static FoodSpawner Instance { get; private set; }
 
     public GameObject foodPrefab;
@@ -61,9 +58,6 @@ public class FoodSpawner : MonoBehaviour
 
         Bounds bounds = groundRenderer.bounds;
         Vector3 randomPosition = GetRandomGroundPosition(bounds);
-        int attempts = 0;
-        while (IsPlaceOccupied(randomPosition) && attempts++ < 100)
-            randomPosition = GetRandomGroundPosition(bounds);
 
         GameConfig config = GameConfig.Instance;
         if (config == null)
@@ -106,34 +100,9 @@ public class FoodSpawner : MonoBehaviour
     {
         float x = UnityEngine.Random.Range(bounds.min.x, bounds.max.x);
         float z = UnityEngine.Random.Range(bounds.min.z, bounds.max.z);
-        float y = GetGroundYForObject(x, z, foodPrefab);
+        float halfHeight = GetHalfHeight(foodPrefab);
+        float y = GroundSnapUtils.TryGetGroundY(x, z, out float groundY, halfHeight) ? groundY : halfHeight;
         return new Vector3(x, y, z);
-    }
-
-    private float GetGroundYForObject(float x, float z, GameObject obj)
-    {
-        float halfHeight = GetHalfHeight(obj);
-        return GetGroundY(x, z, halfHeight, 0f);
-    }
-
-    private float GetGroundY(float x, float z, float surfaceOffset, float fallbackY)
-    {
-        Vector3 origin = new Vector3(x, GroundRaycastOriginHeight, z);
-        RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, GroundRaycastDistance);
-
-        float bestY = float.MinValue;
-        bool found = false;
-
-        foreach (var hit in hits)
-        {
-            if (hit.collider.CompareTag("Ground") && hit.point.y > bestY)
-            {
-                bestY = hit.point.y;
-                found = true;
-            }
-        }
-
-        return (found ? bestY : fallbackY) + surfaceOffset;
     }
 
     private float GetHalfHeight(GameObject obj)
@@ -199,20 +168,6 @@ public class FoodSpawner : MonoBehaviour
         }
 
         return count;
-    }
-
-    bool IsPlaceOccupied(Vector3 position)
-    {
-        float checkRadius = 1.5f;
-        Collider[] colliders = Physics.OverlapSphere(position, checkRadius);
-        foreach (var collider in colliders)
-        {
-            if (!collider.isTrigger
-                && collider.gameObject != gameObject
-                && !collider.CompareTag("Ground"))
-                return true;
-        }
-        return false;
     }
 
     IEnumerator SpawnFoodAtRate()

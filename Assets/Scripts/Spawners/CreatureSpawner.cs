@@ -3,8 +3,6 @@ using UnityEngine;
 
 public class CreatureSpawner : MonoBehaviour
 {
-    private const float GroundRaycastOriginHeight = 500f;
-    private const float GroundRaycastDistance = 1000f;
     private int cachedPopulationFrame = -1;
     private int cachedActiveHerbivoreCount;
     private int cachedActivePredatorCount;
@@ -272,43 +270,9 @@ public class CreatureSpawner : MonoBehaviour
     {
         float x = Random.Range(bounds.min.x, bounds.max.x);
         float z = Random.Range(bounds.min.z, bounds.max.z);
-        Vector3 spawnPosition = new Vector3(x, GetGroundYForObject(x, z, prefab), z);
-        int attempts = 0;
-
-        while (IsPlaceOccupied(spawnPosition) && ++attempts < 100)
-        {
-            x = Random.Range(bounds.min.x, bounds.max.x);
-            z = Random.Range(bounds.min.z, bounds.max.z);
-            spawnPosition = new Vector3(x, GetGroundYForObject(x, z, prefab), z);
-        }
-
-        return spawnPosition;
-    }
-
-    private float GetGroundYForObject(float x, float z, GameObject obj)
-    {
-        float halfHeight = GetHalfHeight(obj);
-        return GetGroundY(x, z, halfHeight, 0f);
-    }
-
-    private float GetGroundY(float x, float z, float surfaceOffset, float fallbackY)
-    {
-        Vector3 origin = new Vector3(x, GroundRaycastOriginHeight, z);
-        RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, GroundRaycastDistance);
-
-        float bestY = float.MinValue;
-        bool found = false;
-
-        foreach (var hit in hits)
-        {
-            if (hit.collider.CompareTag("Ground") && hit.point.y > bestY)
-            {
-                bestY = hit.point.y;
-                found = true;
-            }
-        }
-
-        return (found ? bestY : fallbackY) + surfaceOffset;
+        float halfHeight = GetHalfHeight(prefab);
+        float y = GroundSnapUtils.TryGetGroundY(x, z, out float groundY, halfHeight) ? groundY : halfHeight;
+        return new Vector3(x, y, z);
     }
 
     private float GetHalfHeight(GameObject obj)
@@ -373,18 +337,5 @@ public class CreatureSpawner : MonoBehaviour
         }
         Statistics.Instance?.RecordCreatureSpawned(creatureBehaviour);
         return creatureBehaviour;
-    }
-    bool IsPlaceOccupied(Vector3 position)
-    {
-        float checkRadius = .5f;
-        Collider[] colliders = Physics.OverlapSphere(position, checkRadius);
-        foreach (var collider in colliders)
-        {
-            if (!collider.isTrigger
-                && collider.gameObject != gameObject
-                && !collider.CompareTag("Ground"))
-                return true;
-        }
-        return false;
     }
 }

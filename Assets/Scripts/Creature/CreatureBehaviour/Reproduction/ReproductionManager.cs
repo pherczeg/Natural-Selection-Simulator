@@ -96,10 +96,6 @@ public class ReproductionManager
             offspringCount = Mathf.Min(offspringCount, availableSlots);
         }
 
-        GameObject offspringPrefab = GetOffspringPrefab();
-        if (offspringPrefab == null)
-            return;
-
         int spawnedOffspring = 0;
         for (int i = 0; i < offspringCount; i++)
         {
@@ -146,21 +142,8 @@ public class ReproductionManager
                 initialAge = 0f
             };
 
-            bool spawnAccepted = ECSMirrorBridge.TryRequestSpawnCreature(request);
-            if (!spawnAccepted)
-            {
-                BaseCreatureBehaviour offspringBehavior = spawner.SpawnCreature(spawnPosition, offspringPrefab);
-                if (offspringBehavior == null)
-                    break;
-
-                InitializeOffspringFromRequest(offspringBehavior, request);
-                spawnAccepted = true;
-            }
-
-            if (spawnAccepted)
-            {
+            if (ECSMirrorBridge.TryRequestSpawnCreature(request))
                 spawnedOffspring++;
-            }
         }
 
         if (spawnedOffspring > 0)
@@ -448,54 +431,6 @@ public class ReproductionManager
     private bool IsSameSpecies(BaseCreatureBehaviour mate)
     {
         return mate != null && creature.GetType() == mate.GetType();
-    }
-
-    private GameObject GetOffspringPrefab()
-    {
-        if (CreatureSpawner.Instance == null)
-            return null;
-
-        if (creature is PredatorBehaviour)
-            return CreatureSpawner.Instance.predatorPrefab;
-
-        return CreatureSpawner.Instance.herbivorPrefab;
-    }
-
-    private static void InitializeOffspringFromRequest(
-        BaseCreatureBehaviour offspringBehavior,
-        SpawnCreatureRequest request)
-    {
-        if (offspringBehavior == null)
-            return;
-
-        CreatureSex sex = request.sex == (int)CreatureSex.Male
-            ? CreatureSex.Male
-            : CreatureSex.Female;
-        offspringBehavior.SetSex(sex);
-        offspringBehavior.Initialize(request.moveSpeed, request.weight, request.senseRadius);
-        offspringBehavior.MovementManager?.SetSprintProfile(
-            request.sprintDuration,
-            request.sprintFactor,
-            request.sprintCooldown,
-            request.sprintCooldownSpeedFactor);
-        offspringBehavior.ReproductionManager?.SetDesirability(request.desirability);
-        offspringBehavior.SetUtilityBehaviorProfile(new CreatureUtilityBehaviorData
-        {
-            keepCurrentStateWeight = request.utilityKeepCurrentStateWeight,
-            foodActionWeight = request.utilityFoodActionWeight,
-            searchMateWeight = request.utilitySearchMateWeight,
-            wanderWeight = request.utilityWanderWeight
-        });
-
-        if (offspringBehavior is HerbivoreBehaviour offspringHerbivore)
-        {
-            offspringHerbivore.SetAgility(request.agility);
-            offspringHerbivore.SetSocialStrategy((HerbivoreSocialStrategy)request.herbivoreSocialStrategy);
-        }
-        else if (offspringBehavior is PredatorBehaviour offspringPredator)
-        {
-            offspringPredator.SetStrength(request.strength);
-        }
     }
 
     private HerbivoreSocialStrategy GetInheritedHerbivoreSocialStrategy(BaseCreatureBehaviour mate)

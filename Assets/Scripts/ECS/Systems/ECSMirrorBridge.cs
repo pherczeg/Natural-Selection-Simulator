@@ -293,7 +293,6 @@ public sealed class ECSMirrorBridge : MonoBehaviour
 
         bool shouldRunSlowMirrorSync = ShouldRunSlowMirrorSync(config);
 
-        ProcessECSSpawnDespawnRequests(entityManager);
         if (shouldRunSlowMirrorSync)
         {
             SyncCreatures(entityManager, config);
@@ -303,7 +302,6 @@ public sealed class ECSMirrorBridge : MonoBehaviour
 
         ProcessECSActionExecutionBridge(entityManager, config);
         UpdateECSObservationBridge(entityManager, config);
-        ProcessECSSpawnDespawnRequests(entityManager);
     }
 
     private bool ShouldRunSlowMirrorSync(GameConfig config)
@@ -475,14 +473,6 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         requestData.completeRequested = false;
         entityManager.SetComponentData(entity, requestData);
         return requestData.hasRequest;
-    }
-
-    private void ProcessECSSpawnDespawnRequests(EntityManager entityManager)
-    {
-        ProcessDespawnCreatureRequests(entityManager);
-        ProcessDespawnFoodRequests(entityManager);
-        ProcessSpawnCreatureRequests(entityManager);
-        ProcessSpawnFoodRequests(entityManager);
     }
 
     private void ProcessECSActionExecutionBridge(EntityManager entityManager, GameConfig config)
@@ -1415,143 +1405,6 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         entityManager.SetComponentData(entity, actionTimer);
     }
 
-    private void ProcessDespawnCreatureRequests(EntityManager entityManager)
-    {
-        EntityQuery query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<DespawnCreatureRequest>());
-        using NativeArray<Entity> requestEntities = query.ToEntityArray(Allocator.Temp);
-
-        for (int i = 0; i < requestEntities.Length; i++)
-        {
-            Entity requestEntity = requestEntities[i];
-            if (!entityManager.Exists(requestEntity))
-                continue;
-
-            DespawnCreatureRequest request = entityManager.GetComponentData<DespawnCreatureRequest>(requestEntity);
-            if (TryGetCreatureByInstanceId(request.gameObjectInstanceId, out BaseCreatureBehaviour creature) &&
-                creature != null)
-            {
-                creature.CompleteDespawnFromBridge((CreatureDeathReason)request.reason);
-            }
-
-            entityManager.DestroyEntity(requestEntity);
-        }
-    }
-
-    private void ProcessDespawnFoodRequests(EntityManager entityManager)
-    {
-        EntityQuery query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<DespawnFoodRequest>());
-        using NativeArray<Entity> requestEntities = query.ToEntityArray(Allocator.Temp);
-
-        for (int i = 0; i < requestEntities.Length; i++)
-        {
-            Entity requestEntity = requestEntities[i];
-            if (!entityManager.Exists(requestEntity))
-                continue;
-
-            DespawnFoodRequest request = entityManager.GetComponentData<DespawnFoodRequest>(requestEntity);
-            if (TryGetFoodByInstanceId(request.gameObjectInstanceId, out Food food) &&
-                food != null)
-            {
-                food.CompleteDespawnFromBridge((FoodDespawnReason)request.reason);
-            }
-
-            entityManager.DestroyEntity(requestEntity);
-        }
-    }
-
-    private void ProcessSpawnCreatureRequests(EntityManager entityManager)
-    {
-        EntityQuery query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<SpawnCreatureRequest>());
-        using NativeArray<Entity> requestEntities = query.ToEntityArray(Allocator.Temp);
-
-        for (int i = 0; i < requestEntities.Length; i++)
-        {
-            Entity requestEntity = requestEntities[i];
-            if (!entityManager.Exists(requestEntity))
-                continue;
-
-            SpawnCreatureRequest request = entityManager.GetComponentData<SpawnCreatureRequest>(requestEntity);
-            ProcessSpawnCreatureRequest(request);
-            entityManager.DestroyEntity(requestEntity);
-        }
-    }
-
-    private void ProcessSpawnFoodRequests(EntityManager entityManager)
-    {
-        EntityQuery query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<SpawnFoodRequest>());
-        using NativeArray<Entity> requestEntities = query.ToEntityArray(Allocator.Temp);
-
-        for (int i = 0; i < requestEntities.Length; i++)
-        {
-            Entity requestEntity = requestEntities[i];
-            if (!entityManager.Exists(requestEntity))
-                continue;
-
-            SpawnFoodRequest request = entityManager.GetComponentData<SpawnFoodRequest>(requestEntity);
-            FoodSpawner.Instance?.SpawnFoodFromRequest(request);
-            entityManager.DestroyEntity(requestEntity);
-        }
-    }
-
-    private static void ProcessSpawnCreatureRequest(SpawnCreatureRequest request)
-    {
-        CreatureSpawner spawner = CreatureSpawner.Instance;
-        if (spawner == null)
-            return;
-
-        GameObject prefab = GetCreaturePrefab(spawner, request.creatureKind);
-        if (prefab == null)
-            return;
-
-        BaseCreatureBehaviour creature = spawner.SpawnCreature(ToVector3(request.position), prefab);
-        if (creature == null)
-            return;
-
-        CreatureSex sex = request.sex == (int)CreatureSex.Male
-            ? CreatureSex.Male
-            : CreatureSex.Female;
-        creature.SetSex(sex);
-        creature.Initialize(request.moveSpeed, request.weight, request.senseRadius);
-        creature.MovementManager?.SetSprintProfile(
-            request.sprintDuration,
-            request.sprintFactor,
-            request.sprintCooldown,
-            request.sprintCooldownSpeedFactor);
-        if (request.initialAge > 0f)
-        {
-            creature.AgeManager?.SetInitialAge(request.initialAge);
-        }
-
-        creature.ReproductionManager?.SetDesirability(request.desirability);
-        creature.SetUtilityBehaviorProfile(new CreatureUtilityBehaviorData
-        {
-            keepCurrentStateWeight = request.utilityKeepCurrentStateWeight,
-            foodActionWeight = request.utilityFoodActionWeight,
-            searchMateWeight = request.utilitySearchMateWeight,
-            wanderWeight = request.utilityWanderWeight
-        });
-        if (creature is HerbivoreBehaviour herbivore)
-        {
-            herbivore.SetAgility(request.agility);
-            herbivore.SetSocialStrategy((HerbivoreSocialStrategy)request.herbivoreSocialStrategy);
-        }
-        else if (creature is PredatorBehaviour predator)
-        {
-            predator.SetStrength(request.strength);
-        }
-    }
-
-    private static GameObject GetCreaturePrefab(CreatureSpawner spawner, int creatureKind)
-    {
-        if (creatureKind == ECSCreatureKind.Predator)
-            return spawner.predatorPrefab;
-
-        if (creatureKind == ECSCreatureKind.Herbivore)
-            return spawner.herbivorPrefab;
-
-        return null;
-    }
-
     private static BaseCreatureBehaviour FindCreatureByInstanceId(int instanceId)
     {
         CreatureSpawner spawner = CreatureSpawner.Instance;
@@ -1721,6 +1574,8 @@ public sealed class ECSMirrorBridge : MonoBehaviour
                 entityManager.SetComponentData(entity, CreateCreatureActionStateData(entityManager, entity, creature, config));
                 entityManager.SetComponentData(entity, CreateCreatureActionTargetData(entityManager, entity, creature, config));
                 entityManager.SetComponentData(entity, CreateCreatureActionTimerData(entityManager, entity, creature, config));
+                entityManager.SetComponentData(entity, GenomeFactory.FromCreature(creature));
+                entityManager.SetComponentData(entity, GenomeFactory.SeedRandomState(instanceId, (uint)GetCreatureKind(creature)));
             }
 
             if (config == null || !config.useUtilityAI || !config.useEcsUtilityScoring)
@@ -2049,14 +1904,28 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         AddComponentIfMissing<CreatureActionTimerData>(entityManager, entity);
         AddComponentIfMissing<CreatureActionRequestData>(entityManager, entity);
         AddComponentIfMissing<CreatureWanderExecutionData>(entityManager, entity);
+        AddComponentIfMissing<Genome>(entityManager, entity);
+        AddComponentIfMissing<RandomState>(entityManager, entity);
+        if (!entityManager.HasComponent<RejectedMateCooldown>(entity))
+        {
+            entityManager.AddBuffer<RejectedMateCooldown>(entity);
+        }
 
         if (creature is HerbivoreBehaviour)
         {
             AddComponentIfMissing<HerbivoreTag>(entityManager, entity);
+            if (!entityManager.HasComponent<FoodBlacklistCooldown>(entity))
+            {
+                entityManager.AddBuffer<FoodBlacklistCooldown>(entity);
+            }
         }
         else if (creature is PredatorBehaviour)
         {
             AddComponentIfMissing<PredatorTag>(entityManager, entity);
+            if (!entityManager.HasComponent<PreyBlacklistCooldown>(entity))
+            {
+                entityManager.AddBuffer<PreyBlacklistCooldown>(entity);
+            }
         }
     }
 
@@ -2530,11 +2399,6 @@ public sealed class ECSMirrorBridge : MonoBehaviour
     private static float3 ToFloat3(Vector3 source)
     {
         return new float3(source.x, source.y, source.z);
-    }
-
-    private static Vector3 ToVector3(float3 source)
-    {
-        return new Vector3(source.x, source.y, source.z);
     }
 
     private static quaternion ToQuaternion(Quaternion source)

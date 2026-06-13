@@ -14,7 +14,8 @@ colliders, selection, UI), while simulation logic incrementally moves into ECS s
 `ECSMirrorBridge` (MonoBehaviour singleton, `LateUpdate`) mirrors active creatures/food
 into entities keyed by GameObject instance id, syncs data both ways, and hosts the
 bridged execution that still needs managed objects (predation resolution, reproduction
-coroutines, spawn/despawn through the pools).
+coroutines, and creating the spawn/despawn *request* entities that the Phase 2 ECS systems
+drain — see *Phase 2* below).
 
 | Area | Where it runs | Gating flag | Notes |
 |---|---|---|---|
@@ -31,6 +32,42 @@ coroutines, spawn/despawn through the pools).
 | Reproduction / genetics | `ReproductionManager` + bridge coroutines | — | Mono + bridged; see *Reproduction* |
 | Flee-from-predator | `HerbivoreBehaviour.FixedUpdate` | — | Intentionally untouched (physics probes, per-creature threat memory) |
 | Spawning/pooling, UI, camera, ground | MonoBehaviour | — | Visualization/adapter layer |
+
+## Phase 2 — ECS-native spawn/despawn + genes on entities (full-DOTS migration)
+
+Beyond this trial pass, the simulator is executing a 10-phase full-DOTS migration (target: full creature
+behaviour in ECS, 10k+ creatures). **Phase 2** moved spawn/despawn *request processing* out of the bridge
+into dedicated ECS systems and put the first genome/RNG/cooldown data directly on entities.
+
+- **Request draining → ECS systems (the project's first `EntityCommandBuffer` usage).**
+  `ECSCreatureSpawnSystem`, `ECSFoodSpawnSystem`, `ECSDespawnSystem` (`SystemBase`, `SimulationSystemGroup`)
+  drain the existing `SpawnCreatureRequest` / `SpawnFoodRequest` / `DespawnCreatureRequest` /
+  `DespawnFoodRequest` entities via `SystemAPI.Query<RefRO<…>>().WithEntityAccess()` + an ECB that destroys
+  each request entity. They are gated by `RequireForUpdate`/`RequireAnyForUpdate`, so the idle path allocates
+  nothing. This removes the bridge's **eight per-frame `CreateEntityQuery(...).ToEntityArray()` allocations**
+  and takes the work off the hot `LateUpdate`. The systems only call the managed spawner/pool to make/teardown
+  the GameObject — they never create or destroy a creature/food **entity**; the bridge remains the single
+  GameObject↔entity linker keyed by instance id (true through Phase 7). Behavioral delta: a one-frame queue
+  latency (a request created in `LateUpdate` is drained on the next `Update`), bounded and safe — despawn-queued
+  creatures are skipped by sync/AI/population-count alike, and the species cap is re-checked at spawn time.
+- **Genes / RNG / cooldown buffers on the entity** (`Assets/Scripts/ECS/Components/Genome.cs`): `Genome`
+  (write-once gene snapshot), `RandomState` (`Unity.Mathematics.Random`, deterministically seeded non-zero),
+  and `[InternalBufferCapacity(4)]` cooldown buffers `RejectedMateCooldown`, `FoodBlacklistCooldown`
+  (herbivore), `PreyBlacklistCooldown` (predator). `ECSMirrorBridge.EnsureCreatureComponents` attaches them;
+  the bridge populates `Genome`/`RandomState` once at entity creation via `GenomeFactory.FromCreature` /
+  `GenomeFactory.SeedRandomState`. `GenomeFactory.FromSpawnRequest` is the pure mapper, pinned by
+  `GenomeFactoryTests` (EditMode). The cooldown buffers have no consumer yet — scaffolding for Phases 4–6.
+- **Flat-ground spawn placement.** `CreatureSpawner`/`FoodSpawner` no longer use `Physics.OverlapSphere`
+  occupancy rejection or `Physics.RaycastAll` ground probing; placement is random-in-bounds XZ
+  (`UnityEngine.Random.Range`, RNG stream unchanged) + flat-ground Y via `GroundSnapUtils.TryGetGroundY`. The
+  occupancy-rejection loop is intentionally dropped (cosmetic) — this kills the spawn-time spikes.
+- **Deletions.** Bridge (2545→2408 lines): `ProcessECSSpawnDespawnRequests` + both `LateUpdate` call sites,
+  `ProcessDespawn{Creature,Food}Requests`, `ProcessSpawn{Creature,Food}Requests`, `ProcessSpawnCreatureRequest`,
+  `GetCreaturePrefab`, and the now-unused `ToVector3`. `ReproductionManager`: the managed direct-spawn fallback
+  + `InitializeOffspringFromRequest` + `GetOffspringPrefab` (offspring now spawn only via the request→system
+  path). The bridge keeps the `TryRequest*` request *creators*.
+- **Verification.** Compiles; EditMode suite **107/107** (101 prior + 6 new `GenomeFactoryTests`). The runtime/CSV
+  gate (population curves within the Phase-1 baseline band) and the in-editor eyeball are manual editor steps.
 
 ## Feature flags (`Assets/Resources/GameConfig.cs`, "AI Migration" header)
 
