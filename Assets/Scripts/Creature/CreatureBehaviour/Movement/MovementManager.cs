@@ -3,8 +3,6 @@ using UnityEngine;
 
 public class MovementManager
 {
-    private const float BoundsInset = CreatureMovementCalculator.BoundsInset;
-
     private float baseMoveSpeed;
     private float currentMoveSpeed;
     private float ageMultiplier = 1f;
@@ -160,36 +158,18 @@ public class MovementManager
         if (direction.sqrMagnitude < 0.0001f || !RefreshBounds())
             return direction;
 
-        Vector3 adjusted = direction;
-        adjusted.y = 0f;
-
-        float inset = Mathf.Max(BoundsInset, halfHeight * 0.5f);
-        float edgeMargin = Mathf.Max(0.1f, margin);
-        Vector3 position = creatureTransform.position;
-        float minX = bounds.min.x + inset;
-        float maxX = bounds.max.x - inset;
-        float minZ = bounds.min.z + inset;
-        float maxZ = bounds.max.z - inset;
-
-        if ((position.x <= minX + edgeMargin && adjusted.x < 0f) ||
-            (position.x >= maxX - edgeMargin && adjusted.x > 0f))
-        {
-            adjusted.x = 0f;
-        }
-
-        if ((position.z <= minZ + edgeMargin && adjusted.z < 0f) ||
-            (position.z >= maxZ - edgeMargin && adjusted.z > 0f))
-        {
-            adjusted.z = 0f;
-        }
-
-        if (adjusted.sqrMagnitude < 0.0001f)
-        {
-            adjusted = bounds.center - position;
-            adjusted.y = 0f;
-        }
-
-        return adjusted.sqrMagnitude > 0.0001f ? adjusted.normalized : direction.normalized;
+        return FleeSteeringCalculator.SteerInsideBounds(
+            direction,
+            creatureTransform.position,
+            halfHeight,
+            margin,
+            hasBounds: true,
+            bounds.min.x,
+            bounds.max.x,
+            bounds.min.z,
+            bounds.max.z,
+            bounds.center.x,
+            bounds.center.z);
     }
 
     private bool RefreshBounds()

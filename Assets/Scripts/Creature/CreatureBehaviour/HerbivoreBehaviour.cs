@@ -6,13 +6,9 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
 {
     private static readonly int BaseColorPropertyId = Shader.PropertyToID("_BaseColor");
     private static readonly int ColorPropertyId = Shader.PropertyToID("_Color");
-    private const float MinThreatScanInterval = 0.05f;
-    private const float MaxThreatScanInterval = 0.25f;
     private BaseCreatureBehaviour forcedThreat;
-    private BaseCreatureBehaviour cachedThreat;
     private float forcedFleeUntilTime;
     private float activeFleeUntilTime;
-    private float nextThreatScanTime;
     private Vector3 lastFleeDirection;
     private BaseCreatureBehaviour capturePredator;
     [SerializeField] private HerbivoreSocialStrategy socialStrategy = HerbivoreSocialStrategy.Dove;
@@ -21,7 +17,7 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
     public HerbivoreSocialStrategy SocialStrategy => socialStrategy;
     public bool IsHawk => socialStrategy == HerbivoreSocialStrategy.Hawk;
     public bool IsCaptured => capturePredator != null;
-    public bool IsThreatened => forcedThreat != null || cachedThreat != null || Time.time < activeFleeUntilTime;
+    public bool IsThreatened => forcedThreat != null || Time.time < activeFleeUntilTime;
 
     public void SetSocialStrategy(HerbivoreSocialStrategy strategy)
     {
@@ -110,10 +106,8 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
         var config = GameConfig.Instance;
         ResetDespawnRequestState();
         forcedThreat = null;
-        cachedThreat = null;
         forcedFleeUntilTime = 0f;
         activeFleeUntilTime = 0f;
-        nextThreatScanTime = Time.time + Random.Range(0f, GetThreatScanInterval(config));
         lastFleeDirection = Vector3.zero;
         capturePredator = null;
         maxEnergy = config.herbivoreMaxEnergy > 0f ? config.herbivoreMaxEnergy : config.maxEnergy;
@@ -184,7 +178,7 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
         if (IsCaptured)
             return;
 
-        if (TryHandlePredatorFlee(config))
+        if (IsThreatened)
             return;
 
         CheckTransitions();
@@ -214,10 +208,8 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
 
         capturePredator = predator;
         forcedThreat = null;
-        cachedThreat = null;
         forcedFleeUntilTime = 0f;
         activeFleeUntilTime = 0f;
-        nextThreatScanTime = Time.time;
         lastFleeDirection = Vector3.zero;
 
         if (CurrentStateType == CreatureStateType.Eating)
@@ -239,54 +231,34 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
     public void TriggerEscapeFrom(BaseCreatureBehaviour predator)
     {
         forcedThreat = predator;
-        cachedThreat = predator;
         forcedFleeUntilTime = Time.time + Mathf.Max(0f, GameConfig.Instance.herbivorePostEscapeFleeDuration);
         activeFleeUntilTime = forcedFleeUntilTime;
-        nextThreatScanTime = Time.time;
         lastFleeDirection = GetFlatDirectionAwayFrom(predator);
     }
 
-    private bool TryHandlePredatorFlee(GameConfig config)
+    public bool UpdateEcsFlee(BaseCreatureBehaviour sensedThreat, GameConfig config)
     {
-        BaseCreatureBehaviour predator = GetNearestPredatorThreat(config);
+        if (config == null) return false;
+        BaseCreatureBehaviour predator = GetEffectiveThreat(sensedThreat);
         Vector3 awayDirection;
-        Vector3 threatForward;
-
         if (predator != null)
         {
             awayDirection = GetFlatDirectionAwayFrom(predator);
-            threatForward = predator.transform.forward;
             activeFleeUntilTime = Time.time + Mathf.Max(0f, config.herbivoreFleeMemoryDuration);
         }
         else if (Time.time < activeFleeUntilTime && lastFleeDirection.sqrMagnitude > 0.0001f)
         {
             awayDirection = lastFleeDirection.normalized;
-            threatForward = -awayDirection;
         }
         else
         {
             lastFleeDirection = Vector3.zero;
             return false;
         }
-
-        if (CurrentStateType == CreatureStateType.Eating)
-        {
-            EatingManager.InterruptEating();
-        }
-
-        threatForward.y = 0f;
+        if (CurrentStateType == CreatureStateType.Eating) EatingManager.InterruptEating();
         if (awayDirection.sqrMagnitude < 0.0001f)
-        {
             awayDirection = lastFleeDirection.sqrMagnitude > 0.0001f ? lastFleeDirection.normalized : transform.forward;
-        }
-
-        if (threatForward.sqrMagnitude < 0.0001f)
-        {
-            threatForward = -awayDirection;
-        }
-
-        Vector3 fleeDirection = GetObstacleAwareFleeDirection(awayDirection, threatForward, config.herbivoreFleeObstacleProbeDistance);
-        fleeDirection = MovementManager.SteerDirectionInsideBounds(fleeDirection, config.herbivoreFleeObstacleProbeDistance);
+        Vector3 fleeDirection = MovementManager.SteerDirectionInsideBounds(awayDirection, config.herbivoreFleeObstacleProbeDistance);
         lastFleeDirection = fleeDirection;
         MovementManager.TryStartSprint();
         Vector3 fleeTarget = transform.position + fleeDirection * Mathf.Max(0.1f, config.herbivoreFleeDistance);
@@ -294,70 +266,15 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
         return true;
     }
 
-    private BaseCreatureBehaviour GetNearestPredatorThreat(GameConfig config)
+    private BaseCreatureBehaviour GetEffectiveThreat(BaseCreatureBehaviour sensedThreat)
     {
         if (forcedThreat != null && Time.time < forcedFleeUntilTime && forcedThreat.gameObject.activeInHierarchy)
             return forcedThreat;
-
         if (forcedThreat != null && (Time.time >= forcedFleeUntilTime || !forcedThreat.gameObject.activeInHierarchy))
-        {
             forcedThreat = null;
-        }
-
-        if (creatureSpawner == null || creatureSpawner.predatorCreatures == null || ObservationManager == null)
-            return null;
-
-        if (cachedThreat != null && !IsValidThreat(cachedThreat))
-        {
-            cachedThreat = null;
-        }
-
-        if (Time.time < nextThreatScanTime)
-        {
-            return cachedThreat;
-        }
-
-        nextThreatScanTime = Time.time + GetThreatScanInterval(config);
-        float maxDistance = ObservationManager.SenseRadius;
-        float closestDistSq = maxDistance * maxDistance;
-        BaseCreatureBehaviour closest = null;
-
-        foreach (var predator in creatureSpawner.predatorCreatures)
-        {
-            if (predator == null || predator == this || !predator.gameObject.activeInHierarchy)
-                continue;
-
-            Vector3 delta = predator.transform.position - transform.position;
-            delta.y = 0f;
-            float distSq = delta.sqrMagnitude;
-            if (distSq <= closestDistSq)
-            {
-                closestDistSq = distSq;
-                closest = predator;
-            }
-        }
-
-        cachedThreat = closest;
-        return closest;
-    }
-
-    private bool IsValidThreat(BaseCreatureBehaviour predator)
-    {
-        if (predator == null || predator == this || !predator.gameObject.activeInHierarchy || ObservationManager == null)
-            return false;
-
-        Vector3 delta = predator.transform.position - transform.position;
-        delta.y = 0f;
-        float senseRadius = ObservationManager.SenseRadius;
-        return delta.sqrMagnitude <= senseRadius * senseRadius;
-    }
-
-    private static float GetThreatScanInterval(GameConfig config)
-    {
-        if (config == null)
-            return MaxThreatScanInterval;
-
-        return Mathf.Clamp(config.updateInterval, MinThreatScanInterval, MaxThreatScanInterval);
+        if (sensedThreat != null && sensedThreat != this && sensedThreat.gameObject.activeInHierarchy)
+            return sensedThreat;
+        return null;
     }
 
     private Vector3 GetFlatDirectionAwayFrom(BaseCreatureBehaviour threat)
@@ -374,37 +291,6 @@ public class HerbivoreBehaviour : BaseCreatureBehaviour
         }
 
         return awayDirection.sqrMagnitude > 0.0001f ? awayDirection.normalized : Vector3.zero;
-    }
-
-    private Vector3 GetObstacleAwareFleeDirection(Vector3 awayDirection, Vector3 predatorForward, float probeDistance)
-    {
-        if (!IsBlockedInDirection(awayDirection, probeDistance))
-            return awayDirection;
-
-        Vector3 right = Vector3.Cross(Vector3.up, awayDirection).normalized;
-        Vector3 left = -right;
-
-        Vector3 preferred = Vector3.Dot(predatorForward, right) >= 0f ? right : left;
-        Vector3 fallback = preferred == right ? left : right;
-
-        if (!IsBlockedInDirection(preferred, probeDistance))
-            return preferred;
-
-        if (!IsBlockedInDirection(fallback, probeDistance))
-            return fallback;
-
-        return awayDirection;
-    }
-
-    private bool IsBlockedInDirection(Vector3 direction, float probeDistance)
-    {
-        if (direction.sqrMagnitude < 0.0001f)
-            return false;
-
-        if (!Physics.Raycast(transform.position + Vector3.up * 0.2f, direction.normalized, out RaycastHit hit, Mathf.Max(0.1f, probeDistance)))
-            return false;
-
-        return !hit.collider.CompareTag("Ground") && !hit.collider.isTrigger;
     }
 
     // Returns true if the creature was destroyed (pooled) and FixedUpdate should abort.

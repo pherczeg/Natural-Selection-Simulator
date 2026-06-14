@@ -113,6 +113,8 @@ public struct CreatureObservationResultData : IComponentData
     public float closestPreyDistanceSq;
     public int closestMateInstanceId;
     public float closestMateDistanceSq;
+    public int closestThreatInstanceId;
+    public float closestThreatDistanceSq;
 }
 
 public struct CreatureLifecycleData : IComponentData

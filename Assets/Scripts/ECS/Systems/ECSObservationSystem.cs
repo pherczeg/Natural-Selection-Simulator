@@ -63,6 +63,8 @@ public partial class ECSObservationSystem : SystemBase
             new NativeParallelMultiHashMap<int, int>(math.max(1, foods.Length), Allocator.TempJob);
         NativeParallelMultiHashMap<int, int> herbivoreCellIndices =
             new NativeParallelMultiHashMap<int, int>(math.max(1, creatureCount), Allocator.TempJob);
+        NativeParallelMultiHashMap<int, int> predatorCellIndices =
+            new NativeParallelMultiHashMap<int, int>(math.max(1, creatureCount), Allocator.TempJob);
         NativeParallelMultiHashMap<int, int> reproductionReadyCellIndices =
             new NativeParallelMultiHashMap<int, int>(math.max(1, creatureCount), Allocator.TempJob);
 
@@ -82,6 +84,11 @@ public partial class ECSObservationSystem : SystemBase
                 herbivoreCellIndices.Add(cellHash, i);
             }
 
+            if (creatureIdentities[i].creatureKind == ECSCreatureKind.Predator)
+            {
+                predatorCellIndices.Add(cellHash, i);
+            }
+
             if (creatureContexts[i].isReproductionReady)
             {
                 reproductionReadyCellIndices.Add(cellHash, i);
@@ -97,6 +104,7 @@ public partial class ECSObservationSystem : SystemBase
             foods = foods,
             foodCellIndices = foodCellIndices,
             herbivoreCellIndices = herbivoreCellIndices,
+            predatorCellIndices = predatorCellIndices,
             reproductionReadyCellIndices = reproductionReadyCellIndices,
             inverseCellSize = inverseCellSize,
             useSpatialHash = true,
@@ -112,6 +120,7 @@ public partial class ECSObservationSystem : SystemBase
 
         JobHandle disposeHandle = results.Dispose(writeHandle);
         disposeHandle = reproductionReadyCellIndices.Dispose(disposeHandle);
+        disposeHandle = predatorCellIndices.Dispose(disposeHandle);
         disposeHandle = herbivoreCellIndices.Dispose(disposeHandle);
         disposeHandle = foodCellIndices.Dispose(disposeHandle);
         disposeHandle = foods.Dispose(disposeHandle);
@@ -166,6 +175,7 @@ public struct ECSObservationTargetSearchJob : IJobParallelFor
     [ReadOnly] public NativeArray<FoodMirrorData> foods;
     [ReadOnly] public NativeParallelMultiHashMap<int, int> foodCellIndices;
     [ReadOnly] public NativeParallelMultiHashMap<int, int> herbivoreCellIndices;
+    [ReadOnly] public NativeParallelMultiHashMap<int, int> predatorCellIndices;
     [ReadOnly] public NativeParallelMultiHashMap<int, int> reproductionReadyCellIndices;
     public float inverseCellSize;
     public bool useSpatialHash;
@@ -181,6 +191,7 @@ public struct ECSObservationTargetSearchJob : IJobParallelFor
         if (creature.creatureKind == ECSCreatureKind.Herbivore)
         {
             FindClosestFood(index, creaturePosition, ref result);
+            FindClosestThreat(index, creaturePosition, ref result);
         }
         else if (creature.creatureKind == ECSCreatureKind.Predator)
         {
@@ -316,6 +327,68 @@ public struct ECSObservationTargetSearchJob : IJobParallelFor
         }
     }
 
+    private void FindClosestThreat(
+        int creatureIndex,
+        float3 creaturePosition,
+        ref CreatureObservationResultData result)
+    {
+        float senseRadius = math.max(0f, creatureSensors[creatureIndex].senseRadius);
+        float closestDistanceSq = senseRadius * senseRadius;
+
+        if (useSpatialHash && predatorCellIndices.IsCreated && inverseCellSize > 0f)
+        {
+            int2 centerCell = PositionToCell(creaturePosition, inverseCellSize);
+            int cellRadius = (int)math.ceil(senseRadius * inverseCellSize);
+
+            for (int dx = -cellRadius; dx <= cellRadius; dx++)
+            {
+                for (int dz = -cellRadius; dz <= cellRadius; dz++)
+                {
+                    int2 cell = centerCell + new int2(dx, dz);
+                    int cellHash = HashCell(cell);
+
+                    if (!predatorCellIndices.TryGetFirstValue(
+                            cellHash,
+                            out int candidateIndex,
+                            out NativeParallelMultiHashMapIterator<int> iterator))
+                    {
+                        continue;
+                    }
+
+                    do
+                    {
+                        CreatureIdentity candidate = creatureIdentities[candidateIndex];
+                        float distanceSq = math.lengthsq(creatureTransforms[candidateIndex].position - creaturePosition);
+                        if (distanceSq < closestDistanceSq)
+                        {
+                            closestDistanceSq = distanceSq;
+                            result.closestThreatInstanceId = candidate.gameObjectInstanceId;
+                            result.closestThreatDistanceSq = distanceSq;
+                        }
+                    }
+                    while (predatorCellIndices.TryGetNextValue(out candidateIndex, ref iterator));
+                }
+            }
+
+            return;
+        }
+
+        for (int i = 0; i < creatureIdentities.Length; i++)
+        {
+            CreatureIdentity candidate = creatureIdentities[i];
+            if (candidate.creatureKind != ECSCreatureKind.Predator)
+                continue;
+
+            float distanceSq = math.lengthsq(creatureTransforms[i].position - creaturePosition);
+            if (distanceSq < closestDistanceSq)
+            {
+                closestDistanceSq = distanceSq;
+                result.closestThreatInstanceId = candidate.gameObjectInstanceId;
+                result.closestThreatDistanceSq = distanceSq;
+            }
+        }
+    }
+
     private void FindClosestMate(
         int creatureIndex,
         CreatureIdentity creature,
@@ -398,7 +471,8 @@ public struct ECSObservationTargetSearchJob : IJobParallelFor
         {
             closestFoodDistanceSq = float.MaxValue,
             closestPreyDistanceSq = float.MaxValue,
-            closestMateDistanceSq = float.MaxValue
+            closestMateDistanceSq = float.MaxValue,
+            closestThreatDistanceSq = float.MaxValue
         };
     }
 
