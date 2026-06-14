@@ -69,6 +69,52 @@ into dedicated ECS systems and put the first genome/RNG/cooldown data directly o
 - **Verification.** Compiles; EditMode suite **107/107** (101 prior + 6 new `GenomeFactoryTests`). The runtime/CSV
   gate (population curves within the Phase-1 baseline band) and the in-editor eyeball are manual editor steps.
 
+## Phase 3 — ECS threat sensing + flee + movement effects (full-DOTS migration)
+
+Phase 3 ran as two committed, separately-verified increments (each compiled + passed the EditMode batch).
+
+### 3a — Threat sensing + flee (commit 2a509df)
+- Herbivore threat detection moved into the existing Burst spatial-hash observation job: a predator cell map +
+  `FindClosestThreat` write `closestThreatInstanceId`/`closestThreatDistanceSq` on `CreatureObservationResultData`
+  (closest predator within sense radius). This **deletes the per-herbivore O(H×P) predator scan** that ran every
+  `HerbivoreBehaviour.FixedUpdate` — the headline current-scale FPS win.
+- New managed `ECSFleeSystem` (`SimulationSystemGroup`, `[UpdateAfter(ECSMovementExecutionSystem)]`): resolves the
+  herbivore + sensed threat via the bridge and calls `HerbivoreBehaviour.UpdateEcsFlee(sensedThreat, config)`. Because it
+  runs after the movement batch job and `UpdateEcsFlee` writes the transform immediately via `MovementManager.MoveTowards`,
+  flee overrides the active action (legacy "flee overrides" behavior preserved). Captured herbivores are skipped.
+- `FleeSteeringCalculator` (pure, tested) extracted from `MovementManager.SteerDirectionInsideBounds`, which now delegates
+  to it (parity-exact, single source — same pattern as `CreatureMovementCalculator`).
+- Deleted from `HerbivoreBehaviour`: `GetNearestPredatorThreat` (the scan), `IsValidThreat`, `GetThreatScanInterval`,
+  `GetObstacleAwareFleeDirection`, `IsBlockedInDirection`, the `cachedThreat`/`nextThreatScanTime` fields + scan-interval
+  consts. `FixedUpdate` now suppresses normal transitions while threatened via `if (IsThreatened) return;`.
+- **Behavioral note — obstacle-aware flee dropped.** The plan asserted the scene had no obstacles; in fact `First.unity`
+  has 4 `Obstacle`-tagged wall cubes (a 10×10 box at origin in the 150×150 ground). Creatures use **trigger** colliders and
+  pass through those walls in *all* movement modes, so the obstacle-aware flee redirect was the only place they were ever
+  considered. Dropping it makes flee consistent with every other movement; re-adding it would put a per-frame
+  `Physics.Raycast` back in the flee path for non-functional decorative walls.
+
+### 3b — Movement effects / sprint (commit 8b0c71d)
+- Per-creature sprint/temporary-effect **ticking moved off the managed `FixedUpdate`** into a Burst `ECSMovementEffectsSystem`
+  over a new `MovementState` component (sprint timers + profile + base speed + currentMoveSpeed + pending trigger fields).
+  The entity is authoritative for the ticked sprint state and `currentMoveSpeed`.
+- `SprintEffectsCalculator` made **Burst-compatible** (`Mathf.*` → `Unity.Mathematics.math.*`, float-identical) so the Burst
+  job calls the shared calculator. The system ticks by real frame `DeltaTime` (wall-clock, matching the old per-FixedUpdate
+  decay) and reads the age multiplier from `CreatureLifecycleData.speedAgeMultiplier`.
+- `MovementManager` sprint triggers (`TryStartSprint`/`ApplyTemporarySpeedMultiplier`, call sites unchanged) now **record
+  pending requests**; the bridge ferries pending → entity and `currentMoveSpeed` ← entity each slow-sync. Deleted
+  `UpdateTemporaryEffects` + `RecalculateCurrentSpeed` + the managed `sprintState`. Removed the per-FixedUpdate
+  `UpdateTemporaryEffects` call from both behaviours.
+- **Behavioral delta — sprint latency.** A sprint/debuff now takes ~one slow-sync interval to affect the queued speed
+  (trigger → push → tick → read). Sprint speed is a step function, so this is expected within tolerance; validate against
+  the predation/ecology CSV gate. **Assumes `useEcsCreatureLifecycle` is ON** (the age multiplier comes from
+  `CreatureLifecycleData`); true in the committed asset and the full-DOTS target. In an all-mono A/B config the age-speed
+  decay would not reach `currentMoveSpeed`.
+
+**Verification:** both increments compile; EditMode suite **115/115** (107 prior + 8 new `FleeSteeringCalculatorTests`; the
+`ECSObservationTargetSearchJob` test extended for `closestThreat`; `SprintEffectsCalculator` parity tests pass after the
+Burst-compat change). Runtime eyeball (herbivores scatter/sprint/post-escape-flee; predators still hunt) + benchmark/CSV
+(main-thread ms drop at 1–2k; predation/ecology within band) are manual editor steps.
+
 ## Feature flags (`Assets/Resources/GameConfig.cs`, "AI Migration" header)
 
 | Flag | Code default | Value in `GameConfig.asset` | Added |
