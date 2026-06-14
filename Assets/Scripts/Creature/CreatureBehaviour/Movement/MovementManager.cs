@@ -7,7 +7,9 @@ public class MovementManager
     private float currentMoveSpeed;
     private float ageMultiplier = 1f;
     private SprintProfileParameters sprintProfile = SprintProfileParameters.Default;
-    private SprintEffectsState sprintState = SprintEffectsState.Default;
+    private bool pendingSprintStart;
+    private float pendingTempMultiplier = -1f;
+    private float pendingTempMultiplierDuration;
     public float MoveSpeed => currentMoveSpeed;
     public float BaseMoveSpeed => baseMoveSpeed;
     public float BaseSprintDuration => sprintProfile.duration;
@@ -33,44 +35,61 @@ public class MovementManager
 
     public void SetSprintProfile(float duration, float sprintFactor, float cooldownDuration, float cooldownSpeedFactor)
     {
+        // The profile is still captured into the entity's MovementState and read by
+        // the Base* getters; sprint timer ticking now lives in ECSMovementEffectsSystem.
         sprintProfile = SprintProfileParameters.Create(duration, sprintFactor, cooldownDuration, cooldownSpeedFactor);
-        // Legacy behavior: profile changes reset the sprint timers but keep any
-        // active temporary multiplier.
-        sprintState.sprintRemaining = 0f;
-        sprintState.sprintCooldownRemaining = 0f;
-        RecalculateCurrentSpeed();
     }
 
     public bool TryStartSprint()
     {
-        if (!SprintEffectsCalculator.TryStartSprint(ref sprintState, in sprintProfile))
-            return false;
-
-        RecalculateCurrentSpeed();
+        // Records a pending sprint-start request; the bridge ferries it to the entity's
+        // MovementState and ECSMovementEffectsSystem applies + ticks it.
+        pendingSprintStart = true;
         return true;
+    }
+
+    public bool ConsumePendingSprintStart()
+    {
+        bool r = pendingSprintStart;
+        pendingSprintStart = false;
+        return r;
     }
 
     public void SetAgeMultiplier(float multiplier)
     {
+        // Stored for parity; the authoritative age multiplier is read by
+        // ECSMovementEffectsSystem from CreatureLifecycleData.speedAgeMultiplier.
         ageMultiplier = Mathf.Max(0f, multiplier);
-        RecalculateCurrentSpeed();
     }
 
     public void ApplyTemporarySpeedMultiplier(float multiplier, float duration)
     {
-        SprintEffectsCalculator.ApplyTemporaryMultiplier(ref sprintState, multiplier, duration);
-        RecalculateCurrentSpeed();
+        // Records a pending temporary multiplier request; consumed by the bridge.
+        // Clamp to [0,1] (debuffs are defined in that range, and the calculator clamps too)
+        // so a stored value can never collide with the <0 "none" sentinel.
+        pendingTempMultiplier = math.clamp(multiplier, 0f, 1f);
+        pendingTempMultiplierDuration = duration;
     }
 
-    public void UpdateTemporaryEffects(float deltaTime)
+    public bool TryConsumePendingTemporaryMultiplier(out float multiplier, out float duration)
     {
-        if (SprintEffectsCalculator.Tick(ref sprintState, deltaTime, in sprintProfile))
-            RecalculateCurrentSpeed();
+        if (pendingTempMultiplier < 0f)
+        {
+            multiplier = 0f;
+            duration = 0f;
+            return false;
+        }
+
+        multiplier = pendingTempMultiplier;
+        duration = pendingTempMultiplierDuration;
+        pendingTempMultiplier = -1f;
+        pendingTempMultiplierDuration = 0f;
+        return true;
     }
 
-    private void RecalculateCurrentSpeed()
+    public void SetCurrentMoveSpeedFromEcs(float speed)
     {
-        currentMoveSpeed = SprintEffectsCalculator.ComputeCurrentSpeed(in sprintState, baseMoveSpeed, ageMultiplier, in sprintProfile);
+        currentMoveSpeed = speed;
     }
 
     public void MoveTowards(Vector3 targetPosition)

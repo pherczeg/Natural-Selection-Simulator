@@ -270,8 +270,6 @@ public class PredatorBehaviour : BaseCreatureBehaviour
         var config = GameConfig.Instance;
         if (config == null) return;
 
-        MovementManager.UpdateTemporaryEffects(Time.fixedDeltaTime);
-
         lastObservation += Time.fixedDeltaTime;
         if (lastObservation >= config.updateInterval)
         {

@@ -1576,7 +1576,10 @@ public sealed class ECSMirrorBridge : MonoBehaviour
                 entityManager.SetComponentData(entity, CreateCreatureActionTimerData(entityManager, entity, creature, config));
                 entityManager.SetComponentData(entity, GenomeFactory.FromCreature(creature));
                 entityManager.SetComponentData(entity, GenomeFactory.SeedRandomState(instanceId, (uint)GetCreatureKind(creature)));
+                entityManager.SetComponentData(entity, CreateMovementState(creature));
             }
+
+            SyncMovementEffects(entityManager, entity, creature);
 
             if (config == null || !config.useUtilityAI || !config.useEcsUtilityScoring)
             {
@@ -1906,6 +1909,7 @@ public sealed class ECSMirrorBridge : MonoBehaviour
         AddComponentIfMissing<CreatureWanderExecutionData>(entityManager, entity);
         AddComponentIfMissing<Genome>(entityManager, entity);
         AddComponentIfMissing<RandomState>(entityManager, entity);
+        AddComponentIfMissing<MovementState>(entityManager, entity);
         if (!entityManager.HasComponent<RejectedMateCooldown>(entity))
         {
             entityManager.AddBuffer<RejectedMateCooldown>(entity);
@@ -2137,6 +2141,51 @@ public sealed class ECSMirrorBridge : MonoBehaviour
             creatureKind = GetCreatureKind(creature),
             sex = (int)creature.Sex
         };
+    }
+
+    private static MovementState CreateMovementState(BaseCreatureBehaviour creature)
+    {
+        MovementManager m = creature.MovementManager;
+        float baseSpeed = m != null ? m.BaseMoveSpeed : 0.01f;
+        return new MovementState
+        {
+            sprintRemaining = 0f,
+            sprintCooldownRemaining = 0f,
+            temporaryMultiplier = 1f,
+            temporaryMultiplierRemaining = 0f,
+            sprintDuration = m != null ? m.BaseSprintDuration : 0f,
+            sprintFactor = m != null ? m.BaseSprintFactor : 1f,
+            sprintCooldownDuration = m != null ? m.BaseSprintCooldown : 0f,
+            sprintCooldownSpeedFactor = m != null ? m.BaseSprintCooldownSpeedFactor : 1f,
+            baseMoveSpeed = baseSpeed,
+            currentMoveSpeed = baseSpeed,
+            pendingSprintStart = false,
+            pendingTempMultiplier = -1f,
+            pendingTempMultiplierDuration = 0f
+        };
+    }
+
+    private static void SyncMovementEffects(EntityManager entityManager, Entity entity, BaseCreatureBehaviour creature)
+    {
+        if (creature.MovementManager == null || !entityManager.HasComponent<MovementState>(entity))
+            return;
+
+        MovementState state = entityManager.GetComponentData<MovementState>(entity);
+
+        // managed pending triggers -> entity
+        if (creature.MovementManager.ConsumePendingSprintStart())
+            state.pendingSprintStart = true;
+
+        if (creature.MovementManager.TryConsumePendingTemporaryMultiplier(out float mult, out float dur))
+        {
+            state.pendingTempMultiplier = mult;
+            state.pendingTempMultiplierDuration = dur;
+        }
+
+        // entity ticked speed -> manager (for the execution systems' queued moves)
+        creature.MovementManager.SetCurrentMoveSpeedFromEcs(state.currentMoveSpeed);
+
+        entityManager.SetComponentData(entity, state);
     }
 
     private static int GetCreatureKind(BaseCreatureBehaviour creature)

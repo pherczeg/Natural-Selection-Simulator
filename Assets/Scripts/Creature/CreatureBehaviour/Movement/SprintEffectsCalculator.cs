@@ -1,4 +1,4 @@
-using UnityEngine;
+using Unity.Mathematics;
 
 /// <summary>
 /// Sanitized per-creature sprint gene profile. <see cref="Create"/> mirrors the
@@ -26,10 +26,10 @@ public struct SprintProfileParameters
     {
         return new SprintProfileParameters
         {
-            duration = Mathf.Max(0f, duration),
-            sprintFactor = Mathf.Max(1f, sprintFactor),
-            cooldownDuration = Mathf.Max(0f, cooldownDuration),
-            cooldownSpeedFactor = Mathf.Clamp(cooldownSpeedFactor, 0f, 1f)
+            duration = math.max(0f, duration),
+            sprintFactor = math.max(1f, sprintFactor),
+            cooldownDuration = math.max(0f, cooldownDuration),
+            cooldownSpeedFactor = math.clamp(cooldownSpeedFactor, 0f, 1f)
         };
     }
 }
@@ -138,8 +138,8 @@ public static class SprintEffectsCalculator
     /// </summary>
     public static void ApplyTemporaryMultiplier(ref SprintEffectsState state, float multiplier, float duration)
     {
-        state.temporaryMultiplier = Mathf.Clamp(multiplier, 0f, 1f);
-        state.temporaryMultiplierRemaining = Mathf.Max(0f, duration);
+        state.temporaryMultiplier = math.clamp(multiplier, 0f, 1f);
+        state.temporaryMultiplierRemaining = math.max(0f, duration);
     }
 
     /// <summary>
@@ -153,6 +153,6 @@ public static class SprintEffectsCalculator
         float cooldownMultiplier = state.sprintRemaining <= 0f && state.sprintCooldownRemaining > 0f
             ? profile.cooldownSpeedFactor
             : 1f;
-        return Mathf.Max(0f, baseSpeed * ageMultiplier * state.temporaryMultiplier * sprintMultiplier * cooldownMultiplier);
+        return math.max(0f, baseSpeed * ageMultiplier * state.temporaryMultiplier * sprintMultiplier * cooldownMultiplier);
     }
 }
