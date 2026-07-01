@@ -1558,6 +1558,18 @@ public sealed class ECSMirrorBridge : MonoBehaviour
             {
                 entityManager.SetComponentData(entity, CreateCreatureLifecycleData(entityManager, entity, creature, instanceId));
             }
+            else if (creature.MovementManager != null && entityManager.HasComponent<CreatureLifecycleData>(entity))
+            {
+                // useEcsCreatureLifecycle is OFF, so the ECS lifecycle system isn't populating this
+                // component — but the always-on ECSMovementEffectsSystem still reads speedAgeMultiplier
+                // from it to compute currentMoveSpeed. Feed the mono-computed age-speed multiplier so
+                // old-age decay still applies in mono mode (and the speed is never zeroed by the
+                // unpopulated default). Read-modify-write to leave the other (mono-authoritative) fields
+                // untouched.
+                CreatureLifecycleData life = entityManager.GetComponentData<CreatureLifecycleData>(entity);
+                life.speedAgeMultiplier = creature.MovementManager.AgeMultiplier;
+                entityManager.SetComponentData(entity, life);
+            }
 
             if (syncAIContextData)
             {

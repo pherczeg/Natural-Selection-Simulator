@@ -17,20 +17,51 @@ public class MovementManager
     public float BaseSprintCooldown => sprintProfile.cooldownDuration;
     public float BaseSprintCooldownSpeedFactor => sprintProfile.cooldownSpeedFactor;
     public float HalfHeight => halfHeight;
+    // Age-based speed multiplier computed by the mono lifecycle (AgeManager.ApplyOldAgeEffects).
+    // Read by the bridge so it can feed CreatureLifecycleData.speedAgeMultiplier when
+    // useEcsCreatureLifecycle is OFF (otherwise the always-on ECSMovementEffectsSystem reads 0).
+    public float AgeMultiplier => ageMultiplier;
 
     private BaseCreatureBehaviour creature;
     private Transform creatureTransform;
     private Bounds bounds;
     private bool hasBounds;
     private float halfHeight;
+    private float baseHalfHeight;
     public MovementManager(BaseCreatureBehaviour creature, float moveSpeed)
     {
         this.creature = creature;
         this.baseMoveSpeed = moveSpeed;
         this.currentMoveSpeed = moveSpeed;
         this.creatureTransform = creature.transform;
-        this.halfHeight = GroundSnapUtils.GetHalfHeight(creature.gameObject);
+        // GetHalfHeight reads renderer/collider bounds, which are world-space and therefore already
+        // scaled by the current localScale. AgeManager is constructed BEFORE MovementManager (see
+        // Herbivore/PredatorBehaviour.Initialize) and has already set localScale to StartScale, so we
+        // normalize by the current uniform scale to recover the unit-scale half-height ONCE. The
+        // creature then grows at runtime; halfHeight is recomputed from this cached base via
+        // RefreshHalfHeightForScale so the ground offset tracks the current size without ever
+        // re-reading bounds. NOTE: this relies on AgeManager running before MovementManager in
+        // Initialize — reordering would reintroduce the stale-offset ("cut in half") bug.
+        float currentScale = Mathf.Max(1e-4f, creatureTransform.localScale.y);
+        this.baseHalfHeight = GroundSnapUtils.GetHalfHeight(creature.gameObject) / currentScale;
+        this.halfHeight = baseHalfHeight * creatureTransform.localScale.y;
         RefreshBounds();
+    }
+
+    /// <summary>
+    /// Recomputes the ground half-height offset for the creature's current uniform scale and
+    /// re-snaps the transform Y so it stays grounded the instant its size changes (e.g. growth),
+    /// without waiting for the next movement tick. Cheap: a single multiply off the cached base
+    /// half-height plus one in-bounds ground lookup (no renderer/collider bounds read, no raycast on
+    /// the fast path). Called from AgeManager.ApplyGrowth, and only when the scale actually changed.
+    /// </summary>
+    public void RefreshHalfHeightForScale(float uniformScale)
+    {
+        halfHeight = baseHalfHeight * Mathf.Max(0f, uniformScale);
+
+        Vector3 p = creatureTransform.position;
+        if (GroundSnapUtils.TryGetGroundY(p.x, p.z, out float groundY, halfHeight))
+            creatureTransform.position = new Vector3(p.x, groundY, p.z);
     }
 
     public void SetSprintProfile(float duration, float sprintFactor, float cooldownDuration, float cooldownSpeedFactor)

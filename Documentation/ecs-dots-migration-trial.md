@@ -106,9 +106,13 @@ Phase 3 ran as two committed, separately-verified increments (each compiled + pa
   `UpdateTemporaryEffects` call from both behaviours.
 - **Behavioral delta — sprint latency.** A sprint/debuff now takes ~one slow-sync interval to affect the queued speed
   (trigger → push → tick → read). Sprint speed is a step function, so this is expected within tolerance; validate against
-  the predation/ecology CSV gate. **Assumes `useEcsCreatureLifecycle` is ON** (the age multiplier comes from
-  `CreatureLifecycleData`); true in the committed asset and the full-DOTS target. In an all-mono A/B config the age-speed
-  decay would not reach `currentMoveSpeed`.
+  the predation/ecology CSV gate. The age multiplier comes from `CreatureLifecycleData.speedAgeMultiplier`, read every
+  frame by the always-on `ECSMovementEffectsSystem`. **Fixed (post-trial): mono-lifecycle A/B mode no longer freezes.**
+  Previously, with `useEcsCreatureLifecycle` OFF the bridge never populated `CreatureLifecycleData`, so its default
+  `speedAgeMultiplier == 0` multiplied `currentMoveSpeed` to 0 and every creature stood still. Now the bridge feeds the
+  mono-computed age multiplier (`MovementManager.AgeMultiplier`) into that field when the flag is OFF, and the job floors a
+  non-positive multiplier to 1 as a safety net — so a mono-lifecycle config moves at the correct (age-decayed) speed in
+  both modes.
 
 **Verification:** both increments compile; EditMode suite **115/115** (107 prior + 8 new `FleeSteeringCalculatorTests`; the
 `ECSObservationTargetSearchJob` test extended for `closestThreat`; `SprintEffectsCalculator` parity tests pass after the

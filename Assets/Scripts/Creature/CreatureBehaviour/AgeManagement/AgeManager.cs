@@ -8,6 +8,10 @@ public class AgeManager
 
     public const float StartScale = 0.25f; // newborn scale
 
+    // Last scale pushed to the transform/ground offset. -1 sentinel ensures the first ApplyGrowth
+    // (at spawn) always applies, so the creature is grounded for its starting size immediately.
+    private float lastAppliedScale = -1f;
+
     /// <summary>How far along maturity the creature is (0 = newborn, 1 = fully mature).</summary>
     public float MaturityFraction { get; private set; }
 
@@ -60,7 +64,18 @@ public class AgeManager
     private void ApplyGrowth()
     {
         float scale = CreatureLifecycleCalculator.CalculateGrowthScale(MaturityFraction);
+
+        // Only touch the transform and ground offset when the size actually changed. This keeps the
+        // per-interval lifecycle ticks a no-op for fully-grown creatures (no redundant writes) and
+        // satisfies "update the offset only when the individual's size actually changes".
+        if (scale == lastAppliedScale)
+            return;
+
+        lastAppliedScale = scale;
         creature.transform.localScale = Vector3.one * scale;
+        // Keep the ground half-height offset in sync with the new scale (and re-snap Y) so the
+        // creature stays grounded as it grows, instead of sinking with a stale offset.
+        creature.MovementManager?.RefreshHalfHeightForScale(scale);
     }
 
     private void ApplyOldAgeEffects()

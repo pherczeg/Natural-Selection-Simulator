@@ -83,6 +83,14 @@ public partial struct MovementEffectsJob : IJobEntity
         m.sprintCooldownRemaining = state.sprintCooldownRemaining;
         m.temporaryMultiplier = state.temporaryMultiplier;
         m.temporaryMultiplierRemaining = state.temporaryMultiplierRemaining;
-        m.currentMoveSpeed = SprintEffectsCalculator.ComputeCurrentSpeed(in state, m.baseMoveSpeed, life.speedAgeMultiplier, in profile);
+
+        // CreatureLifecycleData is only populated when useEcsCreatureLifecycle is ON; this system
+        // always runs, so in the mono-lifecycle A/B mode the component stays at its default
+        // (speedAgeMultiplier == 0), which would multiply currentMoveSpeed to 0 and freeze every
+        // creature. Treat a non-positive multiplier as the neutral 1 (the ECS lifecycle calculator
+        // always yields a value in [oldAgeMinSpeedMultiplier, 1] > 0, so this is a no-op in ECS mode
+        // and only catches the unpopulated default / the one frame before the first sync).
+        float ageMultiplier = life.speedAgeMultiplier > 0f ? life.speedAgeMultiplier : 1f;
+        m.currentMoveSpeed = SprintEffectsCalculator.ComputeCurrentSpeed(in state, m.baseMoveSpeed, ageMultiplier, in profile);
     }
 }

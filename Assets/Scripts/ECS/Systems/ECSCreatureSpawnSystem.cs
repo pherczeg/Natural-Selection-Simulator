@@ -61,10 +61,10 @@ public partial class ECSCreatureSpawnSystem : SystemBase
             request.sprintFactor,
             request.sprintCooldown,
             request.sprintCooldownSpeedFactor);
-        if (request.initialAge > 0f)
-        {
-            creature.AgeManager?.SetInitialAge(request.initialAge);
-        }
+        // Always run SetInitialAge (even for 0-age newborns) so ApplyGrowth fires once at spawn and
+        // grounds the creature for its starting scale, instead of floating at the parent's Y until
+        // the first lifecycle tick re-snaps it.
+        creature.AgeManager?.SetInitialAge(request.initialAge);
 
         creature.ReproductionManager?.SetDesirability(request.desirability);
         creature.SetUtilityBehaviorProfile(new CreatureUtilityBehaviorData
